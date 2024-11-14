@@ -1,186 +1,144 @@
-//8K CPU
-//UV98_868_220430_D4固件
+// 8K CPU
+// UV98_868_220430_D4 firmware
 
+// Automatic recognition of 4-digit or 5-digit GPS/Beidou longitude and latitude data
 
-//自动识别4位或5位GPS/北斗经纬度数据
+// Fixed the problem of grid display under latitude S and longitude W
 
+// Fixed negative altitude display
+// GPS satellite number zero padding
+// Initial mileage auto-initialization
+// Intelligent beacon, minimum interval of 10 seconds
 
-//修正纬度S及经度W下网格显示问题
+// Meteorological data is based on weather icons
 
+// BT sends beacon, adds prompt sound
+// 1. Added shortcut key, long press 1 in GPS interface, quickly clear mileage to 0
+// 2. Added shortcut key, long press 2 in GPS interface,
+// Quickly set the current GPS position as the fixed station position
+// The above two require valid GPS positioning
 
+// Supports sending beacon, relay forwarding beacon via Bluetooth output only
 
+// Recognize meteorological data and display meteorological interface
 
-//修正海拔负数显示
-//GPS 卫星数补0
-//初始里程自动初始化
-//智能信标，最小间隔10秒
+// Added Bluetooth menu 4, data analysis output
+// Only receive beacon data analysis
+// Only valid under UI\GPWPL\KISS ASC options
 
+// Added meteorological unit setting interface
 
-//气象数据依据为气象图标
+// APRS upgrade package_HG_UV98_20190212 firmware
 
+// Added dynamic navigation (dynamic distance, azimuth)
 
-//BT发送信标，增加提示音
-//1、新增快捷键，GPS界面长按1，快速里程清0
-//2、新增快捷键，GPS界面长按2，
-//快速将当前GPS位置，设为固定站位置
-//上2必须GPS有效定位
+// Bluetooth supports controlling rotator
+// Fixed beacon includes heading, speed, altitude
 
-//支持发射信标、中继转发信标仅蓝牙输出
+// Allowed maximum length of received beacon extended from 120 bytes to 190 bytes
+// Allowed storing beacons without specific longitude and latitude
 
-//识别气象数据，显示气象界面
+// Fixed navigation angle and relative angle
+// Added using fixed longitude and latitude as navigation point
+// Added GPS interface top display of navigation distance, true north bearing, movement relative bearing
 
-//新增蓝牙菜单4，数据分析输出
-//仅接收信标数据分析
-//仅UI\GPWPL\KISS ASC 选项下有效 
+// Added global bearing display mode 0=NSWE 1=00-12 2=00-36
+// Adjust mileage to always be 0 after turning off
+// Fixed distance measurement issue for southern hemisphere users
+// List callsign + distance + bearing, new trial
 
-//增加气象单位设置界面
+// Fixed length overflow display issue
+// Added mileage display in GPS interface
+// Default second icon P
+// Default automatic accumulation of mileage
+// Bluetooth sync output setting data
 
+// Resistor voltage divider 100K 51K
+// Side key 2 pressed A09
+// Alarm key pressed A10
+// PTT key released A11
+// Read version adjusted to A50
+// Read serial number adjusted to A51
 
+// Bluetooth closes other debug data
+// Distance less than 10,000 meters, display 0.001KM
 
-//APRS升级包_HG_UV98_20190212固件
+// Default receive, transmit 6DB
+// P3.6 P2.7 push-pull
 
-//新增动态导航(动态距离、方位）
+// GPS status change prompt sound
+// The first 7 lines are arranged in order
+// The 8th line, if it is --- , the arrow shows ---,
+// If it is a number, it shows an arrow
 
-//蓝牙支持控制旋转器
-//固定信标包含航向、速度、海拔高度
+// GPS grid display
+// GPS 3 format display
+// PTT pulled high, send E01, send beacon, PTT pulled low
 
-//允许接收信标最大长度由120字节放宽到190字节
-//允许存储无具体经纬度的信标
+// Interface adjustments accordingly
+// Data sent to the host, automatically delayed processing
 
-//修正导航角度和相对角度
-//新增以固定经纬度作为导航点
-//新增GPS界面顶部显示导航距离、正北方位、运动相对方位
+// Fixed Bluetooth reception issue
 
-//新增全局方位显示模式    0=NSWE  1=00-12  2=00-36
-//调整里程关闭后，GPS界面里程始终为0
-//修正南半球用户测距问题
-//列表呼号+距离+方位，尝鲜
+// 8K CPU
+// APRS_8K_20180922_D test firmware
+// After writing Bluetooth settings, simultaneously send 512 bytes to the host
 
+// AT11\r\n   // Read version number
+// AT12\r\n   // Read CPU ID
 
-//修正路径超长显示溢出
-//GPS界面增加里程显示
-//默认第2图标P
-//默认里程自动累计
-//蓝牙同步输出设置数据
+// CPU power on for 500MS, continuous initialization twice
+// Adjusted 865 reset method
+// No test sound at startup
+// AT+TONE=1200 Low tone test
+// AT+TONE=2200 High tone test
+// AT+TONE=OFF High and low tone test off
 
+// Support RF remote switch relay
+// Default password 123456
 
-
-//电阻分压100K 51K
-//侧2键按下 A09
-//报警键按下A10
-//PTT键松开 A11
-//读取版本 调整为A50
-//读取序列号 调整为A51
-
-
-
-//蓝牙关闭其他调试数据
-//距离小于10,000米，显示0.001KM
-//
-
-
-//默认接收，发射6DB
-//P3.6 P2.7 推挽
-
-//GPS状态变化提示音
-//前7行按顺序排列
-//第8行，如果是  --- ，箭头就显示  ---，
-//如果是数字 ，就显示箭头
-
-//GPS 显示网格
-//GPS 3种格式显示
-//PTT拉高，发E01 发信标，PTT拉低
-
-
-
-
-
-
-
-//界面相应调整
-//发往主机的数据，自动延时处理
-
-
-
-
-
-//修正蓝牙接收问题
-
-
-
-
-
-//8K CPU
-//APRS_8K_20180922_D测试固件
-//蓝牙写入设置后，同时向主机发送512字节
-
-
- 
-
-//AT11\r\n 	 //读取版本号
-//AT12\r\n 	 //读取CPU ID
-
-//CPU上电500MS，连续初始化2次
-//调整865复位方法
-//开机无测试音	
-//AT+TONE=1200 低音测试
-//AT+TONE=2200 高音测试
-//AT+TONE=OFF  高低音测试关闭
-
-
- 
-
-
-
-//支持RF远程开关中继
-//默认密码123456
-
-//指令A0 关闭DIGI 1
-//指令A1 打开DIGI 1
-//指令B0 关闭DIGI 2
-//指令B1 打开DIGI 2
-//指令R0 复位重启
-
-//支持自定义TX PATH 1 名称
-//支持自定义TX PATH 2 名称
-
-//支持自定义DIGI 1 别名
-//支持自定义DIGI 2 别名
-
-
-//搭配双曲线界面
-//支持GPS海拔和速度曲线
-//支持温度和气压曲线
-//GPS定位后，点击速度和海拔
-
-//APRS_51G3_4K_20180408测试固件
-//刷支持曲线界面
-//支持GPS海拔和速度曲线
-//GPS定位后，点击速度和海拔
-
-
-//APRS_51G3_4K_20180221测试固件
-//修正解压缩BUG
-
-
-//移动信标支持MIC-E编码
-//AT+MICE=ON  AT+MICE=OFF 
-
-//停车P时不计里程
-//移动时累计里程，范围0-5000.0KM
-//超过5000KM，里程清0重计
-//里程单位字母（字母A-Z,a-z）
-//一个字母5000KM
-
-//卫星信号小于4颗星不发信标
-//防止卫星信号收到干扰出现的位置大漂移
-
-//APRS_51G3_4K_20180211A固件
-//蓝牙增加2项输出
-//GPS同步输出GPRMC GPGGA
-//GPS+UI同步混合输出GPRMC GPGGA和解码数据
-//$GPTXT,BH4TDV-7>RTUTV3,WIDE1-1:`.;u>/"3r} 8.3V 25.6C 1016.3pa KG928*70
-//可能会影响触摸灵敏度和解码效率
-
-
-//内存安排 UART1 128
+// Command A0 Close DIGI 1
+// Command A1 Open DIGI 1
+// Command B0 Close DIGI 2
+// Command B1 Open DIGI 2
+// Command R0 Reset and restart
+
+// Support custom TX PATH 1 name
+// Support custom TX PATH 2 name
+
+// Support custom DIGI 1 alias
+// Support custom DIGI 2 alias
+
+// Matched hyperbolic interface
+// Support GPS altitude and speed curve
+// Support temperature and pressure curve
+// After GPS positioning, click speed and altitude
+
+// APRS_51G3_4K_20180408 test firmware
+// Support curve interface
+// Support GPS altitude and speed curve
+// After GPS positioning, click speed and altitude
+
+// APRS_51G3_4K_20180221 test firmware
+// Fixed decompression bug
+
+// Mobile beacon supports MIC-E encoding
+// AT+MICE=ON  AT+MICE=OFF
+
+// Do not accumulate mileage when parking P
+// Accumulate mileage when moving, range 0-5000.0KM
+// Over 5000KM, reset and recount mileage
+// Mileage unit letter (letter A-Z,a-z)
+// One letter represents 5000KM
+
+// Do not send beacon when satellite signal is less than 4 stars
+// Prevent large drift in position caused by satellite signal interference
+
+// APRS_51G3_4K_20180211A firmware
+// Bluetooth adds 2 output items
+// GPS sync output GPRMC GPGGA
+// GPS+UI sync mixed output GPRMC GPGGA and decoded data
+// $GPTXT,BH4TDV-7>RTUTV3,WIDE1-1:`.;u >>>/3r} 8.3V 25.6C 1016.3pa KG928*70
+// May affect touch sensitivity and decoding efficiency
+
+// Memory arrangement UART1 128
