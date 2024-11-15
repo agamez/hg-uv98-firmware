@@ -1,186 +1,144 @@
 // 8K CPU
-// UV98_868_220430_D4 Firmware
+// UV98_868_220430_D4 firmware
 
+// Automatic recognition of 4-digit or 5-digit GPS/Beidou longitude and latitude data
 
-// Automatically identify 4-digit or 5-digit GPS/Beidou latitude and longitude data
+// Fixed the problem of grid display under latitude S and longitude W
 
+// Fixed negative altitude display
+// GPS satellite number zero padding
+// Initial mileage auto-initialization
+// Intelligent beacon, minimum interval of 10 seconds
 
-// Corrected the grid display problem under latitude S and longitude W
+// Meteorological data is based on weather icons
 
+// BT sends beacon, adds prompt sound
+// 1. Added shortcut key, long press 1 in GPS interface, quickly clear mileage to 0
+// 2. Added shortcut key, long press 2 in GPS interface,
+// Quickly set the current GPS position as the fixed station position
+// The above two require valid GPS positioning
 
+// Supports sending beacon, relay forwarding beacon via Bluetooth output only
 
-
-// Corrected negative altitude display
-// The number of GPS satellites is filled with 0
-// Initial mileage automatic initialization
-// Smart beacon, minimum interval 10 seconds
-
-
-// Weather data is based on weather icons
-
-
-// BT sends beacon, adds prompt tone
-// 1. Added a shortcut key. Long press 1 on the GPS interface to quickly clear the mileage.
-// 2. Added shortcut keys. Long press 2 on the GPS interface.
-// Quickly set the current GPS location as a fixed station location
-// 2. GPS positioning is required
-
-// Supports transmitting beacons and relaying beacons. Only Bluetooth output is available.
-
-// Identify meteorological data and display the meteorological interface
+// Recognize meteorological data and display meteorological interface
 
 // Added Bluetooth menu 4, data analysis output
-// Receive only beacon data analysis
-// Only valid under UI\GPWPL\KISS ASC option
+// Only receive beacon data analysis
+// Only valid under UI\GPWPL\KISS ASC options
 
-// Added weather unit setting interface
+// Added meteorological unit setting interface
 
+// APRS upgrade package_HG_UV98_20190212 firmware
 
+// Added dynamic navigation (dynamic distance, azimuth)
 
-// APRS Upgrade Package_HG_UV98_20190212 Firmware
+// Bluetooth supports controlling rotator
+// Fixed beacon includes heading, speed, altitude
 
-// Added dynamic navigation (dynamic distance, direction)
+// Allowed maximum length of received beacon extended from 120 bytes to 190 bytes
+// Allowed storing beacons without specific longitude and latitude
 
-// Bluetooth support to control the spinner
-// Fixed beacons include heading, speed, altitude
+// Fixed navigation angle and relative angle
+// Added using fixed longitude and latitude as navigation point
+// Added GPS interface top display of navigation distance, true north bearing, movement relative bearing
 
-// The maximum length of the received beacon is increased from 120 bytes to 190 bytes
-// Allows storing beacons without specific latitude and longitude
+// Added global bearing display mode 0=NSWE 1=00-12 2=00-36
+// Adjust mileage to always be 0 after turning off
+// Fixed distance measurement issue for southern hemisphere users
+// List callsign + distance + bearing, new trial
 
-// Correct navigation angle and relative angle
-// Added fixed longitude and latitude as navigation points
-// Added navigation distance, true north direction, and relative direction at the top of the GPS interface
-
-// Added global orientation display mode 0=NSWE 1=00-12 2=00-36
-// After adjusting the mileage is turned off, the mileage on the GPS interface is always 0
-// Fixed the distance measurement issue for users in the southern hemisphere
-// List callsign + distance + direction, try it out
-
-
-// Corrected the overflow of the path when it is too long
-// Add mileage display to GPS interface
-// Default 2nd Icon P
-// Default mileage automatic accumulation
-// Bluetooth synchronous output setting data
-
-
+// Fixed length overflow display issue
+// Added mileage display in GPS interface
+// Default second icon P
+// Default automatic accumulation of mileage
+// Bluetooth sync output setting data
 
 // Resistor voltage divider 100K 51K
-// Side 2 button press A09
-// Alarm button pressed A10
-// Release the PTT button A11
+// Side key 2 pressed A09
+// Alarm key pressed A10
+// PTT key released A11
 // Read version adjusted to A50
-// The read serial number is adjusted to A51
+// Read serial number adjusted to A51
 
+// Bluetooth closes other debug data
+// Distance less than 10,000 meters, display 0.001KM
 
+// Default receive, transmit 6DB
+// P3.6 P2.7 push-pull
 
-// Bluetooth off other debugging data
-// If the distance is less than 10,000 meters, 0.001KM will be displayed.
-// 
+// GPS status change prompt sound
+// The first 7 lines are arranged in order
+// The 8th line, if it is --- , the arrow shows ---,
+// If it is a number, it shows an arrow
 
+// GPS grid display
+// GPS 3 format display
+// PTT pulled high, send E01, send beacon, PTT pulled low
 
-// Default reception, transmission 6DB
-// P3.6 P2.7 Push-pull
-
-// GPS status change notification tone
-// The first 7 rows are arranged in order
-// In line 8, if it is ---, the arrow will display ---.
-// If it is a number, show an arrow
-
-// GPS Display Grid
-// GPS 3 formats display
-// PTT is pulled high, E01 is sent, beacon is sent, PTT is pulled low
-
-
-
-
-
-
-
-// Interface adjustments
-// Data sent to the host is automatically delayed for processing
-
-
-
-
+// Interface adjustments accordingly
+// Data sent to the host, automatically delayed processing
 
 // Fixed Bluetooth reception issue
 
-
-
-
-
 // 8K CPU
 // APRS_8K_20180922_D test firmware
-// After Bluetooth writes the settings, 512 bytes are sent to the host at the same time
+// After writing Bluetooth settings, simultaneously send 512 bytes to the host
 
+// AT11\r\n   // Read version number
+// AT12\r\n   // Read CPU ID
 
- 
-
-// AT11\r\n //Read version number
-// AT12\r\n //Read CPU ID
-
-// The CPU is powered on for 500MS and initialized twice in succession
-// Adjust 865 reset method
-// No test tone when powering on
-// AT+TONE=1200 Bass test
-// AT+TONE=2200 high tone test
-// AT+TONE=OFF Turn off the high and low tone test
-
-
- 
-
-
+// CPU power on for 500MS, continuous initialization twice
+// Adjusted 865 reset method
+// No test sound at startup
+// AT+TONE=1200 Low tone test
+// AT+TONE=2200 High tone test
+// AT+TONE=OFF High and low tone test off
 
 // Support RF remote switch relay
 // Default password 123456
 
-// Command A0 turns off DIGI 1
-// Command A1 Turn on DIGI 1
-// Command B0 turns off DIGI 2
-// Command B1 Turn on DIGI 2
-// Instruction R0 reset restart
+// Command A0 Close DIGI 1
+// Command A1 Open DIGI 1
+// Command B0 Close DIGI 2
+// Command B1 Open DIGI 2
+// Command R0 Reset and restart
 
 // Support custom TX PATH 1 name
 // Support custom TX PATH 2 name
 
 // Support custom DIGI 1 alias
-// Support custom DIGI 2 aliases
+// Support custom DIGI 2 alias
 
-
-// With hyperbolic interface
-// Support GPS altitude and speed curves
-// Support temperature and pressure curves
-// After GPS positioning, click on speed and altitude
+// Matched hyperbolic interface
+// Support GPS altitude and speed curve
+// Support temperature and pressure curve
+// After GPS positioning, click speed and altitude
 
 // APRS_51G3_4K_20180408 test firmware
-// Brush support curve interface
-// Support GPS altitude and speed curves
-// After GPS positioning, click on speed and altitude
-
+// Support curve interface
+// Support GPS altitude and speed curve
+// After GPS positioning, click speed and altitude
 
 // APRS_51G3_4K_20180221 test firmware
 // Fixed decompression bug
 
-
-// Mobile beacons support MIC-E encoding
+// Mobile beacon supports MIC-E encoding
 // AT+MICE=ON  AT+MICE=OFF
 
-// No mileage is counted when parking in P
-// Accumulated mileage while moving, range 0-5000.0KM
-// If the mileage exceeds 5000km, the mileage will be reset to zero and counted again.
-// Mileage unit letters (letters AZ, az)
-// One letter 5000KM
+// Do not accumulate mileage when parking P
+// Accumulate mileage when moving, range 0-5000.0KM
+// Over 5000KM, reset and recount mileage
+// Mileage unit letter (letter A-Z,a-z)
+// One letter represents 5000KM
 
-// If the satellite signal is less than 4 stars, no beacon will be sent
-// Prevent satellite signals from drifting due to interference
+// Do not send beacon when satellite signal is less than 4 stars
+// Prevent large drift in position caused by satellite signal interference
 
-// APRS_51G3_4K_20180211A Firmware
-// Bluetooth adds 2 outputs
-// GPS synchronized output GPRMC GPGGA
-// GPS+UI synchronous mixed output GPRMC GPGGA and decoded data
-// $GPTXT,BH4TDV-7&gt;RTUTV3,WIDE1-1:`.;u &gt;/&quot;3r} 8.3V 25.6C 1016.3pa KG928*70
+// APRS_51G3_4K_20180211A firmware
+// Bluetooth adds 2 output items
+// GPS sync output GPRMC GPGGA
+// GPS+UI sync mixed output GPRMC GPGGA and decoded data
+// $GPTXT,BH4TDV-7>RTUTV3,WIDE1-1:`.;u >>>/3r} 8.3V 25.6C 1016.3pa KG928*70
 // May affect touch sensitivity and decoding efficiency
 
-
-// Memory Arrangement UART1 128
+// Memory arrangement UART1 128
