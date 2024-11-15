@@ -4,16 +4,16 @@
 
  
  
-unsigned char SN_RX_BUFFER[250]=0;	//解码后的KISS数据，不含C0 00 ..C0,  长度<128
+unsigned char SN_RX_BUFFER[250]=0;	// Decoded KISS data, excluding C0 00 ..C0, length &lt; 128
  
-unsigned char KISS_DATA[200];	//解码后的KISS数据，不含C0 00 ..C0,  长度<128
-unsigned char KISS_LEN;			//解码后的KISS数据长度
+unsigned char KISS_DATA[200];	// Decoded KISS data, excluding C0 00 ..C0, length &lt; 128
+unsigned char KISS_LEN;			// Decoded KISS data length
 
  
-uchar ASC_TEMP[300];		//临时文本数据
+uchar ASC_TEMP[300];		// Temporary text data
  
 uint   TIME_1S;
  
-uchar GPS_LINK;	   //GPS是否连接
+uchar GPS_LINK;	   // Is GPS connected?
 
 uchar A20_OUT_EN;

@@ -4,18 +4,18 @@
 #define _BEACON_H_
 
  
-/*************  外部函数和变量声明 *****************/
+/************* External function and variable declaration*****************/
 
 
 
  
-extern void BEACON_GPS_TXD();	 //发射GPS 信标
+extern void BEACON_GPS_TXD();	 // Transmitting GPS beacons
 
  
 
-extern void tx_manual(); //
+extern void tx_manual(); // 
 
-extern uint GPS_BEACON_TIME; 		   //GPS定时信标计时
+extern uint GPS_BEACON_TIME; 		   // GPS Timing Beacon Timing
 
 
 #endif

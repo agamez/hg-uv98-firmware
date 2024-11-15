@@ -2,7 +2,7 @@
 #define _DELAY_H_
 
 
-/*************  外部函数和变量声明 *****************/
+/************* External function and variable declaration*****************/
 
 extern void Delay_time_25ms(unsigned int n);
 

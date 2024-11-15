@@ -4,7 +4,7 @@
 #define _DIGI_H_
 
  
-/*************  外部函数和变量声明 *****************/
+/************* External function and variable declaration*****************/
 
 
 

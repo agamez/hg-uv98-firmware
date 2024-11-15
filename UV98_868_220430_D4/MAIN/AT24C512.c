@@ -19,7 +19,7 @@ unsigned char  AT24C512_RW_BUF[256];
  
 
 /**************************************
-延时5US*11.0592=55
+Delay 5US*11.0592=55
 **************************************/
 void AT24_Delay()
 {
@@ -34,108 +34,108 @@ void AT24_Delay()
 }
 
 /**************************************
-起始信号
+Start signal
 **************************************/
 
 void AT24C512_Start()
 {
-    AT24_SDA = 1;                    //拉高数据线
-    AT24_Delay();                 //延时
-    AT24_SCL = 1;                    //拉高时钟线
-    AT24_Delay();                 //延时
-    AT24_SDA = 0;                    //产生下降沿
-    AT24_Delay();                 //延时
-    AT24_SCL = 0;                    //拉低时钟线
-    AT24_Delay();                 //延时
+    AT24_SDA = 1;                    // Pull up the data line
+    AT24_Delay();                 // Delay
+    AT24_SCL = 1;                    // Pull the clock line high
+    AT24_Delay();                 // Delay
+    AT24_SDA = 0;                    // Generate falling edge
+    AT24_Delay();                 // Delay
+    AT24_SCL = 0;                    // Pull the clock line low
+    AT24_Delay();                 // Delay
 }
 /**************************************
-停止信号
+Stop signal
 **************************************/
 
 void AT24C512_Stop()
 {
-    AT24_SDA = 0;                    //拉低数据线
-    AT24_Delay();                 //延时
-    AT24_SCL = 1;                    //拉高时钟线
-    AT24_Delay();                 //延时
-    AT24_SDA = 1;                    //产生上升沿
-    AT24_Delay();                 //延时
+    AT24_SDA = 0;                    // Pull the data line low
+    AT24_Delay();                 // Delay
+    AT24_SCL = 1;                    // Pull the clock line high
+    AT24_Delay();                 // Delay
+    AT24_SDA = 1;                    // Generate rising edge
+    AT24_Delay();                 // Delay
 }
 
 /**************************************
-发送应答信号
-入口参数:ack (0:ACK 1:NAK)
+Sending an answer signal
+Ingress parameter: ack (0:ACK 1:NAK)
 **************************************/
 void AT24CXX_ACK(bit ACK)
 {
-    AT24_SDA = ACK;                  //写应答信号
-    AT24_SCL = 1;                    //拉高时钟线
-    AT24_Delay();                 //延时
-    AT24_SCL = 0;                    //拉低时钟线
-    AT24_Delay();                 //延时
+    AT24_SDA = ACK;                  // Write response signal
+    AT24_SCL = 1;                    // Pull the clock line high
+    AT24_Delay();                 // Delay
+    AT24_SCL = 0;                    // Pull the clock line low
+    AT24_Delay();                 // Delay
 }
 
 
 /**************************************
-接收应答信号
+Receive response signal
 **************************************/
 bit AT24_RecvACK()
 {
-    AT24_SCL = 1;                    //拉高时钟线
+    AT24_SCL = 1;                    // Pull the clock line high
 
     AT24_SDA = 1;
-    AT24_Delay();                 //延时
-    CY = AT24_SDA;                   //读应答信号
+    AT24_Delay();                 // Delay
+    CY = AT24_SDA;                   // Read response signal
 
-//	if (AT24_SDA==1)	{AT24_LINK=0;}  //没有应答，则AT24没安装
-//	else{AT24_LINK=1;}
+// if (AT24_SDA==1) {AT24_LINK=0;} //No response, then AT24 is not installed
+// else{AT24_LINK=1;}
 
-    AT24_SCL = 0;                    //拉低时钟线
-    AT24_Delay();                 //延时
+    AT24_SCL = 0;                    // Pull the clock line low
+    AT24_Delay();                 // Delay
 
     return CY;
 }
 
 /**************************************
-向IIC总线发送一个字节数据
+Send a byte of data to the IIC bus
 **************************************/
 uchar AT24CXX_write_byte(unsigned char value)
 {
     unsigned char i;
 
-    for (i = 0; i < 8; i++)     //8位计数器
+    for (i = 0; i < 8; i++)     // 8-bit counter
     {
-        value <<= 1;            //移出数据的最高位
-        AT24_SDA = CY;        //送数据口
-        AT24_Delay();            //延时
-        AT24_SCL = 1;          //拉高时钟线
-        AT24_Delay();            //延时
-        AT24_SCL = 0;          //拉低时钟线
-        AT24_Delay();             //延时
+        value <<= 1;            // Shift out the highest bit of data
+        AT24_SDA = CY;        // Data transmission port
+        AT24_Delay();            // Delay
+        AT24_SCL = 1;          // Pull the clock line high
+        AT24_Delay();            // Delay
+        AT24_SCL = 0;          // Pull the clock line low
+        AT24_Delay();             // Delay
     }
 
-    return AT24_RecvACK();		 // 0 =有应答  1=没有应答
+    return AT24_RecvACK();		 // 0 = Answered 1 = No answer
 }
 
 
 /**************************************
-从IIC总线接收一个字节数据
+Receive one byte of data from the IIC bus
 **************************************/
 uchar AT24CXX_read_byte()
 {
     uchar i;
     uchar dat = 0;
 
-    AT24_SDA = 1;            //使能内部上拉,准备读取数据,
+    AT24_SDA = 1;            // Enable internal pull-up and prepare to read data.
 
-    for (i = 0; i < 8; i++)    //8位计数器
+    for (i = 0; i < 8; i++)    // 8-bit counter
     {
         dat <<= 1;
-        AT24_SCL = 1;         //拉高时钟线
-        AT24_Delay();           //延时
-        dat |= AT24_SDA;     //读数据
-        AT24_SCL = 0;         //拉低时钟线
-        AT24_Delay();            //延时
+        AT24_SCL = 1;         // Pull the clock line high
+        AT24_Delay();           // Delay
+        dat |= AT24_SDA;     // Read Data
+        AT24_SCL = 0;         // Pull the clock line low
+        AT24_Delay();            // Delay
     }
 
     return dat;
@@ -152,7 +152,7 @@ void AT24CXX_WRITE(unsigned int addr, unsigned char wdata)
     AT24CXX_write_byte(wdata);
     AT24C512_Stop();
     AT24_WP = 1;
-    Delay_time_1ms(5);	//写数据要加延时，不然死机，写不用加延时
+    Delay_time_1ms(5);	// Writing data requires a delay, otherwise the system will crash. Writing does not require a delay
 }
 
 
@@ -172,7 +172,7 @@ unsigned char AT24CXX_READ(unsigned int addr)
 
     return i;
 }
-//128字节的页写
+// 128-byte page write
 unsigned char AT24CXX_WRITE_N(unsigned int addr, unsigned char  *buf, uint len)
 {
     uint i;
@@ -192,12 +192,12 @@ unsigned char AT24CXX_WRITE_N(unsigned int addr, unsigned char  *buf, uint len)
     AT24C512_Stop();
     AT24_WP = 1;
 
-    Delay_time_1ms(5);	//	//写数据必须要加延时
+    Delay_time_1ms(5);	// //Writing data must be delayed
 
     return i;
 }
 
-//128字节的页读
+// 128-byte page read
 void  AT24CXX_READ_N(unsigned int addr, unsigned char  *buf, uint len)
 {
     uint i;
@@ -223,29 +223,29 @@ void  AT24CXX_READ_N(unsigned int addr, unsigned char  *buf, uint len)
 
 
 
-//
-//void AT2C512_TEST()
-//{
-//	uint i;		   uchar temp[20];
-//
-////	AT24CXX_WRITE(0x0000,0x0E);	 	//指定地址写入一个字节
-////	UART1_SendData(AT24CXX_READ(0x0000));	 //指定地址读出一个字节
-////	for(i=0;i<256;i++)	 {UART1_SendData(AT24CXX_READ(0x0000+i));  }
-////	AT24CXX_WRITE_N(0x0000,AT24C512_W_BUF,128);		 //指定地址写入128个字节
-////	AT24CXX_READ_N(0x0000,AT24C512_R_BUF,128);		//指定地址读出128个字节
-////	for(i=0;i<128;i++)	 {  UART1_SendData(AT24C512_R_BUF[i]); }
-//
-//	AT24CXX_READ_N(0,AT24C512_RW_BUF,20);
-//	DEBUG_KISS(AT24C512_RW_BUF,20);
-//
-//	for (i = 0; i<9; i++) { temp[i]=AT24CXX_READ(0+16+i); temp[i+1]=0; }  //呼号
-//	DEBUG_KISS(temp,9);
-//
-//
-//}
-//
+// 
+// void AT2C512_TEST()
+// {
+// uint i; volatile temp[20];
+// 
+// AT24CXX_WRITE(0x0000,0x0E); //Write a byte to the specified address
+// UART1_SendData(AT24CXX_READ(0x0000)); //Read a byte from the specified address
+// for(i=0;i<256;i++)	 {UART1_SendData(AT24CXX_READ(0x0000+i));  }
+// AT24CXX_WRITE_N(0x0000,AT24C512_W_BUF,128); //Write 128 bytes to the specified address
+// AT24CXX_READ_N(0x0000,AT24C512_R_BUF,128); //Read 128 bytes from the specified address
+// for(i=0;i<128;i++)	 {  UART1_SendData(AT24C512_R_BUF[i]); }
+// 
+// AT24CXX_READ_N(0,AT24C512_RW_BUF,20);
+// DEBUG_KISS(AT24C512_RW_BUF,20);
+// 
+// for (i = 0; i<9; i++) { temp[i]=AT24CXX_READ(0+16+i); temp[i+1]=0; }  //鍛煎彿
+// DEBUG_KISS(temp,9);
+// 
+// 
+// }
+// 
 
-void AT2C512_CLEAN()   //清除全部记录0-511,清除索引
+void AT2C512_CLEAN()   // Clear all records 0-511, clear index
 {
     uint i, n;
     UART2_SendString("Wait...\r\n");
@@ -257,13 +257,13 @@ void AT2C512_CLEAN()   //清除全部记录0-511,清除索引
 
     for(n = 0; n < 512; n++)
     {
-        AT24CXX_WRITE_N(n * 128, AT24C512_RW_BUF, 128);		   //指定地址写入128个字节
+        AT24CXX_WRITE_N(n * 128, AT24C512_RW_BUF, 128);		   // Write 128 bytes to the specified address
     }
 
     UART2_SendString("DATA Clean OK\r\n");
 }
 
-//  0x0000-0x6400  （0-25600）,每条信标占用256字节，一共100条记录，索引0-99存储在 0x8000
-//  0x6500-0x7180    ,列表存储区，每16字节一套索引，一共100条索引
-//  BH4TDV-XX 99 信标存储地址索引 0-99
-//	0xFE00  最后512 存储设置数据
+// 0x0000-0x6400 (0-25600), each beacon occupies 256 bytes, a total of 100 records, index 0-99 is stored at 0x8000
+// 0x6500-0x7180 , list storage area, one index per 16 bytes, a total of 100 indexes
+// BH4TDV-XX 99 Beacon storage address index 0-99
+// 0xFE00 Last 512 storage setting data

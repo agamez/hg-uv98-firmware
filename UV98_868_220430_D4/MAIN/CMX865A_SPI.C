@@ -12,103 +12,103 @@
 #include "CRC16.H"
 #include "DELAY.H"
 #include "CMX865A_DECODE.H"
-#include  <INTRINS.H> //Keil library 
+#include  <INTRINS.H> // Keil library
 
 
 
-/************* ¶¨ÒåW5100 CBUSµÄÒý½Å¶Ë¿Ú **************/
-//sbit CMX865A_SCS	=P2^1;	//	CBUS	 ¶¨ÒåCBUSµÄÆ¬Ñ¡ÐÅºÅ¶Ë¿Ú
-//sbit CMX865A_SCLK	=P2^0;	//	CBUS	 ¶¨ÒåCBUSµÄÊ±ÖÓÐÅºÅ¶Ë¿Ú
-////sbit CMX865A_RST	=P0^3;	//	CBUS
-//sbit CMX865A_MOSI	=P4^2;	//	CBUS	 ¶¨ÒåCBUSµÄMOSI¶Ë¿Ú
-//sbit CMX865A_MISO	=P4^1;	//	CBUS	 ¶¨ÒåCBUSµÄMISO¶Ë¿Ú
+/************* Define the pin port of W5100 CBUS**************/
+// sbit CMX865A_SCS =P2^1; // CBUS defines the chip select signal port of CBUS
+// sbit CMX865A_SCLK =P2^0; // CBUS defines the CBUS clock signal port
+// sbit CMX865A_RST = P0^3; // CBUS
+// sbit CMX865A_MOSI =P4^2; // CBUS defines the MOSI port of CBUS
+// sbit CMX865A_MISO =P4^1; // CBUS defines the MISO port of CBUS
 
 
-//uchar CMX86X_TX_VOL;	 //1 0-7
-//uchar CMX86X_RX_VOL;	 //1 0-7
+// float CMX86X_TX_VOL; //1 0-7
+// float CMX86X_RX_VOL; //1 0-7
 
 
-//uchar CMX86X_TX_VOL;	 //1 0-7
-//uchar CMX86X_RX_VOL;	 //1 0-7
+// float CMX86X_TX_VOL; //1 0-7
+// float CMX86X_RX_VOL; //1 0-7
 
 
-#define CMX86X_TX_VOL  	EEPROM_Buffer[0X1D3]	 //1 0-7
-#define CMX86X_RX_VOL  	EEPROM_Buffer[0X1D4]	 //1 0-7
+#define CMX86X_TX_VOL  	EEPROM_Buffer[0X1D3]	 // 1 0-7
+#define CMX86X_RX_VOL  	EEPROM_Buffer[0X1D4]	 // 1 0-7
 
 
-//#define TX_MODE 0x90   //0X00-0XF0
-//#define RX_MODE 0X90   //0X00-0XF0
+// #define TX_MODE 0x90   //0X00-0XF0
+// #define RX_MODE 0X90   //0X00-0XF0
 
-#define TX_MODE 0x30   //0X00-0XF0
-#define RX_MODE 0X30   //0X00-0XF0	
-//
+#define TX_MODE 0x30   // 0X00-0XF0
+#define RX_MODE 0X30   // 0X00-0XF0
+// 
 
-//±ê×¼	ËÙÂÊ	Òôµ÷1¡¢0	Ó¦ÓÃ
-//BELL 202	1200	1200\2200	UV 	   0x30
-//V.23  	1200	1300\2100	UV 	   0x50
-//V.21 H	300	1650\1850	HF		 0x90
-//V.21 L	300	980\1180	HF		 0x80
+// Standard Rate Tone 1, 0 Application
+// BELL 202	1200	1200\2200	UV 	   0x30
+// V.23  	1200	1300\2100	UV 	   0x50
+// V.21 H	300	1650\1850	HF		 0x90
+// V.21 L	300	980\1180	HF		 0x80
 
-//BELL 103 H	300	2225\2025	HF	 0x70
-//BELL 103 L	300	1270\1070	HF	 0x60
-
-
-//b15 b14  b13  b12
-//1  1  1  1  V.22 bis 2400 bps QAM  High band (Answering modem)
-//1  1  1  0  ¡°  Low band (Calling modem)
-//1  1  0  1  V.22/Bell 212A 1200 bps DPSK  High band (Answering modem)
-//1  1  0  0  ¡°  Low band (Calling modem)
-//1  0  1  1  V.22 600 bps DPSK  High band (Answering modem)
-//1  0  1  0  ¡°  Low band (Calling modem)
-//1  0  0  1  V.21 300 bps FSK  High band (Answering modem)
-//1  0  0  0  ¡°  Low band (Calling modem)
-//0  1  1  1  Bell 103 300 bps FSK  High band (Answering modem)
-//0  1  1  0  ¡°  Low band (Calling modem)
-//0  1  0  1  V.23 FSK  1200 bps
-//0  1  0  0  ¡°  75 bps
-//0  0  1  1  Bell 202 FSK  1200 bps
-//0  0  1  0  ¡°  150 bps
-//0  0  0  1  DTMF / Tones
-//0  0  0  0  Transmitter disabled 1  0  0  0  ¡°  Low band (Calling modem)
+// BELL 103 H	300	2225\2025	HF	 0x70
+// BELL 103 L	300	1270\1070	HF	 0x60
 
 
+// b15 b14  b13  b12
+// 1  1  1  1  V.22 bis 2400 bps QAM  High band (Answering modem)
+// 1  1  1  0  â€œ  Low band (Calling modem)
+// 1  1  0  1  V.22/Bell 212A 1200 bps DPSK  High band (Answering modem)
+// 1  1  0  0  â€œ  Low band (Calling modem)
+// 1  0  1  1  V.22 600 bps DPSK  High band (Answering modem)
+// 1  0  1  0  â€œ  Low band (Calling modem)
+// 1  0  0  1  V.21 300 bps FSK  High band (Answering modem)
+// 1  0  0  0  â€œ  Low band (Calling modem)
+// 0  1  1  1  Bell 103 300 bps FSK  High band (Answering modem)
+// 0  1  1  0  â€œ  Low band (Calling modem)
+// 0 1 0 1 V.23 FSK 1200 bps
+// 0  1  0  0  â€œ  75 bps
+// 0  0  1  1  Bell 202 FSK  1200 bps
+// 0  0  1  0  â€œ  150 bps
+// 0  0  0  1  DTMF / Tones
+// 0  0  0  0  Transmitter disabled 1  0  0  0  â€œ  Low band (Calling modem)
 
 
 
-//
-//void CMX865A_833US()	  //Ê¹ÓÃTIME1×ö¶¨Ê±Æ÷, ÑÓÊ±833us
-//{
-//   	CCON = 0;					//Çå³ýCF¡¢CR¡¢CCF0¡¢CCF1
-//	CH = (65536-760*2)/256;		//PCA»ù×¼¶¨Ê±Æ÷Éè³õÖµ¡£
-//	CL = (65536-760*2)%256;		//;65536-22.1184MÕñµ´MHZ/12*833US	 =65536-1535
-//	CR = 1;						//Æô¶¯PCA¶¨Ê±Æ÷¡£
-//		while (!CF);
-//}
 
 
-void CMX865A_Delay5us()		//@@22.1184MHz
+// 
+// void CMX865A_833US() //Use TIME1 as timer, delay 833us
+// {
+// CCON = 0; // Clear CF, CR, CCF0, CCF1
+// CH = (65536-760*2)/256; //Set the initial value of PCA reference timer.
+// CL = (65536-760*2)%256; //;65536-22.1184M oscillation MHZ/12*833US =65536-1535
+// CR = 1; //Start PCA timer.
+// while (!CF);
+// }
+
+
+void CMX865A_Delay5us()		// @@22.1184MHz
 {
-//	unsigned char i;
+// unsigned char i;
 
     _nop_();
     _nop_();
     _nop_();
     _nop_();
 
-//	i = 5;
-//	while (--i);
+// i = 5;
+// while (--i);
 }
-//********************************************************************/
-//Ñ¡ÔñÍ¬²½Êý¾ÝÄ£Ê½£¬ÔòÔÚTXÊý¾Ý»º³åÆ÷ÖÐµÄ8¸öÊý¾ÝÎ»´®ÐÐ´«Êä£»
-//Êý¾ÝB0Ê×ÏÈ±»·¢ËÍ£¬Òò´ËÊÇ·´µÄ,Ô­Ê¼Êý¾ÝÐèÒª¸ßÎ»µÍÎ»½»»»ºóÔÚ·¢ËÍ
-//Í¬²½Êý¾ÝÄ£Ê½£¬Êý¾ÝB0Ê×ÏÈ±»·¢ËÍ
-void CBUS_WRITE_E3 ( unsigned char dat )	//·¢ËÍÊý¾Ý
+// ********************************************************************/
+// If synchronous data mode is selected, the 8 data bits in the TX data buffer are transmitted serially;
+// Data B0 is sent first, so it is reversed. The original data needs to be sent after the high and low bits are swapped.
+// In synchronous data mode, data B0 is sent first
+void CBUS_WRITE_E3 ( unsigned char dat )	// Sending Data
 {
     unsigned char i;
 
     for ( i = 0; i < 8; i++)
     {
-        CMX865A_SCLK = 0; //	_nop_();	  //ÏÈ·¢µÍÎ»
+        CMX865A_SCLK = 0; // _nop_(); //send low bit first
 
         if ( (dat & 0x01) == 0X01 )
         {
@@ -121,16 +121,16 @@ void CBUS_WRITE_E3 ( unsigned char dat )	//·¢ËÍÊý¾Ý
 
         dat >>= 1;
 
-//			if ( (dat & 0x80)==0X80 )   {CMX865A_MOSI=1; }  else    { CMX865A_MOSI=0; }
-//			dat <<= 1;
+// if ( (dat & 0x80)==0X80 )   {CMX865A_MOSI=1; }  else    { CMX865A_MOSI=0; }
+// that &lt;&lt;= 1;
 
-        CMX865A_SCLK = 1; //	_nop_();
+        CMX865A_SCLK = 1; // _nop_();
     }
 
-//	    CMX865A_Delay5us(); 	//Í£Ö¹Î»ÑÓÊ±
+// CMX865A_Delay5us(); //Stop bit delay
 }
-//Í¬²½Êý¾ÝÄ£Ê½£¬Êý¾ÝB0Ê×ÏÈ±»ËÍ³ö
-uchar CBUS_READ_E5 ()	 //¶ÁÊý¾Ý
+// In synchronous data mode, data B0 is sent out first
+uchar CBUS_READ_E5 ()	 // Read Data
 {
     unsigned char i, j;
 
@@ -138,28 +138,28 @@ uchar CBUS_READ_E5 ()	 //¶ÁÊý¾Ý
 
     for( i = 0; i < 8; i++ )
     {
-        CMX865A_SCLK = 0; //	_nop_();
-//            j <<= 1;				//ÏÈ½ÓÊÕ¸ßÎ»
-//            if( CMX865A_MISO==1 )  { j |= 0x01;}
+        CMX865A_SCLK = 0; // _nop_();
+// j <<= 1;				//å…ˆæŽ¥æ”¶é«˜ä½
+// if( CMX865A_MISO==1 )  { j |= 0x01;}
 
-        j >>= 1;				//ÏÈ½ÓÊÕµÍÎ»
+        j >>= 1;				// Receive low bit first
 
         if( CMX865A_MISO == 1 )
         {
             j |= 0x80;
         }
 
-        //_nop_();  // _nop_();
-        CMX865A_SCLK = 1; //	_nop_();
+        // _nop_(); // _nop_();
+        CMX865A_SCLK = 1; // _nop_();
     }
 
     return j;
 }
-//********************************************************************/
+// ********************************************************************/
 
 
 /********************************************************************
-Í¨¹ýCBUS×ÜÏßÊä³öÒ»¸ö×Ö½Ú
+Output a byte via the CBUS bus
 ********************************************************************/
 void CBUS_WRITE_REG ( unsigned char dat )
 {
@@ -167,7 +167,7 @@ void CBUS_WRITE_REG ( unsigned char dat )
 
     for ( i = 0; i < 8; i++)
     {
-        CMX865A_SCLK = 0; // _nop_();	  //ÏÈ·¢¸ßÎ»
+        CMX865A_SCLK = 0; // _nop_(); //Send high first
 
         if ( (dat & 0x80) == 0X80 )
         {
@@ -179,7 +179,7 @@ void CBUS_WRITE_REG ( unsigned char dat )
         }
 
         dat <<= 1;
-        CMX865A_SCLK = 1; //	_nop_();
+        CMX865A_SCLK = 1; // _nop_();
     }
 }
 
@@ -191,7 +191,7 @@ uchar CBUS_READ_REG ()
 
     for( i = 0; i < 8; i++ )
     {
-        CMX865A_SCLK = 0; //	_nop_();  	     //ÏÈ¶Á¸ßÎ»
+        CMX865A_SCLK = 0; // _nop_(); //Read high bit first
 
         j <<= 1;
 
@@ -200,7 +200,7 @@ uchar CBUS_READ_REG ()
             j |= 0x01;
         }
 
-        CMX865A_SCLK = 1; //	_nop_();
+        CMX865A_SCLK = 1; // _nop_();
 
     }
 
@@ -220,7 +220,7 @@ void CMX865A_RESET()
 
 void CMX865A_WRITE_TWO(uchar addr, uchar dat1, uchar dat2 )
 {
-    CMX865A_SCS = 0; //	 CMX865A_Delay5us();
+    CMX865A_SCS = 0; // CMX865A_Delay5us();
     CBUS_WRITE_REG ( addr );
     CBUS_WRITE_REG ( dat1 );
     CBUS_WRITE_REG ( dat2 );
@@ -241,11 +241,11 @@ uint CMX865A_READ_TWO(uchar addr )
 
 
 
-uint CMX865A_READ_E6()  //E6
+uint CMX865A_READ_E6()  // E6
 {
     uint stu;
-    stu = CMX865A_READ_TWO(0XE6) ;		   //ÐÂµÄÊý¾Ý £¬B10=1 B6=1
-//	if ((stu&0x0440)==0x0440)	 	{   return 1;	 	}
+    stu = CMX865A_READ_TWO(0XE6) ;		   // New data, B10=1 B6=1
+// if ((stu&0x0440)==0x0440)	 	{   return 1;	 	}
     return stu;
 }
 
@@ -254,7 +254,7 @@ uchar CMX865A_READ_E5()
 {
     uchar dat;
 
-    CMX865A_SCS = 0; //CMX865A_Delay5us();
+    CMX865A_SCS = 0; // CMX865A_Delay5us();
     CBUS_WRITE_REG ( 0XE5 );
     dat = CBUS_READ_E5 ();
     CMX865A_SCS = 1;
@@ -263,68 +263,68 @@ uchar CMX865A_READ_E5()
 }
 
 
-////¶Á½ÓÊÕÊý¾Ý,×´Ì¬¼Ä´æÆ÷ÈçÏÂ±ä»¯£¬B5=0 B6 =0	3C 00   ½ÓÊÕÍê³É 3C 40	  ½ÓÊÕÒç³ö3C 60
-//uchar CMX865A_RX_DATA()
-//{	uchar dat;	   uint stu;
-//
-//
-//   	stu= CMX865A_READ_TWO(0XE6)  ;
-//	while((stu&0x0040)!=0x0040)	   //ÊÕµ½ÐÂµÄÊý¾Ý £¬B6=1
-//	{
-//	stu= CMX865A_READ_TWO(0XE6)  ;
-//	}
-//
-//	CMX865A_SCS=0; // CMX865A_Delay5us();
-//	CBUS_WRITE_REG ( 0XE5 );
-//	dat=CBUS_READ_E5 ();
-//	CMX865A_SCS=1;
-//
-//	return dat;
-//}
+// Read received data, the status register changes as follows, B5 = 0 B6 = 0 3C 00 Reception completed 3C 40 Reception overflow 3C 60
+// float CMX865A_RX_DATA()
+// { uchar dat; uint stu;
+// 
+// 
+// stu= CMX865A_READ_TWO(0XE6)  ;
+// while((stu&amp;0x0040)!=0x0040) //Receive new data, B6=1
+// {
+// stu= CMX865A_READ_TWO(0XE6)  ;
+// }
+// 
+// CMX865A_SCS=0; // CMX865A_Delay5us();
+// CBUS_WRITE_REG ( 0XE5 );
+// dat=CBUS_READ_E5 ();
+// CMX865A_SCS=1;
+// 
+// return that;
+// }
 
-//********************************************************************/
-//Ð´Èë´ý·¢Êý¾Ý,×´Ì¬¼Ä´æÆ÷ÈçÏÂ±ä»¯£¬B12=0 B11 =0	24 60   ×¼±¸·¢ËÍ 34 60	  ·¢ËÍÒç³ö3C 60
+// ********************************************************************/
+// Write the data to be sent, the status register changes as follows, B12 = 0 B11 = 0 24 60 Ready to send 34 60 Send overflow 3C 60
 void CMX865A_TX_DATA( uchar dat )
 {
     uint stu;
 
-    CMX865A_SCS = 0; //CMX865A_Delay5us();
+    CMX865A_SCS = 0; // CMX865A_Delay5us();
     CBUS_WRITE_REG ( 0xE3 );
     CBUS_WRITE_E3 ( dat );
     CMX865A_SCS = 1;
 
     stu = CMX865A_READ_TWO(0XE6)  ;
 
-    while((stu & 0x1000) != 0x1000)	 // //µÈ´ý·¢ËÍÍê±Ï£¬B12=1
+    while((stu & 0x1000) != 0x1000)	 // //Wait for sending to complete, B12=1
     {
         stu = CMX865A_READ_TWO(0XE6)  ;
     }
 }
 
-//********************************************************************/
-//void  CMX865A_TX_TONE(uchar tone)  //tone=1 1200  0=2200hz
-//{
-//	if (tone==1){CMX865A_WRITE_TWO(0xE1,0x30|(7<<1),0X1B);}else{CMX865A_WRITE_TWO(0xE1,0x30|(7<<1),0X1A);}
-//}
+// ********************************************************************/
+// void  CMX865A_TX_TONE(uchar tone)  //tone=1 1200  0=2200hz
+// {
+// if (tone==1){CMX865A_WRITE_TWO(0xE1,0x30|(7<<1),0X1B);}else{CMX865A_WRITE_TWO(0xE1,0x30|(7<<1),0X1A);}
+// }
 
 void CMX865A_TX_OFF()
 {
-    CMX865A_WRITE_TWO(0xE1, 0x00 | (CMX86X_TX_VOL << 1), 0X1C);	 //¹Ø±Õ·¢ËÍÆ÷
+    CMX865A_WRITE_TWO(0xE1, 0x00 | (CMX86X_TX_VOL << 1), 0X1C);	 // Turn off transmitter
 }
 
-//void CMX865A_TONE_TEST()
-//{	PTT=1;	 LED_RED=0;  Delay_time_1ms(10);
-//
-//	CMX865A_WRITE_TWO(0xE1,TX_MODE|(CMX86X_TX_VOL<<1),0X1B);	 //Á¬Ðø·¢ 1	1200HZ
-//	Delay_time_25ms(40*10);
-////	CMX865A_WRITE_TWO(0xE1,TX_MODE|(CMX86X_TX_VOL<<1),0X1A);	 //Á¬Ðø·¢ 0	2200hz
-////	Delay_time_25ms(40*5);
-////	CMX865A_WRITE_TWO(0xE1,TX_MODE|(CMX86X_TX_VOL<<1),0X1C);
-//	CMX865A_TX_OFF();					  //¹Ø±Õ·¢ËÍÆ÷
-//
-//
-//	LED_RED=1;		PTT=0;
-//}
+// void CMX865A_TONE_TEST()
+// {	PTT=1;	 LED_RED=0;  Delay_time_1ms(10);
+// 
+// CMX865A_WRITE_TWO(0xE1,TX_MODE|(CMX86X_TX_VOL<<1),0X1B);	 //è¿žç»­å‘ 1	1200HZ
+// Delay_time_25ms(40*10);
+// CMX865A_WRITE_TWO(0xE1,TX_MODE|(CMX86X_TX_VOL<<1),0X1A);	 //è¿žç»­å‘ 0	2200hz
+// Delay_time_25ms(40*5);
+// CMX865A_WRITE_TWO(0xE1,TX_MODE|(CMX86X_TX_VOL<<1),0X1C);
+// CMX865A_TX_OFF(); //Turn off the transmitter
+// 
+// 
+// LED_RED=1;		PTT=0;
+// }
 
 
 
@@ -335,7 +335,7 @@ void TONE1200()
     Delay_time_1ms(10);
     UART4_SendString("$E01\r\n");
 
-    CMX865A_WRITE_TWO(0xE1, 0x30 | (CMX86X_TX_VOL << 1), 0X1B);	 //Á¬Ðø·¢ 1	1200HZ
+    CMX865A_WRITE_TWO(0xE1, 0x30 | (CMX86X_TX_VOL << 1), 0X1B);	 // Continuous 1 1200HZ
 
 }
 void TONE2200()
@@ -345,7 +345,7 @@ void TONE2200()
     Delay_time_1ms(10);
     UART4_SendString("$E01\r\n");
 
-    CMX865A_WRITE_TWO(0xE1, 0x30 | (CMX86X_TX_VOL << 1), 0X1A);	 //Á¬Ðø·¢ 0	2200HZ
+    CMX865A_WRITE_TWO(0xE1, 0x30 | (CMX86X_TX_VOL << 1), 0X1A);	 // Continuous 0 2200HZ
 
 }
 
@@ -354,7 +354,7 @@ void TONE_OFF()
     PTT = 1;
     LED_STU = 0;
     Delay_time_1ms(10);
-    CMX865A_WRITE_TWO(0xE1, 0x00 | (CMX86X_TX_VOL << 1), 0X1C);	 //¹Ø±Õ·¢ËÍÆ÷
+    CMX865A_WRITE_TWO(0xE1, 0x00 | (CMX86X_TX_VOL << 1), 0X1C);	 // Turn off transmitter
     PTT = 0;
     LED_STU = 1;
     UART4_SendString("$E00\r\n");
@@ -363,125 +363,125 @@ void TONE_OFF()
 
 void CMX865A_TX_ON()
 {
-//V2.3 FSK 0x50
-//bell 202 FSK  0x30
-//tx level (0-7) 7=0DB×î´ó
+// V2.3 FSK 0x50
+// bell 202 FSK  0x30
+// tx level (0-7) 7=0DB maximum
 
-//TXÉèÖÃbell 202 FSKÄ£Ê½£¬tx level=0DB, Tx Synchronous mode, Data bytes from Tx Data Buffer
+// TX sets bell 202 FSK mode, tx level=0DB, Tx Synchronous mode, Data bytes from Tx Data Buffer
 
-//±ê×¼	ËÙÂÊ	Òôµ÷1¡¢0	Ó¦ÓÃ
-//BELL 202	1200	1200\2200	UV 	   0x30
-//V.23  	1200	1300\2100	UV 	   0x50
-//V.21 H	300	1650\1850	HF		 0x90
-//V.21 L	300	980\1180	HF		 0x80
+// Standard Rate Tone 1, 0 Application
+// BELL 202	1200	1200\2200	UV 	   0x30
+// V.23  	1200	1300\2100	UV 	   0x50
+// V.21 H	300	1650\1850	HF		 0x90
+// V.21 L	300	980\1180	HF		 0x80
 
-//BELL 103 H	300	2225\2025	HF	 0x70
-//BELL 103 L	300	1270\1070	HF	 0x60
+// BELL 103 H	300	2225\2025	HF	 0x70
+// BELL 103 L	300	1270\1070	HF	 0x60
 
-//b15 b14  b13  b12
-//1  0  0  1  V.21 300 bps FSK  High band (Answering modem)
-//1  0  0  0  ¡°  Low band (Calling modem)
-//0  1  1  1  Bell 103 300 bps FSK  High band (Answering modem)
-//0  1  1  0  ¡°  Low band (Calling modem)
-//0  1  0  1  V.23 FSK  1200 bps
-//0  0  1  1  Bell 202 FSK  1200 bps
-//0  0  0  0  Transmitter disabled 1  0  0  0  ¡°  Low band (Calling modem)
+// b15 b14  b13  b12
+// 1  0  0  1  V.21 300 bps FSK  High band (Answering modem)
+// 1  0  0  0  â€œ  Low band (Calling modem)
+// 0  1  1  1  Bell 103 300 bps FSK  High band (Answering modem)
+// 0  1  1  0  â€œ  Low band (Calling modem)
+// 0 1 0 1 V.23 FSK 1200 bps
+// 0  0  1  1  Bell 202 FSK  1200 bps
+// 0  0  0  0  Transmitter disabled 1  0  0  0  â€œ  Low band (Calling modem)
 
-//	CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X1C);	 //·¢ËÍÊµ¼ÊÊý¾Ý
-
-
-    CMX865A_WRITE_TWO(0xE1, TX_MODE | (CMX86X_TX_VOL << 1), 0X1C);	 //·¢ËÍÊµ¼ÊÊý¾Ý
-
-//  CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X1B);	 //Á¬Ðø·¢ 1	1200HZ
-//  CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X1A);	 //Á¬Ðø·¢ 0	2200hz
-//  CMX865A_WRITE_TWO(0xE1,TX_MODE|(1<<1),0X18);	 //Á¬Ðø·¢½»Ìæ1 0
+// CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X1C);	 //å‘é€å®žé™…æ•°æ®
 
 
+    CMX865A_WRITE_TWO(0xE1, TX_MODE | (CMX86X_TX_VOL << 1), 0X1C);	 // Sending actual data
+
+// CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X1B);	 //è¿žç»­å‘ 1	1200HZ
+// CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X1A);	 //è¿žç»­å‘ 0	2200hz
+// CMX865A_WRITE_TWO(0xE1,TX_MODE|(1<<1),0X18);	 //è¿žç»­å‘äº¤æ›¿1 0
 
 
 
 
-//TXÉèÖÃV.23 FSKÄ£Ê½£¬tx level=0DB, Tx Synchronous mode, Data bytes from Tx Data Buffer
-//	CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X1C);	 //·¢ËÍÊµ¼ÊÊý¾Ý
-//  CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X1B);	 //Á¬Ðø·¢ 1	1200HZ
-//  CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X1A);	 //Á¬Ðø·¢ 0	2200hz
-//  CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X18);	 //Á¬Ðø·¢½»Ìæ1 0
 
-//	CMX865A_WRITE_TWO(0xE1,0x00|(7<<1),0X1C);	 //¹Ø±Õ·¢ËÍÆ÷
+
+// TX sets V.23 FSK mode, tx level=0DB, Tx Synchronous mode, Data bytes from Tx Data Buffer
+// CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X1C);	 //å‘é€å®žé™…æ•°æ®
+// CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X1B);	 //è¿žç»­å‘ 1	1200HZ
+// CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X1A);	 //è¿žç»­å‘ 0	2200hz
+// CMX865A_WRITE_TWO(0xE1,TX_MODE|(7<<1),0X18);	 //è¿žç»­å‘äº¤æ›¿1 0
+
+// CMX865A_WRITE_TWO(0xE1,0x00|(7<<1),0X1C);	 //å…³é—­å‘é€å™¨
 }
 
-void CMX865A_PWUP()	   //µôµçÄ£Ê½
+void CMX865A_PWUP()	   // Power-down mode
 {
     CMX_RX_BUSY = 1;
-    Delay_time_1ms(10);   //·ÀÖ¹Í¨ÖªÔÚ½âÂë¶ÁÈ¡×´Ì¬
-    CMX865A_WRITE_TWO(0xE0, 0x00, 0X00); //µôµçÄ£Ê½
+    Delay_time_1ms(10);   // Prevent notifications from being decoded in read state
+    CMX865A_WRITE_TWO(0xE0, 0x00, 0X00); // Power-down mode
 }
 
 
-//void read_cmx_set()
-//{
-//		   			UART1_SendData(CMX86X_TX_VOL+0X30);
-//
-//			UART1_SendData(CMX86X_RX_VOL+0X30);
-//
-//}
+// void read_cmx_set()
+// {
+// UART1_SendData(CMX86X_TX_VOL+0X30);
+// 
+// UART1_SendData(CMX86X_RX_VOL+0X30);
+// 
+// }
 
 
 void CMX_RX_ON()
 {
 
     CMX_RX_BUSY = 1;
-    Delay_time_1ms(10);   //·ÀÖ¹Í¨ÖªÔÚ½âÂë¶ÁÈ¡×´Ì¬
-    CMX865A_WRITE_TWO(0xE2, RX_MODE | (CMX86X_RX_VOL << 1), 0X3E);	//-10.5dB
+    Delay_time_1ms(10);   // Prevent notifications from being decoded in read state
+    CMX865A_WRITE_TWO(0xE2, RX_MODE | (CMX86X_RX_VOL << 1), 0X3E);	// -10.5dB
     CMX_RX_BUSY = 0;
 
 }
 
-//void CMX_RX_OFF()
-//{
-//	CMX865A_WRITE_TWO(0xE2,0x00|(CMX86X_RX_VOL<<1),0X3E);	//-10.5dB
-//}
+// void CMX_RX_OFF()
+// {
+// CMX865A_WRITE_TWO(0xE2,0x00|(CMX86X_RX_VOL<<1),0X3E);	//-10.5dB
+// }
 
-//³õÊ¼»¯CMX865AÏàÓ¦¼Ä´æÆ÷
+// Initialize the corresponding registers of CMX865A
 void CMX865A_Init()
 {
-//	CMX86X_TX_VOL=CMX86X_TX_VOL;	 //1
-//	CMX86X_RX_VOL=CMX86X_RX_VOL;	 //1
+// CMX86X_TX_VOL=CMX86X_TX_VOL;	 //1
+// CMX86X_RX_VOL=CMX86X_RX_VOL;	 //1
 
-// CMX865A_SCS	=CMX865A_SCLK=CMX865A_MOSI=CMX865A_MISO=1;	//	CBUS	 ¶¨ÒåCBUSµÄÆ¬Ñ¡ÐÅºÅ¶Ë¿Ú
+// CMX865A_SCS =CMX865A_SCLK=CMX865A_MOSI=CMX865A_MISO=1; // CBUS defines the chip select signal port of CBUS
 
-    CMX865A_RESET();  //½ÓÍ¨µçÔ´ºó£¬ÏÈ¸´Î»
-    Delay_time_25ms(1);	//±ØÐëÑÓÊ±20ms,µÈ´ýÊ±ÖÓºÍVBIASÆô¶¯
-    CMX865A_WRITE_TWO(0xE0, 0x11, 0X80); //b8=b7=1   ½ÓÍ¨µçÔ´²¢¸´Î»
-    Delay_time_25ms(1);	//±ØÐëÑÓÊ±20ms,µÈ´ýÊ±ÖÓºÍVBIASÆô¶¯
+    CMX865A_RESET();  // After powering on, reset
+    Delay_time_25ms(1);	// Must delay 20ms to wait for the clock and VBIAS to start
+    CMX865A_WRITE_TWO(0xE0, 0x11, 0X80); // b8=b7=1 Turn on the power and reset
+    Delay_time_25ms(1);	// Must delay 20ms to wait for the clock and VBIAS to start
 
-//TXAN=OUT TXA=ON£¬¹Ø±Õ±Õ»·²âÊÔ£¬1200MODEM,¿ªµçÔ´ ,ÆôÓÃIRQÖÐ¶ÏÊä³ö
-//B7:ÉèÖÃ´ËÎ»Îª1ÖØÖÃCMX865µÄÄÚ²¿µçÂ·£¬Çå³ýËùÓÐ±ÈÌØµÄ´«ÊäºÍ
-//×´Ì¬¼Ä´æÆ÷µÄ½ÓÊÕÄ£Ê½¼Ä´æÆ÷¡¢±à³Ì¼Ä´æÆ÷ºÍB13-0
+// TXAN=OUT TXA=ON, turn off closed loop test, 1200MODEM, turn on power, enable IRQ interrupt output
+// B7: Setting this bit to 1 resets the internal circuitry of the CMX865, clearing all bits of transmission and
+// Status register, receive mode register, programming register and B13-0
 
-//   CMX865A_WRITE_TWO(0xE0,0x01,0X00);  //Õý³£×´Ì¬
-//   CMX865A_WRITE_TWO(0xE0,0x09,0X00);  //¿ªÆôÑ­»·²âÊÔ
+// CMX865A_WRITE_TWO(0xE0,0x01,0X00); //Normal state
+// CMX865A_WRITE_TWO(0xE0,0x09,0X00); //Start loop test
 
-    CMX865A_WRITE_TWO(0xE0, 0x11, 0X40); //Õý³£×´Ì¬	11.0592M ¿ªÆôÂË²¨Æ÷
+    CMX865A_WRITE_TWO(0xE0, 0x11, 0X40); // Normal state 11.0592M Filter on
 
 
-//   CMX865A_WRITE_TWO(0xE0,0x15,0X40);  //Õý³£×´Ì¬	11.0592M ¹Ø±ÕÂË²¨Æ÷
+// CMX865A_WRITE_TWO(0xE0,0x15,0X40); //Normal state 11.0592M Close filter
 
-//   CMX865A_WRITE_TWO(0xE0,0x09,0X40);  //¿ªÆôÑ­»·²âÊÔ
-//********************************************************************/
-//   CMX865A_TX_ON();
+// CMX865A_WRITE_TWO(0xE0,0x09,0X40); //Start loop test
+// ********************************************************************/
+// CMX865A_TX_ON();
     CMX865A_TX_OFF();
-//********************************************************************/
-//RXÉèÖÃbell 202 FSKÄ£Ê½£¬Rx level=0DB, Rx Synchronous mode, 8 data bits
-//	CMX865A_WRITE_TWO(0xE2,0x30|(7<<1),0X3E);	//0dB
+// ********************************************************************/
+// RX sets bell 202 FSK mode, Rx level=0DB, Rx Synchronous mode, 8 data bits
+// CMX865A_WRITE_TWO(0xE2,0x30|(7<<1),0X3E);	//0dB
 
     CMX_RX_ON();
-//	CMX865A_WRITE_TWO(0xE2,0x30|(CMX86X_RX_VOL<<1),0X3E);	//-10.5dB
+// CMX865A_WRITE_TWO(0xE2,0x30|(CMX86X_RX_VOL<<1),0X3E);	//-10.5dB
 
 
 
-//RXÉèÖÃV.23 FSKÄ£Ê½£¬Rx level=0DB, Rx Synchronous mode, 8 data bits
-//	CMX865A_WRITE_TWO(0xE2,0x50|(7<<1),0X3E);
-//	CMX865A_WRITE_TWO(0xE2,0x30|(7<<1),0X0E);	 //¹Ø±Õ½ÓÊÕÆ÷
-//********************************************************************/
+// RX sets V.23 FSK mode, Rx level=0DB, Rx Synchronous mode, 8 data bits
+// CMX865A_WRITE_TWO(0xE2,0x50|(7<<1),0X3E);
+// CMX865A_WRITE_TWO(0xE2,0x30|(7<<1),0X0E);	 //å…³é—­æŽ¥æ”¶å™¨
+// ********************************************************************/
 }

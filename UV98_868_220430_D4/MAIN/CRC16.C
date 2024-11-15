@@ -5,13 +5,13 @@
  
 
 
-unsigned char  FCS_LO,FCS_HI;						//校验后的校验值
+unsigned char  FCS_LO,FCS_HI;						// Checksum after verification
 
 		
-/* --- 校验数据，出口FSC_LO,FSC_HI----------------------------------*/
+/* --- Verify data, export FSC_LO, FSC_HI----------------------------------*/
 /*------------------------------------------------------------------*/
 
-// CRC-ITU查找表
+// CRC-ITU Lookup Table
 const unsigned short code crctab16[] = 
 {
     0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
@@ -48,25 +48,25 @@ const unsigned short code crctab16[] =
     0x7bc7, 0x6a4e, 0x58d5, 0x495c, 0x3de3, 0x2c6a, 0x1ef1, 0x0f78,
 };
     
-// 计算给未知长度数据的16位CRC，遇到0X00停止校验。
+// Calculate the 16-bit CRC for data of unknown length and stop checking when 0X00 is encountered.
 /*
 void GetCrc16(const uchar *pData)
 {
-    unsigned short fcs = 0xffff;    // FCS初始化
+    unsigned short fcs = 0xffff; // FCS initialization
    	unsigned short result;
 
     while(*pData !=0x00)
     {  fcs = (fcs >> 8) ^ crctab16[(fcs ^ *pData) & 0xff];	   pData++; }
      
-	result = ~fcs;	// 取反
-    FCS_LO =result & 0xff;    	FCS_HI =(result >> 8) & 0xff;  // 填写FCS，先低后高
+	result = ~fcs; // Negate
+    FCS_LO =result &amp; 0xff; FCS_HI =(result &gt;&gt; 8) &amp; 0xff; // Fill in FCS, low first then high
 }
 */
     
-// 计算给定长度数据的16位CRC。
+// Calculates the 16-bit CRC of data of a given length.
 void GetCrc16_LEN(const uchar *pData,uchar nLength)
 {
-    unsigned short fcs = 0xffff;    // FCS初始化
+    unsigned short fcs = 0xffff;    // FCS Initialization
    	unsigned short result;
 
     while(nLength>0)
@@ -74,18 +74,18 @@ void GetCrc16_LEN(const uchar *pData,uchar nLength)
         nLength--; pData++;
     }
     
-	result = ~fcs;	// 取反
-    FCS_LO =result & 0xff;    	FCS_HI =(result >> 8) & 0xff;	 // 填写FCS，先低后高
+	result = ~fcs;	// Negation
+    FCS_LO =result & 0xff;    	FCS_HI =(result >> 8) & 0xff;	 // Fill in FCS, low first then high
 }
 
 
 
 /*
 
-//-----------校验测试---------------------------------------
+// -----------Verification test---------------------------------------
 void CRC_test()
-{	//uchar  ppp[13] = {0xFF, 0x03, 0xC0, 0x21, 0x04, 0x03, 0x00, 0x07, 0x0D, 0x03, 0x06, 0x00, 0x00};
-	// 计算CRC	,校验值=D0 3A
+{ // fly ppp[13] = {0xFF, 0x03, 0xC0, 0x21, 0x04, 0x03, 0x00, 0x07, 0x0D, 0x03, 0x06, 0x00, 0x00};
+	// Calculate CRC, check value = D0 3A
 	// GetCrc16_REC(ppp, 11);  SendData(FCS_LO)	;   SendData( FCS_HI)	; 	   }
 */
 

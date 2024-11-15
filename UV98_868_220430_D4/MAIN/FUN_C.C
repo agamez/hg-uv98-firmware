@@ -15,15 +15,15 @@
 #include "GPS_JULI.H"
 #include "PUBLIC_BUF.H"
 #include "KISS_Analysis.H"
-#include  <string.H> //Keil library 
+#include  <string.H> // Keil library
 
 
-uchar WX_BUF[50] ;		  //缓冲尺寸
+uchar WX_BUF[50] ;		  // Buffer size
 uchar WX_LINE1[30];
 uchar WX_LINE2[30];
 
 
-uchar read_hx(uchar *p)	   //显示8个方位
+uchar read_hx(uchar *p)	   // Display 8 directions
 {
     uint dat;
 
@@ -35,7 +35,7 @@ uchar read_hx(uchar *p)	   //显示8个方位
 
     dat = (uint)(*p - 0x30) * 100 + (uint)(*(p + 1) - 0x30) * 10 + (uint)(*(p + 2) - 0x30);
 
-    //列表方位显示方式  0=英文  1=0-12  2-0-36
+    // List direction display mode 0=English 1=0-12 2-0-36
     angle_to_txt(dat, p);
     strcat(SN_RX_BUFFER, p);
     return 1;
@@ -55,7 +55,7 @@ void disp_wide_space(uchar len)
     for (i = 0; i < len; i++)
     {
         strcat(SN_RX_BUFFER, "------ --");
-        strcat(SN_RX_BUFFER, ",");	 //路径n
+        strcat(SN_RX_BUFFER, ",");	 // Path
     }
 
 }
@@ -70,8 +70,8 @@ void disp_wide()
     uchar idx;
     uchar path_count;
 
-//BH4TDV-10>APET51,WIDE1-1:!3134.31N/12020.22Er090/050/A=003080 12.1V
-//BH4TDV-6>AP6688,BH4TDV-10*,WIDE1*:!3135.90N/12021.80E[668 9.7V  34.7C 1020.2hPa
+// BH4TDV-10>APET51,WIDE1-1:!3134.31N/12020.22Er090/050/A=003080 12.1V
+// BH4TDV-6&gt;AP6688,BH4TDV-10*,WIDE1*:!3135.90N/12021.80E[668 9.7V 34.7C 1020.2hPa
 
     idx = 0;
 
@@ -90,12 +90,12 @@ void disp_wide()
 
         if (dat == ',')
         {
-            break;   //找到第1个逗号
+            break;   // Find the first comma
         }
     }
 
 
-    for (n = 0; n < 5; n++) 		//最多含有5个路径
+    for (n = 0; n < 5; n++) 		// Contains up to 5 paths
     {
         for (i = 0; i < 12; i++)
         {
@@ -113,7 +113,7 @@ void disp_wide()
 
             if (dat == ',')
             {
-                strcat(SN_RX_BUFFER, temp);	      //找到第5个逗号
+                strcat(SN_RX_BUFFER, temp);	      // Find the fifth comma
                 strcat(SN_RX_BUFFER, ",");
                 path_count++;
                 break;
@@ -124,26 +124,26 @@ void disp_wide()
         }
     }
 
-//超过5个路径，则忽略
-//
-//	for (i = 0; i<10; i++)
-//	{
-//		dat= ASC_TEMP[idx];   idx++;
-//		if (dat==':'){strcat(SN_RX_BUFFER,temp);	   strcat(SN_RX_BUFFER,",");	         return;}
-//		if (dat==','){strcat(SN_RX_BUFFER,temp);	   strcat(SN_RX_BUFFER,",");	  break;}	 //找到第5个逗号
-//	   	temp[i] =dat;	temp[i+1]=0;
-//	}
+// If there are more than 5 paths, they will be ignored.
+// 
+// for (i = 0; i<10; i++)
+// {
+// dat= ASC_TEMP[idx];   idx++;
+// if (dat==':'){strcat(SN_RX_BUFFER,temp);	   strcat(SN_RX_BUFFER,",");	         return;}
+// if (dat==&#39;,&#39;){strcat(SN_RX_BUFFER,temp); strcat(SN_RX_BUFFER,&quot;,&quot;); break;} //Find the 5th comma
+// temp[i] =dat;	temp[i+1]=0;
+// }
 }
 
-void FUN_C_KISS_TO_ASC(uint add)  //读出存储的KISS数据，转成文本，存入ASC_TEMP
+void FUN_C_KISS_TO_ASC(uint add)  // Read the stored KISS data, convert it into text, and store it in ASC_TEMP
 {
     uint i;
     uchar dat;
-    KISS_LEN = 0;	//显示KISS
+    KISS_LEN = 0;	// Show KISS
 
     for (i = 0; i < 128; i++)
     {
-        dat =	AT24CXX_READ(add + i + 128); 	 //KISS在后128字节内
+        dat =	AT24CXX_READ(add + i + 128); 	 // KISS in the last 128 bytes
 
         if (dat == 0x00)
         {
@@ -154,38 +154,38 @@ void FUN_C_KISS_TO_ASC(uint add)  //读出存储的KISS数据，转成文本，存入ASC_TEMP
         KISS_LEN++;
     }
 
-    KISS_TO_ASCII(ASC_TEMP, 0);	//KISS数据转换ASCII UI格式,并取得UI数据长度	UI_DIGI_LEN
-    //==============================================
+    KISS_TO_ASCII(ASC_TEMP, 0);	// KISS data conversion ASCII UI format, and get UI data length UI_DIGI_LEN
+    // ==============================================
 }
 
 
-//	//==============================================
+// //==============================================
 
 
-void FUN_C_DISP_WX()  //显示 气象板数据
+void FUN_C_DISP_WX()  // Display weather board data
 {
     uchar  i  ;
     uchar temp[10];
-    float dat;	//带小数点、带正负
+    float dat;	// With decimal point, positive and negative
 
-    //--------------------------------------------
-    //UART1_SendString(WX_BUF);  //调试
-    //wxdata= "000/000g000t078r000p000h99b09966";
-    //提取的外部接口板数据，格式：  //000/000g000t078r000p000h99b09966
-    //提取的气象数据，32字节长度 格式：  //c000s000g000t093r000p000h48b10016
+    // --------------------------------------------
+    // UART1_SendString(WX_BUF); //debugging
+    // wxdata= "000/000g000t078r000p000h99b09966";
+    // Extracted external interface board data, format: //000/000g000t078r000p000h99b09966
+    // Extracted meteorological data, 32-byte length format: //c000s000g000t093r000p000h48b10016
 
-    //--------------------------------------------
-    WX_LINE1[0] = 0;	 	//
-    strcat(WX_LINE1, " ");	//2个空格
+    // --------------------------------------------
+    WX_LINE1[0] = 0;	 	// 
+    strcat(WX_LINE1, " ");	// 2 spaces
 
-    //--------------------------------------------	 //风向
+    // -------------------------------------------- //Wind direction
     for (i = 0; i < 3; i++)
     {
         temp[i] = WX_BUF[0 + i];
         temp[i + 1] = 0;
     }
 
-    if (temp[0] == '0')		//前1-2位消隐处理
+    if (temp[0] == '0')		// The first 1-2 bits are blanked
     {
         temp[0] = ' '	;
 
@@ -193,20 +193,20 @@ void FUN_C_DISP_WX()  //显示 气象板数据
     }
 
     strcat(WX_LINE1, temp);
-    strcat(WX_LINE1, "  "); //2个空格
+    strcat(WX_LINE1, "  "); // 2 spaces
 
-    //--------------------------------------------	 //前1分钟平均风速 地址在4
+    // -------------------------------------------- //The average wind speed address in the previous minute is 4
     for (i = 0; i < 3; i++)
     {
         temp[i] = WX_BUF[4 + i];
         temp[i + 1] = 0;
     }
 
-    //风速，英制转公制,英里/小时*1.61*1000/3600=M/S
+    // Wind speed, Imperial to Metric, mile/hour*1.61*1000/3600=M/S
     dat = (temp[0] - 0x30) * 100 + (temp[1] - 0x30) * 10 + (temp[2] - 0x30);
-    //	WD=30;
-//	WD=WD*1.61/3.6;
-//	temp[0]=(uint)WD/10%10+0X30 ;  temp[1]=(uint)WD%10+0X30 ;    temp[2] =0x00;
+    // WD=30;
+// WD=WD*1.61/3.6;
+// temp[0]=(uint)WD/10%10+0X30 ;  temp[1]=(uint)WD%10+0X30 ;    temp[2] =0x00;
     dat = dat * 1.61 / 3.6 * 10;
     temp[0] = (uint)dat / 100 % 10 + 0X30 ;
     temp[1] = (uint)dat / 10 % 10 + 0X30 ;
@@ -216,13 +216,13 @@ void FUN_C_DISP_WX()  //显示 气象板数据
 
     if (temp[0] == '0')
     {
-        temp[0] = ' '	;    //前1位消隐处理
+        temp[0] = ' '	;    // The first 1 bit is blanked
     }
 
     strcat(WX_LINE1, temp);
-    strcat(WX_LINE1, "m/s  "); //
+    strcat(WX_LINE1, "m/s  "); // 
 
-    //--------------------------------------------	 //湿度
+    // -------------------------------------------- //Humidity
     for (i = 0; i < 2; i++)
     {
         temp[i] = WX_BUF[24 + i];
@@ -230,9 +230,9 @@ void FUN_C_DISP_WX()  //显示 气象板数据
     }
 
     strcat(WX_LINE1, temp);
-    strcat(WX_LINE1, "% "); //1个空格
+    strcat(WX_LINE1, "% "); // 1 space
 
-    //--------------------------------------------	 //温度
+    // -------------------------------------------- //temperature
     for (i = 0; i < 3; i++)
     {
         temp[i] = WX_BUF[12 + i];
@@ -248,9 +248,9 @@ void FUN_C_DISP_WX()  //显示 气象板数据
         dat = (float)(temp[0] - 0x30) * 100 + (float)(temp[1] - 0x30) * 10 + (float)(temp[2] - 0x30);
     }
 
-    dat = (dat - 32) / 1.8 * 10;	//华氏转摄氏度//保留一位小数点
+    dat = (dat - 32) / 1.8 * 10;	// Fahrenheit to Celsius // Keep one decimal place
 
-    if (dat < 0)	 //零下 //转成正数
+    if (dat < 0)	 // Below zero // Convert to positive number
     {
         dat = -dat;
         temp[0] = '-';
@@ -267,27 +267,27 @@ void FUN_C_DISP_WX()  //显示 气象板数据
     temp[5] = 0x00;
 
     strcat(WX_LINE1, temp);
-    strcat(WX_LINE1, "C"); //
+    strcat(WX_LINE1, "C"); // 
 
-    //--------------------------------------------	 //
-    strcat(WX_LINE1, ","); //
+    // --------------------------------------------	 //
+    strcat(WX_LINE1, ","); // 
 
-    //--------------------------------------------	 // 第2行
-    //--------------------------------------------	 //
+    // -------------------------------------------- // Line 2
+    // --------------------------------------------	 //
 
 
-    //--------------------------------------------
-    WX_LINE2[0] = 0;	 	//
+    // --------------------------------------------
+    WX_LINE2[0] = 0;	 	// 
 
-//	strcat(WX_LINE2," ");	//1个空格
-    //--------------------------------------------	  //前1小时雨量
+// strcat(WX_LINE2,&quot; &quot;); //1 space
+    // -------------------------------------------- //Previous hour rainfall
     for (i = 0; i < 3; i++)
     {
         temp[i] = WX_BUF[16 + i];
         temp[i + 1] = 0;
     }
 
-    //雨量，英制转公制，0.01英寸*0.254mm
+    // Rainfall, Imperial to Metric, 0.01 inches*0.254 mm
     dat	= (float)(temp[0] - 0x30) * 100 + (float)(temp[1] - 0x30) * 10 + (float)(temp[2] - 0x30);
     dat = dat * 0.254 * 10;
     temp[0] = (uint)dat / 100 % 10 + 0X30 ;
@@ -298,22 +298,22 @@ void FUN_C_DISP_WX()  //显示 气象板数据
 
     if (temp[0] == '0')
     {
-        temp[0] = ' '	;    //前1位消隐处理
+        temp[0] = ' '	;    // The first 1 bit is blanked
     }
 
     strcat(WX_LINE2, temp);
-    strcat(WX_LINE2, "mm "); //
+    strcat(WX_LINE2, "mm "); // 
 
 
-    //--------------------------------------------
-    //--------------------------------------------	  //前24小时雨量
+    // --------------------------------------------
+    // -------------------------------------------- //Previous 24 hours rainfall
     for (i = 0; i < 3; i++)
     {
         temp[i] = WX_BUF[20 + i];
         temp[i + 1] = 0;
     }
 
-    //雨量，英制转公制，0.01英寸*0.254mm
+    // Rainfall, Imperial to Metric, 0.01 inches*0.254 mm
     dat	= (float)(temp[0] - 0x30) * 100 + (float)(temp[1] - 0x30) * 10 + (float)(temp[2] - 0x30);
     dat = dat * 0.254 * 10;
     temp[0] = (uint)dat / 100 % 10 + 0X30 ;
@@ -324,26 +324,26 @@ void FUN_C_DISP_WX()  //显示 气象板数据
 
     if (temp[0] == '0')
     {
-        temp[0] = ' '	;    //前1位消隐处理
+        temp[0] = ' '	;    // The first 1 bit is blanked
     }
 
     strcat(WX_LINE2, temp);
-    strcat(WX_LINE2, "mm "); //
+    strcat(WX_LINE2, "mm "); // 
 
-    //--------------------------------------------
+    // --------------------------------------------
 
-    //--------------------------------------------	//前5分钟瞬间最高风速 阵风
+    // -------------------------------------------- //The highest instantaneous wind speed gust in the first 5 minutes
     for (i = 0; i < 3; i++)
     {
         temp[i] = WX_BUF[8 + i];
         temp[i + 1] = 0;
     }
 
-    //风速，英制转公制,英里/小时*1.61*1000/3600=M/S
+    // Wind speed, Imperial to Metric, mile/hour*1.61*1000/3600=M/S
     dat = (temp[0] - 0x30) * 100 + (temp[1] - 0x30) * 10 + (temp[2] - 0x30);
-    //	WD=30;
-//	WD=WD*1.61/3.6;
-//	temp[0]=(uint)WD/10%10+0X30 ;  temp[1]=(uint)WD%10+0X30 ;    temp[2] =0x00;
+    // WD=30;
+// WD=WD*1.61/3.6;
+// temp[0]=(uint)WD/10%10+0X30 ;  temp[1]=(uint)WD%10+0X30 ;    temp[2] =0x00;
     dat = dat * 1.61 / 3.6 * 10;
     temp[0] = (uint)dat / 100 % 10 + 0X30 ;
     temp[1] = (uint)dat / 10 % 10 + 0X30 ;
@@ -353,13 +353,13 @@ void FUN_C_DISP_WX()  //显示 气象板数据
 
     if (temp[0] == '0')
     {
-        temp[0] = ' '	;    //前1位消隐处理
+        temp[0] = ' '	;    // The first 1 bit is blanked
     }
 
     strcat(WX_LINE2, temp);
-    strcat(WX_LINE2, " "); //	//strcat(WX_LINE2,"m/s ");//
+    strcat(WX_LINE2, " "); // //strcat(WX_LINE2,"m/s ");//
 
-    //-------------------------------------------- 	//气压 共5位
+    // -------------------------------------------- //Air pressure has 5 digits
     for (i = 0; i < 5; i++)
     {
         temp[i] = WX_BUF[27 + i];
@@ -368,21 +368,21 @@ void FUN_C_DISP_WX()  //显示 气象板数据
 
     temp[5] = temp[4];
     temp[4] = '.';
-    temp[6] = 0;	 //增加小数点
+    temp[6] = 0;	 // Add decimal point
 
     if (temp[0] == '0')
     {
-        temp[0] = ' '	;    //前1位消隐处理
+        temp[0] = ' '	;    // The first 1 bit is blanked
     }
 
     strcat(WX_LINE2, temp);
-    //--------------------------------------------	 //
-    strcat(WX_LINE2, ","); //
+    // --------------------------------------------	 //
+    strcat(WX_LINE2, ","); // 
 
-    //--------------------------------------------
-    //--------------------------------------------
-    //--------------------------------------------
-    //--------------------------------------------
+    // --------------------------------------------
+    // --------------------------------------------
+    // --------------------------------------------
+    // --------------------------------------------
 }
 
 
@@ -396,24 +396,24 @@ void FUN_C_WX(uint add)
 
     if (	AT24CXX_READ(add + 0X3F) != '_'	)
     {
-        return;   // 图标  //气象信标单独处理
+        return;   // Icon // Weather beacon is handled separately
     }
 
-//	if (	AT24CXX_READ(add+0X17)!='1'	){return;}	// 图标  //气象信标单独处理
-//	if (	AT24CXX_READ(add+0X18)!='3'	){return;}	// 图标  //气象信标单独处理
+// if ( AT24CXX_READ(add+0X17)!=&#39;1&#39; ){return;} // Icon//Weather beacon is processed separately
+// if ( AT24CXX_READ(add+0X18)!=&#39;3&#39; ){return;} // Icon//Weather beacon is processed separately
 
 
-    //显示自定义信息
+    // Display custom information
     idx = 0;
 
-    for (i = 0; i < 200; i++) 	//检索气象图标
+    for (i = 0; i < 200; i++) 	// Retrieve weather icons
     {
         dat = ASC_TEMP[idx];
         idx++;
 
         if (dat == '_')
         {
-            break;   //包含气象图标
+            break;   // Contains weather icons
         }
 
         if (i > 198)
@@ -422,46 +422,46 @@ void FUN_C_WX(uint add)
         }
     }
 
-    //提取的气象数据，32字节长度 格式：  //c000s000g000t093r000p000h48b10016
+    // Extracted meteorological data, 32-byte length format: //c000s000g000t093r000p000h48b10016
     for (i = 0; i < 32; i++)
     {
         WX_BUF[i] = ASC_TEMP[idx + i];
         WX_BUF[i + 1] = 0;
     }
 
-    FUN_C_DISP_WX(); //显示 气象板数据
+    FUN_C_DISP_WX(); // Display weather board data
 
 
-    strcat(SN_RX_BUFFER, "W,"); //气象标志
-    strcat(SN_RX_BUFFER, WX_LINE1); //气象第1行
-    strcat(SN_RX_BUFFER, WX_LINE2); //气象第2行
+    strcat(SN_RX_BUFFER, "W,"); // Weather signs
+    strcat(SN_RX_BUFFER, WX_LINE1); // Weather Line 1
+    strcat(SN_RX_BUFFER, WX_LINE2); // Weather Line 2
 
-//  	strcat(SN_RX_BUFFER,"  120    1.3M/S 65% 17.3C,"); //气象显示第1行
-//
-//  	strcat(SN_RX_BUFFER," 0.0mm  0.0mm  0000  1000,"); //气象显示第3行
+// strcat(SN_RX_BUFFER,&quot; 120 1.3M/S 65% 17.3C,&quot;); // Weather display line 1
+// 
+// strcat(SN_RX_BUFFER,&quot; 0.0mm 0.0mm 0000 1000,&quot;); // Weather display line 3
 
 
 }
 
-// 	uchar WX_DATA[200]={"c000s000g000t...r000p000h..b.....\r\n"};
+// float WX_DATA[200]={&quot;c000s000g000t...r000p000h..b.....\r\n&quot;};
 
-//	c000(0-3)  s000(4-7)  g000(8-11)  t...(12-15)  r000(16-19)  p000(20-23)   h00(24-26)  b.....(27-32)
+// c000(0-3)  s000(4-7)  g000(8-11)  t...(12-15)  r000(16-19)  p000(20-23)   h00(24-26)  b.....(27-32)
 
-//输出数据，格式：c000s000g000t093r000p000h48b10016	 ,含换行符号，一共35个字节长度
-//uchar WX_DATA[40]={"c000s000g000t032r000p000h00b.....\r\n"};
-//c=报告风向
-//s=报告前一分钟持续的风速（英里每小时）  10秒累计采样
-//g=前5分钟,峰值风速,英里每小时
-//t=华氏温度
-//r=在过去一小时雨量（以百分之一英寸）。10分钟累计采样
-//p=在过去24小时内的降雨量（以百分之一英寸）。
+// Output data, format: c000s000g000t093r000p000h48b10016, including line break symbol, a total of 35 bytes
+// float WX_DATA[40]={&quot;c000s000g000t032r000p000h00b.....\r\n&quot;};
+// c = Report wind direction
+// s = wind speed sustained in the last minute before the report (in miles per hour) 10 seconds cumulative sampling
+// g = peak wind speed in the previous 5 minutes, miles per hour
+// t = temperature in Fahrenheit
+// r = rainfall in the past hour (in hundredths of an inch). 10-minute cumulative sampling
+// p = the amount of rainfall in the past 24 hours (in hundredths of an inch).
 
-//P=雨量（以百分之一英寸）自午夜开始。不用
-//h= 湿度（00％= 100％）。 //发DTH11湿度数据
-//b=气压 0.1pa
+// P = rainfall (in hundredths of an inch) since midnight. Not required
+// h = humidity (00% = 100%). //Send DTH11 humidity data
+// b = air pressure 0.1pa
 
-//由正北方位和车头相对方位，倒推还原出自己的航向
-//my_dir 我的航向（箭头方向），   UI_Angle_N正北方位（圆点位置）  UI_Angle_CAR相对车头方位
+// Reverse the direction of the vehicle from the north to the front of the vehicle.
+// my_dir My heading (arrow direction), UI_Angle_N Due north (dot position) UI_Angle_CAR Relative direction to the front of the vehicle
 void get_my_dir()
 {
     uint my_dir;
@@ -478,8 +478,8 @@ void get_my_dir()
 }
 
 
-//呼号,速度
-void FUN_C_READ(uint add)	   //
+// Callsign,Speed
+void FUN_C_READ(uint add)	   // 
 {
     uint i ;
     uchar temp[20];
@@ -487,28 +487,28 @@ void FUN_C_READ(uint add)	   //
     uchar idx;
     uchar no_wd_jd;
 
-//	if ( EEPROM_Buffer[0XB6]==1) {FUN_C_GPS( add); return;}
-//
-    FUN_C_KISS_TO_ASC( add) ; //读出存储的KISS数据，转成文本，存入ASC_TEMP
-    FUN_C_WX(add);	//气象处理
+// if ( EEPROM_Buffer[0XB6]==1) {FUN_C_GPS( add); return;}
+// 
+    FUN_C_KISS_TO_ASC( add) ; // Read the stored KISS data, convert it into text, and store it in ASC_TEMP
+    FUN_C_WX(add);	// Weather processing
 
 
-//呼号,速度,距离,海拔,纬度,NS,经度,WE,对方航向,相对正北方位,相对车头方位,日期,时间,路径1,路径2,路径3,路径4,路径5,自定义信息
+// Call sign, speed, distance, altitude, latitude, NS, longitude, WE, other party&#39;s heading, relative north direction, relative vehicle head direction, date, time, path 1, path 2, path 3, path 4, path 5, custom information
     for (i = 0; i < 9; i++)
     {
-        temp[i] = AT24CXX_READ(add + 16 + i);    //呼号
+        temp[i] = AT24CXX_READ(add + 16 + i);    // Call Sign
         temp[i + 1] = 0;
     }
 
     strcat(SN_RX_BUFFER, temp);
     strcat(SN_RX_BUFFER, ",");
 
-//  for (i = 0; i<6; i++) { temp[i]=AT24CXX_READ(add+71+i); temp[i+1]=0; } 	  //速度
-//	if (temp[0]==0){strcat(SN_RX_BUFFER,"---.-");}else{strcat(SN_RX_BUFFER,temp);} strcat(SN_RX_BUFFER,"Km/h");  strcat(SN_RX_BUFFER,",");
+// for (i = 0; i<6; i++) { temp[i]=AT24CXX_READ(add+71+i); temp[i+1]=0; } 	  //閫熷害
+// if (temp[0]==0){strcat(SN_RX_BUFFER,"---.-");}else{strcat(SN_RX_BUFFER,temp);} strcat(SN_RX_BUFFER,"Km/h");  strcat(SN_RX_BUFFER,",");
 
     for (i = 0; i < 5; i++)
     {
-        temp[i] = AT24CXX_READ(add + 0x48 + i);    //速度,只读5位
+        temp[i] = AT24CXX_READ(add + 0x48 + i);    // Speed, read only 5 bits
         temp[i + 1] = 0;
     }
 
@@ -522,7 +522,7 @@ void FUN_C_READ(uint add)	   //
         {
             if (temp[i] == '0')
             {
-                temp[i] = ' ';   //替换成空格
+                temp[i] = ' ';   // Replace with spaces
             }
             else
             {
@@ -537,16 +537,16 @@ void FUN_C_READ(uint add)	   //
 
 
 
-    //==============================================
+    // ==============================================
     for (i = 0; i < 8; i++)
     {
-        UI_WD[i] = AT24CXX_READ(add + 0x20 + i);      //纬度
+        UI_WD[i] = AT24CXX_READ(add + 0x20 + i);      // latitude
         UI_WD[i + 1] = 0;
     }
 
     for (i = 0; i < 9; i++)
     {
-        UI_JD[i] = AT24CXX_READ(add + 0x30 + i);      //纬度
+        UI_JD[i] = AT24CXX_READ(add + 0x30 + i);      // latitude
         UI_JD[i + 1] = 0;
     }
 
@@ -554,17 +554,17 @@ void FUN_C_READ(uint add)	   //
 
     if ((UI_WD[0] == 0) | (UI_JD[0] == 0) | (GPS_LOCKED == 0) )
     {
-        no_wd_jd = 0;    //检查信标是否包含经纬度数据
+        no_wd_jd = 0;    // Check if the beacon contains latitude and longitude data
     }
 
-//	if(no_wd_jd==0)	  //检查信标不是否包含经纬度数据
-//	{
-//
-//	}
+// if(no_wd_jd==0) //Check if the beacon contains latitude and longitude data
+// {
+// 
+// }
 
     for (i = 0; i < 3; i++)
     {
-        temp[i] = AT24CXX_READ(add + 0x3a + i);    //对方航向
+        temp[i] = AT24CXX_READ(add + 0x3a + i);    // The other party&#39;s heading
         temp[i + 1] = 0;
     }
 
@@ -572,26 +572,26 @@ void FUN_C_READ(uint add)	   //
     strcat(SN_RX_BUFFER, " ");
 
 
-    if ( EEPROM_Buffer[0XB6] == 1)	 //开启动态，并且包含经纬度，并且GPS有效定位，则计算实时距离
+    if ( EEPROM_Buffer[0XB6] == 1)	 // If dynamic is turned on and longitude and latitude are included and GPS positioning is effective, the real-time distance will be calculated.
     {
         if(no_wd_jd == 1)
         {
-            GET_AB_JULI(1);	  //MODE=1 求本机GPS位置和对方的2地距离,精度1米
-            UI_Angle_N =  GET_AB_Angle(1); //求移动站和对方的2地，角度
-            UI_Angle_CAR =   GET_AB_POINT_DIR(UI_Angle_N, GPS_NOW_DIR)	;	//相对车头方向
+            GET_AB_JULI(1);	  // MODE=1 Calculate the distance between the local GPS position and the other party, with an accuracy of 1 meter
+            UI_Angle_N =  GET_AB_Angle(1); // Find the angle between the mobile station and the other party
+            UI_Angle_CAR =   GET_AB_POINT_DIR(UI_Angle_N, GPS_NOW_DIR)	;	// Relative direction of vehicle head
         }
     }
 
-    if ( EEPROM_Buffer[0XB6] == 1)		//开启动态实时计算相对车头方向
+    if ( EEPROM_Buffer[0XB6] == 1)		// Enable dynamic real-time calculation of the relative vehicle direction
     {
 
-        if(no_wd_jd == 1)	 //检查信标是否包含经纬度数据
+        if(no_wd_jd == 1)	 // Check if the beacon contains latitude and longitude data
         {
             tostring(UI_Angle_CAR);
             temp[0] = bai;
             temp[1] = shi;
             temp[2] = ge;
-            temp[3] = 0;		 //相对车头方位
+            temp[3] = 0;		 // Relative position of vehicle head
             read_hx(temp);
         }
         else
@@ -600,15 +600,15 @@ void FUN_C_READ(uint add)	   //
         }
 
         strcat(SN_RX_BUFFER, ",");
-        //==============================================
+        // ==============================================
 
-        if(no_wd_jd == 1)					   	//距离显示6位
+        if(no_wd_jd == 1)					   	// Distance display 6 digits
         {
-            strcat(SN_RX_BUFFER, UI_JULI + 1);	 //显示实时距离
+            strcat(SN_RX_BUFFER, UI_JULI + 1);	 // Display real-time distance
         }
         else
         {
-            strcat(SN_RX_BUFFER, "---.-");	   //如果没有距离则显示----.-
+            strcat(SN_RX_BUFFER, "---.-");	   // If there is no distance, it will display ----.-
         }
 
         strcat(SN_RX_BUFFER, "Km,");
@@ -619,17 +619,17 @@ void FUN_C_READ(uint add)	   //
 
         for (i = 0; i < 3; i++)
         {
-            temp[i] = AT24CXX_READ(add + 0x1D + i);    //相对车头方位
+            temp[i] = AT24CXX_READ(add + 0x1D + i);    // Relative position of vehicle head
             temp[i + 1] = 0;
         }
 
         read_hx(temp) ;
         strcat(SN_RX_BUFFER, ",");
 
-        //==============================================
+        // ==============================================
         for (i = 0; i < 6; i++)
         {
-            temp[i] = AT24CXX_READ(add + 41 + i);      //距离显示6位
+            temp[i] = AT24CXX_READ(add + 41 + i);      // Distance display 6 digits
             temp[i + 1] = 0;
         }
 
@@ -637,10 +637,10 @@ void FUN_C_READ(uint add)	   //
         {
             case 0:
                 strcat(SN_RX_BUFFER, "----.-");
-                strcat(SN_RX_BUFFER, "Km,");	   	//如果没有距离则显示----.-
+                strcat(SN_RX_BUFFER, "Km,");	   	// If there is no distance, it will display ----.-
                 break;
 
-            case '*':	  //小于10,000米
+            case '*':	  // Less than 10,000 meters
                 temp[0] = ' ';
                 strcat(SN_RX_BUFFER, temp + 1);
                 strcat(SN_RX_BUFFER, "Km,");
@@ -656,11 +656,11 @@ void FUN_C_READ(uint add)	   //
 
 
 
-    //==============================================
+    // ==============================================
 
 
-//	for (i = 0; i<6; i++) { temp[i]=AT24CXX_READ(add+64+i); temp[i+1]=0; } 	  //海拔
-//	if (temp[0]==0){strcat(SN_RX_BUFFER,"------");}else{strcat(SN_RX_BUFFER,temp);}  strcat(SN_RX_BUFFER,"m");  strcat(SN_RX_BUFFER,",");
+// for (i = 0; i<6; i++) { temp[i]=AT24CXX_READ(add+64+i); temp[i+1]=0; } 	  //娴锋嫈
+// if (temp[0]==0){strcat(SN_RX_BUFFER,"------");}else{strcat(SN_RX_BUFFER,temp);}  strcat(SN_RX_BUFFER,"m");  strcat(SN_RX_BUFFER,",");
 
     for (i = 0; i < 6; i++)
     {
@@ -672,13 +672,13 @@ void FUN_C_READ(uint add)	   //
     {
         strcat(SN_RX_BUFFER, "------");
     }
-    else	    //海拔
+    else	    // altitude
     {
         for (i = 0; i < 5; i++)
         {
             if (temp[i] == '0')
             {
-                temp[i] = ' ';   //替换成空格
+                temp[i] = ' ';   // Replace with spaces
             }
             else
             {
@@ -693,18 +693,18 @@ void FUN_C_READ(uint add)	   //
     strcat(SN_RX_BUFFER, ",");
 
 
-    //==============================================
+    // ==============================================
     strcat(SN_RX_BUFFER, " ");
     temp[0] = AT24CXX_READ(add + 0x20);
     temp[1] = AT24CXX_READ(add + 0x21);
-    temp[2] = '@';	//	strcat(SN_RX_BUFFER,temp);		strcat(SN_RX_BUFFER,"@");			//纬度
+    temp[2] = '@';	// strcat(SN_RX_BUFFER,temp);		strcat(SN_RX_BUFFER,"@");			//绾害
     temp[3] = AT24CXX_READ(add + 0x22);
     temp[4] = AT24CXX_READ(add + 0x23);
-    temp[5] = '.';	//		strcat(SN_RX_BUFFER,temp);		strcat(SN_RX_BUFFER,".");
+    temp[5] = '.';	// strcat(SN_RX_BUFFER,temp);		strcat(SN_RX_BUFFER,".");
     temp[6] = AT24CXX_READ(add + 0x25);
     temp[7] = AT24CXX_READ(add + 0x26);
-    temp[8] = '\'';	//		strcat(SN_RX_BUFFER,temp);		strcat(SN_RX_BUFFER,"'");
-//    strcat(SN_RX_BUFFER," ");
+    temp[8] = '\'';	// strcat(SN_RX_BUFFER,temp);		strcat(SN_RX_BUFFER,"'");
+// strcat(SN_RX_BUFFER," ");
     temp[9] = AT24CXX_READ(add + 0x27);
     temp[10] = 0;	 // NS
 
@@ -718,7 +718,7 @@ void FUN_C_READ(uint add)	   //
     }
 
     strcat(SN_RX_BUFFER, ",");
-    //==============================================
+    // ==============================================
     temp[0] = AT24CXX_READ(add + 0x30);
     temp[1] = AT24CXX_READ(add + 0x31);
     temp[2] = AT24CXX_READ(add + 0x32);
@@ -732,11 +732,11 @@ void FUN_C_READ(uint add)	   //
     temp[10] = AT24CXX_READ(add + 0x38);
     temp[11] = 0;	 // WE
 
-// 	for (i = 0; i<3; i++) { temp[i]=AT24CXX_READ(add+0x30+i); temp[i+1]=0; } 	strcat(SN_RX_BUFFER,temp);	   	strcat(SN_RX_BUFFER,"@");	  	//经度
-//	for (i = 0; i<2; i++) { temp[i]=AT24CXX_READ(add+0x33+i); temp[i+1]=0; } 	strcat(SN_RX_BUFFER,temp);	   	strcat(SN_RX_BUFFER,".");
-//	for (i = 0; i<2; i++) { temp[i]=AT24CXX_READ(add+0x36+i); temp[i+1]=0; } 	strcat(SN_RX_BUFFER,temp);	   	strcat(SN_RX_BUFFER,"'");
-// 	strcat(SN_RX_BUFFER," ");
-//	temp[0]=AT24CXX_READ(add+0x38); temp[1]=0;
+// for (i = 0; i<3; i++) { temp[i]=AT24CXX_READ(add+0x30+i); temp[i+1]=0; } 	strcat(SN_RX_BUFFER,temp);	   	strcat(SN_RX_BUFFER,"@");	  	//缁忓害
+// for (i = 0; i<2; i++) { temp[i]=AT24CXX_READ(add+0x33+i); temp[i+1]=0; } 	strcat(SN_RX_BUFFER,temp);	   	strcat(SN_RX_BUFFER,".");
+// for (i = 0; i<2; i++) { temp[i]=AT24CXX_READ(add+0x36+i); temp[i+1]=0; } 	strcat(SN_RX_BUFFER,temp);	   	strcat(SN_RX_BUFFER,"'");
+// strcat(SN_RX_BUFFER," ");
+// temp[0]=AT24CXX_READ(add+0x38); temp[1]=0;
 
     if (temp[0] == 0)
     {
@@ -748,11 +748,11 @@ void FUN_C_READ(uint add)	   //
     }
 
     strcat(SN_RX_BUFFER, ",");
-    //==============================================
+    // ==============================================
 
     for (i = 0; i < 3; i++)
     {
-        temp[i] = AT24CXX_READ(add + 0x3a + i);    //对方航向
+        temp[i] = AT24CXX_READ(add + 0x3a + i);    // The other party&#39;s heading
         temp[i + 1] = 0;
     }
 
@@ -769,12 +769,12 @@ void FUN_C_READ(uint add)	   //
 
 
 
-    if ( EEPROM_Buffer[0XB6] == 1)		//开启动态实时计算相对车头方向
+    if ( EEPROM_Buffer[0XB6] == 1)		// Enable dynamic real-time calculation of the relative vehicle direction
     {
 
-        if(no_wd_jd == 1)	 //检查信标是否包含经纬度数据
+        if(no_wd_jd == 1)	 // Check if the beacon contains latitude and longitude data
         {
-            tostring(UI_Angle_N);				 //相对正北方位
+            tostring(UI_Angle_N);				 // Relative North
             temp[0] = bai;
             temp[1] = shi;
             temp[2] = ge;
@@ -788,9 +788,9 @@ void FUN_C_READ(uint add)	   //
 
         strcat(SN_RX_BUFFER, ",");
 
-        if(no_wd_jd == 1)	 //检查信标是否包含经纬度数据
+        if(no_wd_jd == 1)	 // Check if the beacon contains latitude and longitude data
         {
-            tostring(UI_Angle_CAR);	  //相对车头方位
+            tostring(UI_Angle_CAR);	  // Relative position of vehicle head
             temp[0] = bai;
             temp[1] = shi;
             temp[2] = ge;
@@ -808,7 +808,7 @@ void FUN_C_READ(uint add)	   //
     {
         for (i = 0; i < 3; i++)
         {
-            temp[i] = AT24CXX_READ(add + 0x1a + i);    //相对正北方位
+            temp[i] = AT24CXX_READ(add + 0x1a + i);    // Relative North
             temp[i + 1] = 0;
         }
 
@@ -825,7 +825,7 @@ void FUN_C_READ(uint add)	   //
 
         for (i = 0; i < 3; i++)
         {
-            temp[i] = AT24CXX_READ(add + 0x1D + i);    //相对车头方位
+            temp[i] = AT24CXX_READ(add + 0x1D + i);    // Relative position of vehicle head
             temp[i + 1] = 0;
         }
 
@@ -844,7 +844,7 @@ void FUN_C_READ(uint add)	   //
 
     for (i = 0; i < 8; i++)
     {
-        temp[i] = AT24CXX_READ(add + 8 + i);    //日期
+        temp[i] = AT24CXX_READ(add + 8 + i);    // date
         temp[i + 1] = 0;
     }
 
@@ -853,32 +853,32 @@ void FUN_C_READ(uint add)	   //
 
     for (i = 0; i < 8; i++)
     {
-        temp[i] = AT24CXX_READ(add + 0 + i);    //时间
+        temp[i] = AT24CXX_READ(add + 0 + i);    // time
         temp[i + 1] = 0;
     }
 
     strcat(SN_RX_BUFFER, temp);
     strcat(SN_RX_BUFFER, ",");
 
-    //==============================================
+    // ==============================================
 
-//		KISS_LEN =0;	//显示KISS
-//		for (i = 0; i<128; i++)
-//		{ dat=	AT24CXX_READ(add+i+128); 	  //KISS在后128字节内
-//		if (dat==0x00){break;}
-//		KISS_DATA[i]=dat;	KISS_LEN++;
-//		}
-//		KISS_TO_ASCII(ASC_TEMP,0);	//KISS数据转换ASCII UI格式,并取得UI数据长度	UI_DIGI_LEN
-//		//==============================================
+// KISS_LEN =0; //Display KISS
+// for (i = 0; i<128; i++)
+// { dat= AT24CXX_READ(add+i+128); //KISS in the last 128 bytes
+// if (dat==0x00){break;}
+// KISS_DATA[i]=data; KISS_LEN++;
+// }
+// KISS_TO_ASCII(ASC_TEMP,0); //Convert KISS data to ASCII UI format and get UI data length UI_DIGI_LEN
+// //==============================================
 
-//	   	 FUN_C_KISS_TO_ASC( add) ; //读出存储的KISS数据，转成文本，存入ASC_TEMP
+// FUN_C_KISS_TO_ASC( add) ; //Read the stored KISS data, convert it into text, and store it in ASC_TEMP
 
-    disp_wide();	   	//显示路径
-    //==============================================
-    //显示自定义信息
+    disp_wide();	   	// Show Path
+    // ==============================================
+    // Display custom information
     idx = 0;
 
-    for (i = 0; i < 200; i++) 	//检索冒号
+    for (i = 0; i < 200; i++) 	// Searching for colon
     {
         dat = ASC_TEMP[idx];
         idx++;
@@ -895,7 +895,7 @@ void FUN_C_READ(uint add)	   //
         }
     }
 
-    for (i = 0; i < 200 - idx; i++) 	//分析剩余字符
+    for (i = 0; i < 200 - idx; i++) 	// Analyze the remaining characters
     {
         dat = ASC_TEMP[idx];
         idx++;
@@ -944,26 +944,26 @@ void DISP_A08()
     uint  add;
     SN_RX_BUFFER[0] = 0;
     strcat(SN_RX_BUFFER, "$A08,");
-    add =  AT24CXX_READ(0x6500 ) * 256; //列表起始地址0X6500，获取首行KISS数据存储索引
+    add =  AT24CXX_READ(0x6500 ) * 256; // The list starts at address 0X6500, and the index of the first row of KISS data storage is obtained.
     FUN_C_READ(add);
     strcat(SN_RX_BUFFER, "\r\n");
 
-    UART4_SendString(SN_RX_BUFFER);	   //	UART2_SendString(SN_RX_BUFFER);
+    UART4_SendString(SN_RX_BUFFER);	   // UART2_SendString(SN_RX_BUFFER);
 }
 
 
 
-uchar FUN_C(uint idx)	   //详细信标
+uchar FUN_C(uint idx)	   // Detailed beacon
 {
     uint  add;
-    uchar temp[8];	  //uint i;
+    uchar temp[8];	  // uint i;
 
     if (idx > 99)
     {
         return 0;
     }
 
-    //==============================================  插入索引编号00-99
+    // ================================================= Insert index numbers 00-99
     SN_RX_BUFFER[0] = 0;
     strcat(SN_RX_BUFFER, "$C");
     temp[0] = idx / 10 + 0x30;
@@ -971,13 +971,13 @@ uchar FUN_C(uint idx)	   //详细信标
     temp[2] = 0;
     strcat(SN_RX_BUFFER, temp);
     strcat(SN_RX_BUFFER, ",");
-    //==============================================
+    // ==============================================
 
-    add =  AT24CXX_READ(0x6500 + idx ) * 256; //列表起始地址0X6500，获取KISS数据存储索引
+    add =  AT24CXX_READ(0x6500 + idx ) * 256; // The list starts at address 0X6500, and the KISS data storage index is obtained.
 
     if (AT24CXX_READ(add) == 0xff)
     {
-        strcat(SN_RX_BUFFER, "NO DATA\r\n");		   //24C512没写入数据
+        strcat(SN_RX_BUFFER, "NO DATA\r\n");		   // 24C512 did not write data
     }
     else
     {
@@ -985,16 +985,16 @@ uchar FUN_C(uint idx)	   //详细信标
         strcat(SN_RX_BUFFER, "\r\n");
     }
 
-    UART4_SendString(SN_RX_BUFFER);	   //	UART2_SendString(SN_RX_BUFFER);
+    UART4_SendString(SN_RX_BUFFER);	   // UART2_SendString(SN_RX_BUFFER);
 
-//		for (i = 0; i<256; i++) { UART2_SendData(AT24CXX_READ(add+0+i));   } 	  //调试
+// for (i = 0; i<256; i++) { UART2_SendData(AT24CXX_READ(add+0+i));   } 	  //璋冭瘯
     return 0;
 }
 
-//  0x0000-0x6400  （0-25600）,每条信标占用256字节，一共100条记录，索引0-99存储在 0x8000
+// 0x0000-0x6400 (0-25600), each beacon occupies 256 bytes, a total of 100 records, index 0-99 is stored at 0x8000
 
-//  0x6500-0x6600    ,列表存储区，每1字节一套索引，一共100条索引
-//  0-5字节 呼号BH4TDV
-//  6字节  SSID-XX 99
-//	7字节  信标KISS存储地址索引	   0-99
+// 0x6500-0x6600 , list storage area, one set of indexes per 1 byte, a total of 100 indexes
+// 0-5 bytes call sign BH4TDV
+// 6-byte SSID-XX 99
+// 7-byte beacon KISS storage address index 0-99
 

@@ -2,7 +2,7 @@
 #define _MICE_CODE_H_
 
 
-/*************  外部函数和变量声明 *****************/
+/************* External function and variable declaration*****************/
 
 extern void Encoding_MICE();
 extern uchar MICE_JD[20];

@@ -1,24 +1,24 @@
 #ifndef __STC8A8K64D4_H_
 #define __STC8A8K64D4_H_
 
-/////////////////////////////////////////////////
-#define   uchar unsigned char	   //0-255单字节	用uchar 代替char
-#define   uint unsigned int		   //0-65535双字节	用uint 代替int
+// 
+#define   uchar unsigned char	   // 0-255 single byte, use uchar instead of char
+#define   uint unsigned int		   // 0-65535 double bytes use uint instead of int
 	
-#define   uint8 unsigned char	   //0-255单字节	用uchar 代替char
-#define   uint16 unsigned int		   //0-65535双字节	用uint 代替int
+#define   uint8 unsigned char	   // 0-255 single byte, use uchar instead of char
+#define   uint16 unsigned int		   // 0-65535 double bytes use uint instead of int
 #define   uint32 unsigned long
 
 
-//#define   u8 unsigned char	   //0-255单字节	用uchar 代替char
-//#define   u16 unsigned int		   //0-65535双字节	用uint 代替int
+// #define u8 unsigned char //0-255 single byte Use uchar instead of char
+// #define u16 unsigned int //0-65535 double bytes use uint instead of int
 	
-//#define SLEEP      PCON= 0x02;		  //掉电模式，电流0.1uA，中断触发后，由0000H开始
-//#define SHUT       PCON= 0x01;		  //挂起模式，电流2MA，中断触发后，继续下一条指令
+// #define SLEEP PCON= 0x02; //Power-down mode, current 0.1uA, after the interrupt is triggered, it starts from 0000H
+// #define SHUT PCON= 0x01; //Suspend mode, current 2MA, after the interrupt is triggered, continue to the next instruction
 
 
-#define FOSC    22118400L		   //时钟22.1184M
-//包含本头文件后,不用另外再包含"REG51.H"
+#define FOSC    22118400L		   // Clock 22.1184M
+// After including this header file, there is no need to include &quot;REG51.H&quot; separately
 
 sfr P0          =   0x80;
 sbit P00        =   P0^0;
@@ -438,12 +438,12 @@ sfr RSTCFG      =   0xff;
 #define LVD_S3      0x02
 #define LVD_S4      0x03
 
-//如下特殊功能寄存器位于扩展RAM区域
-//访问这些寄存器,需先将P_SW2的BIT7设置为1,才可正常读写
+// The following special function registers are located in the extended RAM area
+// To access these registers, you must first set BIT7 of P_SW2 to 1 before normal reading and writing.
 
-/////////////////////////////////////////////////
-//FF00H-FFFFH
-/////////////////////////////////////////////////
+// 
+// FF00H-FFFFH
+// 
 
 
 #define PWMC        (*(unsigned int  volatile xdata *)0xff00)
@@ -552,9 +552,9 @@ sfr RSTCFG      =   0xff;
 #define PWM7CR      (*(unsigned char volatile xdata *)0xff4c)
 #define PWM7HLD     (*(unsigned char volatile xdata *)0xff4d)
 
-/////////////////////////////////////////////////
-//FE00H-FEFFH
-/////////////////////////////////////////////////
+// 
+// FE00H-FEFFH
+// 
 
 #define CKSEL       (*(unsigned char volatile xdata *)0xfe00)
 #define MCK_IRC24M  0x00
@@ -673,9 +673,9 @@ sfr RSTCFG      =   0xff;
 #define ADCEXCFG    (*(unsigned char volatile xdata *)0xfead)
 #define CMPEXCFG    (*(unsigned char volatile xdata *)0xfeae)
 
-/////////////////////////////////////////////////
-//FD00H-FDFFH
-/////////////////////////////////////////////////
+// 
+// FD00H-FDFFH
+// 
 
 #define P0INTE      (*(unsigned char volatile xdata *)0xfd00)
 #define P1INTE      (*(unsigned char volatile xdata *)0xfd01)
@@ -759,9 +759,9 @@ sfr RSTCFG      =   0xff;
 #define CHIPID30    (*(unsigned char volatile xdata *)0xfdfe)
 #define CHIPID31    (*(unsigned char volatile xdata *)0xfdff)
 
-/////////////////////////////////////////////////
-//FC00H-FCFFH
-/////////////////////////////////////////////////
+// 
+// FC00H-FCFFH
+// 
 
 #define MD3         (*(unsigned char volatile xdata *)0xfcf0)
 #define MD2         (*(unsigned char volatile xdata *)0xfcf1)
@@ -784,14 +784,14 @@ sfr RSTCFG      =   0xff;
 #define MDU16_BUSY          0x01
 #define MDU16_RESET         0x02
 
-/////////////////////////////////////////////////
-//FB00H-FBFFH
-/////////////////////////////////////////////////
+// 
+// FB00H-FBFFH
+// 
 
 
-/////////////////////////////////////////////////
-//FA00H-FAFFH
-/////////////////////////////////////////////////
+// 
+// FA00H-FAFFH
+// 
 
 #define BMM_M2M_CFG     (*(unsigned char volatile xdata *)0xfa00)
 #define BMM_M2M_CR      (*(unsigned char volatile xdata *)0xfa01)
@@ -910,60 +910,60 @@ sfr RSTCFG      =   0xff;
 #define BMM_LCM_RXAL    (*(unsigned char volatile xdata *)0xfa78)
 
 
-/////////////////////////////////////////////////
+// 
 
-#define INT0_VECTOR         0       //0003H
-#define TMR0_VECTOR         1       //000BH
-#define INT1_VECTOR         2       //0013H
-#define TMR1_VECTOR         3       //001BH
-#define UART1_VECTOR        4       //0023H
-#define ADC_VECTOR          5       //002BH
-#define LVD_VECTOR          6       //0033H
-#define PCA_VECTOR          7       //003BH
-#define UART2_VECTOR        8       //0043H
-#define SPI_VECTOR          9       //004BH
-#define INT2_VECTOR         10      //0053H
-#define INT3_VECTOR         11      //005BH
-#define TMR2_VECTOR         12      //0063H
-#define USER_VECTOR         13      //006BH
-//#define BRK_VECTOR        14      //0073H
-//#define ICEP_VECTOR       15      //007BH
-#define INT4_VECTOR         16      //0083H
-#define UART3_VECTOR        17      //008BH
-#define UART4_VECTOR        18      //0093H
-#define TMR3_VECTOR         19      //009BH
-#define TMR4_VECTOR         20      //00A3H
-#define CMP_VECTOR          21      //00ABH
-#define PWM_VECTOR          22      //00B3H
-#define PWMFD_VECTOR        23      //00BBH
-#define I2C_VECTOR          24      //00C3H
-#define P0INT_VECTOR        37      //012BH
-#define P1INT_VECTOR        38      //0133H
-#define P2INT_VECTOR        39      //013BH
-#define P3INT_VECTOR        40      //0143H
-#define P4INT_VECTOR        41      //014BH
-#define P5INT_VECTOR        42      //0153H
-#define P6INT_VECTOR        43      //015BH
-#define P7INT_VECTOR        44      //0163H
-#define M2MBMM_VECTOR       47      //017BH
-#define ADCBMM_VECTOR       48      //0183H
-#define SPIBMM_VECTOR       49      //018BH
-#define U1TXBMM_VECTOR      50      //0193H
-#define U1RXBMM_VECTOR      51      //019BH
-#define U2TXBMM_VECTOR      52      //01A3H
-#define U2RXBMM_VECTOR      53      //01ABH
-#define U3TXBMM_VECTOR      54      //01B3H
-#define U3RXBMM_VECTOR      55      //01BBH
-#define U4TXBMM_VECTOR      56      //01C3H
-#define U4RXBMM_VECTOR      57      //01CBH
-#define LCMBMM_VECTOR       58      //01D3H
-#define LCM_VECTOR          59      //01DBH
+#define INT0_VECTOR         0       // 0003H
+#define TMR0_VECTOR         1       // 000BH
+#define INT1_VECTOR         2       // 0013H
+#define TMR1_VECTOR         3       // 001BH
+#define UART1_VECTOR        4       // 0023H
+#define ADC_VECTOR          5       // 002BH
+#define LVD_VECTOR          6       // 0033H
+#define PCA_VECTOR          7       // 003BH
+#define UART2_VECTOR        8       // 0043H
+#define SPI_VECTOR          9       // 004BH
+#define INT2_VECTOR         10      // 0053H
+#define INT3_VECTOR         11      // 005BH
+#define TMR2_VECTOR         12      // 0063H
+#define USER_VECTOR         13      // 006BH
+// #define BRK_VECTOR        14      //0073H
+// #define ICEP_VECTOR       15      //007BH
+#define INT4_VECTOR         16      // 0083H
+#define UART3_VECTOR        17      // 008BH
+#define UART4_VECTOR        18      // 0093H
+#define TMR3_VECTOR         19      // 009BH
+#define TMR4_VECTOR         20      // 00A3H
+#define CMP_VECTOR          21      // 00ABH
+#define PWM_VECTOR          22      // 00B3H
+#define PWMFD_VECTOR        23      // 00BBH
+#define I2C_VECTOR          24      // 00C3H
+#define P0INT_VECTOR        37      // 012BH
+#define P1INT_VECTOR        38      // 0133H
+#define P2INT_VECTOR        39      // 013BH
+#define P3INT_VECTOR        40      // 0143H
+#define P4INT_VECTOR        41      // 014BH
+#define P5INT_VECTOR        42      // 0153H
+#define P6INT_VECTOR        43      // 015BH
+#define P7INT_VECTOR        44      // 0163H
+#define M2MBMM_VECTOR       47      // 017BH
+#define ADCBMM_VECTOR       48      // 0183H
+#define SPIBMM_VECTOR       49      // 018BH
+#define U1TXBMM_VECTOR      50      // 0193H
+#define U1RXBMM_VECTOR      51      // 019BH
+#define U2TXBMM_VECTOR      52      // 01A3H
+#define U2RXBMM_VECTOR      53      // 01ABH
+#define U3TXBMM_VECTOR      54      // 01B3H
+#define U3RXBMM_VECTOR      55      // 01BBH
+#define U4TXBMM_VECTOR      56      // 01C3H
+#define U4RXBMM_VECTOR      57      // 01CBH
+#define LCMBMM_VECTOR       58      // 01D3H
+#define LCM_VECTOR          59      // 01DBH
 
-/////////////////////////////////////////////////
+// 
 typedef 	unsigned char	u8;
 typedef 	unsigned int	u16;
 typedef 	unsigned long	u32;
-/////////////////////////////////////////////////
+// 
 
 #endif
 

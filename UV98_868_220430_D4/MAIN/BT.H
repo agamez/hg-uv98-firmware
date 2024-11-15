@@ -2,13 +2,13 @@
 #define _BT_H_
 
 
-/*************  外部函数和变量声明 *****************/
+/************* External function and variable declaration*****************/
 
 extern void BT_OUT(unsigned char STU);		 
 
 extern void SETUP_BL_NAME();
 
-extern void G5500_OUT( );	//蓝牙输出数据	0=输出自己发出的信标  1=输出解码的信标
+extern void G5500_OUT( );	// Bluetooth output data 0 = output the beacon sent by itself 1 = output the decoded beacon
 
  
 #endif

@@ -4,9 +4,9 @@
 #define _FUN_C_H_
 
  
-extern uchar FUN_C(uint idx);		//列表
+extern uchar FUN_C(uint idx);		// List
 
-extern void DISP_A08();	   //实时信标
+extern void DISP_A08();	   // Real-time beacon
 
 
 #endif

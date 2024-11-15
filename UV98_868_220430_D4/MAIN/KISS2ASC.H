@@ -4,8 +4,8 @@
 #define _KISS2ASC_H_
 
 
-/*************  外部函数和变量声明 *****************/
- //电台接收到的  KISS数据转换ASCII UI格式,,format  0=原始数据  1=插入本机呼号
+/************* External function and variable declaration*****************/
+ // Convert the received KISS data to ASCII UI format, format 0 = original data 1 = insert the local call sign
 
 
 

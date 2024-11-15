@@ -4,5 +4,5 @@
 
  
 
-extern uchar BEACON_SAVE();    //写入信标列表和存储信标
+extern uchar BEACON_SAVE();    // Write beacon list and store beacons
 #endif

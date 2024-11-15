@@ -4,7 +4,7 @@
 #define _CHx_H_
 
  
-/*************  外部函数和变量声明 *****************/
+/************* External function and variable declaration*****************/
 
 extern void BEACON_TX_CHX(uchar mode);
 
