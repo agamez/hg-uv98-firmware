@@ -3,18 +3,18 @@
 
 #include "KISS2GAOMIN.H"
 #include "KISS2ASC.H"
-//#include "UART1.H"
+// #include "UART1.H"
 #include "UART2.H"
-//#include "UART4.H"
+// #include "UART4.H"
 
 #include "BEACON.H"
 #include "BT.H"
-//#include "MICE_DECODE.H"
+// #include "MICE_DECODE.H"
 
 #include "tostring.H"
 
 #include "KISS_Analysis.H"
-//#include "tostring.H"
+// #include "tostring.H"
 #include "DELAY.H"
 
 #include "PUBLIC_BUF.H"
@@ -24,18 +24,18 @@
 
 
 
-//蓝牙输出0=航点、1=KISS、2=UI数据 3=GPS 4=GPS+UI	  5=OFF
+// Bluetooth output 0=waypoint, 1=KISS, 2=UI data 3=GPS 4=GPS+UI 5=OFF
 
 
 
 
-void Disp_Analytic_data()		 //蓝牙/ISP口显示附加信息
+void Disp_Analytic_data()		 // Bluetooth/ISP port displays additional information
 {
-//	uchar SN_RX_BUFFER[200];
+// uchar SN_RX_BUFFER[200];
     uint  k ;
     uchar temp[20];
 
-//	return;
+// return;
 
     if (EEPROM_Buffer[0x00A5] != 1)
     {
@@ -44,7 +44,7 @@ void Disp_Analytic_data()		 //蓝牙/ISP口显示附加信息
 
 
     SN_RX_BUFFER[0] = 0;
-    //==============================================
+    // ==============================================
     strcat(SN_RX_BUFFER, "{alt: ");
 
     if (UI_ALT[0] == 0)
@@ -56,7 +56,7 @@ void Disp_Analytic_data()		 //蓝牙/ISP口显示附加信息
         strcat(SN_RX_BUFFER, UI_ALT);
     }
 
-    //写入海拔,最长6字节
+    // Write altitude, up to 6 bytes
     strcat(SN_RX_BUFFER, " || speed: ");
 
     if (UI_SPEED[0] == 0)
@@ -68,9 +68,9 @@ void Disp_Analytic_data()		 //蓝牙/ISP口显示附加信息
         strcat(SN_RX_BUFFER, UI_SPEED);
     }
 
-    //写入速度,最长6字节
+    // Write speed, up to 6 bytes
 
-    //==============================================
+    // ==============================================
     strcat(SN_RX_BUFFER, " || course: ");
 
     if (UI_DIR[0] == 0)
@@ -82,21 +82,21 @@ void Disp_Analytic_data()		 //蓝牙/ISP口显示附加信息
         strcat(SN_RX_BUFFER, UI_DIR);
     }
 
-    //写入航向,最长3字节
-    //--------------------------------------------------------
+    // Write heading, up to 3 bytes
+    // --------------------------------------------------------
     strcat(SN_RX_BUFFER, " || Dir(north): ");
     k = 0;
-    tostring(UI_Angle_N);	   //相对正北方位,最长3字节
+    tostring(UI_Angle_N);	   // Relative north direction, up to 3 bytes
     temp[k++] = bai;
     temp[k++] = shi;
     temp[k++] = ge;
     temp[k++] = 0x00;
 
     strcat(SN_RX_BUFFER, temp);
-    //--------------------------------------------------------
+    // --------------------------------------------------------
     strcat(SN_RX_BUFFER, " || Dir(Relative): ");
     k = 0;
-    tostring(UI_Angle_CAR);		 //相对车头方位,最长3字节
+    tostring(UI_Angle_CAR);		 // Relative vehicle head position, up to 3 bytes
     temp[k++] = bai;
     temp[k++] = shi;
     temp[k++] = ge;
@@ -104,8 +104,8 @@ void Disp_Analytic_data()		 //蓝牙/ISP口显示附加信息
 
     strcat(SN_RX_BUFFER, temp);
 
-    //--------------------------------------------------------
-    strcat(SN_RX_BUFFER, " || distance: ");		  //距离
+    // --------------------------------------------------------
+    strcat(SN_RX_BUFFER, " || distance: ");		  // distance
 
 
 
@@ -118,7 +118,7 @@ void Disp_Analytic_data()		 //蓝牙/ISP口显示附加信息
             strcat(SN_RX_BUFFER, " Km ");
             break;
 
-        case '*':	  //小于10,000米
+        case '*':	  // Less than 10,000 meters
             strcat(SN_RX_BUFFER, UI_JULI + 1);
             strcat(SN_RX_BUFFER, " Km ");
             break;
@@ -132,15 +132,15 @@ void Disp_Analytic_data()		 //蓝牙/ISP口显示附加信息
 
 
 
-//	k=0;
-//	tostring((uint)UI_JULI);
-//	temp[k++]=bai;  		temp[k++]=shi;   	temp[k++]=ge;  	temp[k++]=0x00;
-//	strcat(SN_RX_BUFFER,temp);
-//	strcat(SN_RX_BUFFER," Km ");
+// k=0;
+// tostring((uint)UI_JULI);
+// temp[k++]=bai;  		temp[k++]=shi;   	temp[k++]=ge;  	temp[k++]=0x00;
+// strcat(SN_RX_BUFFER,temp);
+// strcat(SN_RX_BUFFER," Km ");
 
-    //--------------------------------------------------------
+    // --------------------------------------------------------
 
-    strcat(SN_RX_BUFFER, " || elevation: ");	   //相对仰角
+    strcat(SN_RX_BUFFER, " || elevation: ");	   // Relative elevation angle
 
     k = 0;
     tostring(Elevation_angle);
@@ -151,27 +151,27 @@ void Disp_Analytic_data()		 //蓝牙/ISP口显示附加信息
     strcat(SN_RX_BUFFER, temp);
 
     strcat(SN_RX_BUFFER, " }\r\n");
-    //--------------------------------------------------------
+    // --------------------------------------------------------
     UART2_SendString(SN_RX_BUFFER);
 
-    //--------------------------------------------------------
+    // --------------------------------------------------------
     SN_RX_BUFFER[0] = 0;
 
     strcat(SN_RX_BUFFER, "{GS-232B/G5500 CMD: ");
     strcat(SN_RX_BUFFER, "W");
 
     k = 0;
-    tostring(UI_Angle_N);	   //相对正北方位,最长3字节
+    tostring(UI_Angle_N);	   // Relative north direction, up to 3 bytes
     temp[k++] = bai;
     temp[k++] = shi;
     temp[k++] = ge;
     temp[k++] = 0x00;
 
     strcat(SN_RX_BUFFER, temp);
-    //--------------------------------------------------------
+    // --------------------------------------------------------
     strcat(SN_RX_BUFFER, " ");
-    //--------------------------------------------------------
-    k = 0;						 //仰角
+    // --------------------------------------------------------
+    k = 0;						 // Elevation
     tostring(Elevation_angle);
     temp[k++] = bai;
     temp[k++] = shi;
@@ -185,42 +185,42 @@ void Disp_Analytic_data()		 //蓝牙/ISP口显示附加信息
 }
 
 
-void G5500_OUT( )	//蓝牙输出数据	0=输出自己发出的信标  1=输出解码的信标
+void G5500_OUT( )	// Bluetooth output data 0 = output the beacon sent by itself 1 = output the decoded beacon
 {
     uchar *p;
     uint  k ;
     uchar temp[20];
 
-//	uchar GS232B[20];
-//	if (EEPROM_Buffer[0x0128]==0) {return;}
-//-----------------------------------------------------
+// float GS232B[20];
+// if (EEPROM_Buffer[0x0128]==0) {return;}
+// -----------------------------------------------------
     if(EEPROM_Buffer[0X15] != 2)
     {
-        return;    //是否启用G5500控制
+        return;    // Whether to enable G5500 control
     }
 
-    READ_TEMP_CALL(0x0120, 0x0127);	 //读取跟踪目标呼号-SSID
+    READ_TEMP_CALL(0x0120, 0x0127);	 // Read the call sign-SSID of the tracking target
 
-    p = strstr(UI_CALL, TEMP_Call);	//与接收到的呼号对比
+    p = strstr(UI_CALL, TEMP_Call);	// Compare with received call sign
 
-    if  (p != NULL) 						//对比成功
+    if  (p != NULL) 						// Comparison success
     {
         SN_RX_BUFFER[0] = 0;
 
         strcat(SN_RX_BUFFER, "W");
 
         k = 0;
-        tostring(UI_Angle_N);	   //相对正北方位,最长3字节
+        tostring(UI_Angle_N);	   // Relative north direction, up to 3 bytes
         temp[k++] = bai;
         temp[k++] = shi;
         temp[k++] = ge;
         temp[k++] = 0x00;
 
         strcat(SN_RX_BUFFER, temp);
-        //--------------------------------------------------------
+        // --------------------------------------------------------
         strcat(SN_RX_BUFFER, " ");
-        //--------------------------------------------------------
-        k = 0;						 //仰角
+        // --------------------------------------------------------
+        k = 0;						 // Elevation
         tostring(Elevation_angle);
         temp[k++] = bai;
         temp[k++] = shi;
@@ -243,16 +243,16 @@ void SETUP_BL_NAME()
     Delay_time_25ms(20);
 
     READ_TEMP_CALL(0X0008, 0X000F);
-    UART2_SendString("AT+NAME");	 //初始化设置蓝牙名称
-    UART2_SendString(TEMP_Call);	 //初始化设置蓝牙名称
-// 	UART2_SendString("\r\n");	 //不用加回车
-    Delay_time_25ms(20); //必须延时，等待蓝牙设置完成，下次通电有效
+    UART2_SendString("AT+NAME");	 // Initialize Bluetooth name settings
+    UART2_SendString(TEMP_Call);	 // Initialize the Bluetooth name
+// UART2_SendString(&quot;\r\n&quot;); //No need to add carriage return
+    Delay_time_25ms(20); // It needs to be delayed to wait for the Bluetooth setting to be completed, and it will be effective next time the power is turned on
 }
 
 
 
 
-void BT_OUT(unsigned char STU)	//STU=0  未知格式，1=接收到有效信标	 2=自己发的信标
+void BT_OUT(unsigned char STU)	// STU=0 unknown format, 1=valid beacon received 2=self-sent beacon
 {
     uint i;
 
@@ -261,40 +261,40 @@ void BT_OUT(unsigned char STU)	//STU=0  未知格式，1=接收到有效信标	 2=自己发的信
         return;
     }
 
-    if (EEPROM_Buffer[0x0016] == 3) 	//航点格式
+    if (EEPROM_Buffer[0x0016] == 3) 	// Waypoint Format
     {
         if (STU == 0)
         {
-            return;   //未知格式数据
+            return;   // Unknown format data
         }
 
         if (STU == 2)
         {
-            //自己发的信标输出GPWPL格式
+            // Output the beacon you send yourself in GPWPL format
 
-            MY_BEACON_TO_GPWPL();	//自己的信标直接转成GPWPL航点格式
+            MY_BEACON_TO_GPWPL();	// Convert your own beacon directly into GPWPL waypoint format
 
-            UART2_SendString(GPWPL_BUF );  //串口2蓝牙输出航点数据
-//			UART1_SendString(GPWPL_BUF );  //串口2蓝牙输出航点数据
-            return;						   //自己发的信标，不需要显示分析数据
+            UART2_SendString(GPWPL_BUF );  // Serial port 2 Bluetooth output waypoint data
+// UART1_SendString(GPWPL_BUF); //Serial port 2 Bluetooth output waypoint data
+            return;						   // Beacons sent by yourself do not need to display analysis data
         }
 
         if (STU == 1)
         {
-            UI_TO_GPWPL();			       //接收到的信标，解析成航点
-            UART2_SendString(GPWPL_BUF );  //串口2蓝牙输出航点数据
-//			UART1_SendString(GPWPL_BUF );  //串口2蓝牙输出航点数据
+            UI_TO_GPWPL();			       // Received beacons, parsed into waypoints
+            UART2_SendString(GPWPL_BUF );  // Serial port 2 Bluetooth output waypoint data
+// UART1_SendString(GPWPL_BUF); //Serial port 2 Bluetooth output waypoint data
 
-            Disp_Analytic_data();		   //显示分析接收到的数据
+            Disp_Analytic_data();		   // Display and analyze the received data
 
             return;
         }
     }
 
-    if (EEPROM_Buffer[0x0016] == 1) 		 	//KISS HEX
+    if (EEPROM_Buffer[0x0016] == 1) 		 	// KISS HEX
     {
         UART2_SendData(0xC0);
-        UART2_SendData(0x00); 		//蓝牙串口输出KISS数据
+        UART2_SendData(0x00); 		// Bluetooth serial port outputs KISS data
 
         for (i = 0; i < KISS_LEN; i++)
         {
@@ -303,54 +303,54 @@ void BT_OUT(unsigned char STU)	//STU=0  未知格式，1=接收到有效信标	 2=自己发的信
 
         UART2_SendData(0xC0);
 
-//		UART1_SendData(0xC0);	UART1_SendData(0x00); 		//蓝牙串口输出KISS数据
-//		for (i=0;i<KISS_LEN;i++)    {  UART1_SendData(KISS_DATA[i]);}
-//		UART1_SendData(0xC0);
+// UART1_SendData(0xC0); UART1_SendData(0x00); //Bluetooth serial port outputs KISS data
+// for (i=0;i<KISS_LEN;i++)    {  UART1_SendData(KISS_DATA[i]);}
+// UART1_SendData(0xC0);
 
         return;
     }
 
-    if (EEPROM_Buffer[0x0016] == 2) 		 	 //2=UI
+    if (EEPROM_Buffer[0x0016] == 2) 		 	 // 2=UI
     {
-        KISS_TO_ASCII(SN_RX_BUFFER, 0);	 	 //电台接收到的 KISS数据,RF解码后,转换ASCII UI格式,并取得UI数据长度	UI_DIGI_LEN
-        UART2_SendString(SN_RX_BUFFER);	     //串口1监控
-//		UART1_SendString(SN_RX_BUFFER);	     //串口1监控
+        KISS_TO_ASCII(SN_RX_BUFFER, 0);	 	 // The KISS data received by the radio is converted to ASCII UI format after RF decoding, and the UI data length UI_DIGI_LEN is obtained.
+        UART2_SendString(SN_RX_BUFFER);	     // Serial port 1 monitoring
+// UART1_SendString(SN_RX_BUFFER); //Serial port 1 monitoring
 
         if (STU == 0)
         {
-            return;   //未知格式数据
+            return;   // Unknown format data
         }
 
         if (STU == 2)
         {
-            return;   //自己发的信标，不需要显示分析数据
+            return;   // Beacons sent by yourself do not need to display analysis data
         }
 
         if (STU == 1)
         {
-            Disp_Analytic_data();    //显示分析接收到的数据
+            Disp_Analytic_data();    // Display and analyze the received data
         }
 
         return;
     }
 
-    if (EEPROM_Buffer[0x0016] == 4) 	 		//4=KISS ASC
+    if (EEPROM_Buffer[0x0016] == 4) 	 		// 4=KISS ASC
     {
         DEBUG_KISS(KISS_DATA, KISS_LEN);
 
         if (STU == 0)
         {
-            return;   //未知格式数据
+            return;   // Unknown format data
         }
 
         if (STU == 2)
         {
-            return;   //自己发的信标，不需要显示分析数据
+            return;   // Beacons sent by yourself do not need to display analysis data
         }
 
         if (STU == 1)
         {
-            Disp_Analytic_data();   //显示分析接收到的数据
+            Disp_Analytic_data();   // Display and analyze the received data
         }
 
         return;

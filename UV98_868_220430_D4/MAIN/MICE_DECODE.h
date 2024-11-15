@@ -5,9 +5,9 @@
 
  
 
-extern void DISP_KISS_DATA();   //解析并显示对方的定位数据
+extern void DISP_KISS_DATA();   // Analyze and display the other party&#39;s positioning data
 
 extern uchar KISS_TO_MICE( ) ;
-extern uchar MICE_CHECK();	//检查KISS数据是否是压缩数据,
+extern uchar MICE_CHECK();	// Check if the KISS data is compressed data,
  
 #endif

@@ -4,11 +4,11 @@
 #define _APRS_RF_H_
 
  
-/*************  外部函数和变量声明 *****************/
+/************* External function and variable declaration*****************/
 
    
 
-extern unsigned char RF_DECODE();	//RF解码KISS数据
+extern unsigned char RF_DECODE();	// RF Decoding KISS Data
 
 /*****************************************/
  

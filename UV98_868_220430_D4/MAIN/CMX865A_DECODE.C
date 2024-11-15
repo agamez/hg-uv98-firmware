@@ -14,33 +14,33 @@
 
 #include "tostring.H"
 
-//#include "BEACON.H"
+// #include "BEACON.H"
 #include "KISS_Analysis.H"
 #include "PUBLIC_BUF.H"
 
 
 
-#define MAX_LEN 200	 //允许接收的最大KISS数据长度
+#define MAX_LEN 200	 // The maximum length of KISS data allowed to be received
 
-#include  <INTRINS.H> //Keil library 
+#include  <INTRINS.H> // Keil library
 
 
 bit HDLC_RX_BIT;
-uchar HDLC_RX_COUNT;			//重置连续5个1的计数
+uchar HDLC_RX_COUNT;			// Reset the count of 5 consecutive 1s
 
-//************* 接收寄存器
+// ************* Receive Register
 uchar HDLC_RX_BUF[400];
-//uchar APRS_KISS_BUF[300];
+// float APRS_KISS_BUF[300];
 
-uchar HDLC_RX_BIT_OLD;//上次位的状态
-uchar BIT_1_COUNT; //连续1的计数
-uchar END_7E; 	   //7E结束标记
-uchar HDLC_RX_TEMP;   //临时解码数据
-uint  TOTAL_IDX;   //总的位数
+uchar HDLC_RX_BIT_OLD;// The state of the last bit
+uchar BIT_1_COUNT; // Count of consecutive 1s
+uchar END_7E; 	   // 7E End Marker
+uchar HDLC_RX_TEMP;   // Temporary decoded data
+uint  TOTAL_IDX;   // Total number of digits
 
-//************* 输出KISS数据寄存器
-uint HDLC_RX_IDX;	  //当前位索引
-uint HDLC_RX_LEN;	  //缓存长度
+// ************* Output KISS data register
+uint HDLC_RX_IDX;	  // Current bit index
+uint HDLC_RX_LEN;	  // Buffer length
 
 
 uchar CMX_RX_BUSY;
@@ -51,21 +51,21 @@ uint RX_OK_COUNT;
 sbit sig_in  = P1 ^ 6;
 
 
-//每个帧前、后均有一标志码01111110，用作帧的起始、终止指示及帧的同步。
-//标志码不允许在帧的内部出现，以免引起歧义。
-//为保证标志码的唯一性但又兼顾帧内数据的透明性，可以采用“0比特插入法”来解决。
-//该法在发送端监视除标志码以外的所有字段，
-//当发现有连续5个“1”出现时，便在其后添插一个“0”，然后继续发后继的比特流。
-//在接收端，同样监除起始标志码以外的所有字段。
-//当连续发现5个“1”出现后，若其后一个比特“0”则自动删除它，以恢复原来的比特流；
-//若发现连续6个“1”，则可能是插入的“0”发生差错变成的“1”，也可能是收到了帧的终止标志码。
-//后两种情况，可以进一步通过帧中的帧检验序列来加以区分。
-//“0比特插入法”原理简单，很适合于硬件实现。
+// Each frame has a flag code 01111110 before and after, which is used to indicate the start and end of the frame and for frame synchronization.
+// The flag code is not allowed to appear inside the frame to avoid ambiguity.
+// In order to ensure the uniqueness of the identification code while taking into account the transparency of the data within the frame, the &quot;0-bit insertion method&quot; can be used to solve the problem.
+// This method monitors all fields except the flag code at the sending end.
+// When five consecutive &quot;1&quot;s are found, a &quot;0&quot; is inserted after them, and then the subsequent bit stream is sent.
+// At the receiving end, all fields except the start flag code are also monitored.
+// When five &quot;1&quot;s are found in succession, if the next bit is &quot;0&quot;, it will be automatically deleted to restore the original bit stream;
+// If six consecutive &quot;1&quot;s are found, it may be that the inserted &quot;0&quot; has an error and turned into a &quot;1&quot;, or it may be that the frame end flag code has been received.
+// The latter two cases can be further distinguished by the frame check sequence in the frame.
+// The principle of the &quot;0-bit insertion method&quot; is simple and very suitable for hardware implementation.
 
 
 
 
-uchar HDLC_READ_BIT()	 // 读出一位  0或者 1
+uchar HDLC_READ_BIT()	 // Read a 0 or 1
 {
     uint byte_idx;
     uchar bit_idx;
@@ -81,58 +81,58 @@ uchar HDLC_READ_BIT()	 // 读出一位  0或者 1
     return  0 ;
 }
 
-//检索首个FLAG=7E
+// Retrieve the first FLAG=7E
 uchar HDLC_START_7E()
 {
     uchar COUNT_7E;
-    uchar BIT_STU;//7E计数
+    uchar BIT_STU;// 7E Count
 
     HDLC_RX_TEMP = 0x00;
-    HDLC_RX_BIT_OLD = HDLC_READ_BIT();	 //记录起始输入电平
+    HDLC_RX_BIT_OLD = HDLC_READ_BIT();	 // Recording start input level
 
-//UART1_SendString("7E start IDX:  ");UART1_DEBUG(HDLC_RX_IDX);
-//if (HDLC_RX_BIT_OLD==1){	UART1_SendString("srat 1\r\n"); }else{	UART1_SendString("srat 0\r\n");}
+// UART1_SendString("7E start IDX:  ");UART1_DEBUG(HDLC_RX_IDX);
+// if (HDLC_RX_BIT_OLD==1){	UART1_SendString("srat 1\r\n"); }else{	UART1_SendString("srat 0\r\n");}
 
-    BIT_1_COUNT = 0;	//连续1的计数
-    COUNT_7E = 0;	  //7E计数
+    BIT_1_COUNT = 0;	// Count of consecutive 1s
+    COUNT_7E = 0;	  // 7E Count
 
     while (1)
     {
         if (HDLC_RX_IDX > (TOTAL_IDX - 2))
         {
-            return 0x00;   //检索超长
+            return 0x00;   // Search too long
         }
 
         BIT_STU	= HDLC_READ_BIT();
 
-        if (BIT_STU != HDLC_RX_BIT_OLD) //发生电平翻转
+        if (BIT_STU != HDLC_RX_BIT_OLD) // Level flip occurs
         {
-            HDLC_RX_BIT_OLD = BIT_STU; //记录输入电平
-            HDLC_RX_TEMP  >>= 1;			  //右移1位,默认写0
+            HDLC_RX_BIT_OLD = BIT_STU; // Recording input level
+            HDLC_RX_TEMP  >>= 1;			  // Shift right 1 bit, default is 0
 
-            if  (BIT_1_COUNT == 6)		 // ;当前=0，前面6个1，发现到首个FLAG=7E
+            if  (BIT_1_COUNT == 6)		 // ;Current = 0, the first 6 1s, the first FLAG = 7E is found
             {
-                COUNT_7E++;		 	//连续检测到3个FLAG=7E
+                COUNT_7E++;		 	// 3 consecutive detections of FLAG=7E
 
                 if (COUNT_7E > 2)
                 {
-                    BIT_1_COUNT = 0;	   //检索成功，返回
+                    BIT_1_COUNT = 0;	   // Retrieval success, return
                     return 0x01;
                 }
 
-//		 	UART1_SendString("7E DAT: ");   UART1_SendData(Hex2Ascii2(HDLC_RX_TEMP>>4)); UART1_SendData(Hex2Ascii2(HDLC_RX_TEMP));	  UART1_SendString("\r\n");
-//			BIT_1_COUNT=0;	return 0x01;
+// UART1_SendString("7E DAT: ");   UART1_SendData(Hex2Ascii2(HDLC_RX_TEMP>>4)); UART1_SendData(Hex2Ascii2(HDLC_RX_TEMP));	  UART1_SendString("\r\n");
+// BIT_1_COUNT=0;	return 0x01;
             }
 
-            BIT_1_COUNT = 0;	 //连续1的计数
+            BIT_1_COUNT = 0;	 // Count of consecutive 1s
         }
-        else			 //没翻转，写1
+        else			 // No flip, write 1
         {
-            HDLC_RX_TEMP  >>= 1;	//先右移1位
-            HDLC_RX_TEMP |= 0x80; 	  //写1
+            HDLC_RX_TEMP  >>= 1;	// Shift right 1 bit first
+            HDLC_RX_TEMP |= 0x80; 	  // Write 1
 
-            BIT_1_COUNT++;		  //连续1的计数+1
-//			if (BIT_1_COUNT==7)	{  return 0x05;}  		//发生错误，连续7个"1",可能是长音或非APRS数据	 	// 重新检测
+            BIT_1_COUNT++;		  // Count of consecutive 1s +1
+// if (BIT_1_COUNT==7) { return 0x05;} //Error, 7 consecutive &quot;1&quot;, may be a long tone or non-APRS data // Re-detect
         }
     }
 
@@ -146,45 +146,45 @@ uchar HDLC_RX_BYTE()
     unsigned char bit_count;
     uchar BIT_STU;
 
-    END_7E = 0;	 //数据7E标志清0
-    bit_count = 0; //接收8位
+    END_7E = 0;	 // Data 7E flag cleared
+    bit_count = 0; // Receive 8 bits
 
     while (bit_count < 8)
     {
         if (HDLC_RX_IDX > (TOTAL_IDX - 2))
         {
-            return 0x00;   //检索超长
+            return 0x00;   // Search too long
         }
 
         BIT_STU	= HDLC_READ_BIT();
 
-        if (BIT_STU != HDLC_RX_BIT_OLD) //发生电平翻转
+        if (BIT_STU != HDLC_RX_BIT_OLD) // Level flip occurs
         {
-            HDLC_RX_BIT_OLD = BIT_STU; //记录输入电平
+            HDLC_RX_BIT_OLD = BIT_STU; // Recording input level
 
-            if (BIT_1_COUNT != 5)	//不是连续5个1，则接收一位，前面连续5个“1”，则忽略此位
+            if (BIT_1_COUNT != 5)	// If it is not 5 consecutive 1s, then receive one bit. If it is preceded by 5 consecutive &quot;1s&quot;, then ignore this bit.
             {
                 if (BIT_1_COUNT == 6)
                 {
-                    END_7E = 1;	   //检测到7E标志
+                    END_7E = 1;	   // 7E flag detected
                 }
 
-                HDLC_RX_TEMP  >>= 1;	//右移1位,默认写0
+                HDLC_RX_TEMP  >>= 1;	// Shift right 1 bit, default is 0
                 bit_count++;
             }
 
-            BIT_1_COUNT = 0;	  //连续1的计数
+            BIT_1_COUNT = 0;	  // Count of consecutive 1s
         }
-        else			        //没翻转，写1
+        else			        // No flip, write 1
         {
-            HDLC_RX_TEMP  >>= 1;	//先右移1位
-            HDLC_RX_TEMP |= 0x80; 	//写1
+            HDLC_RX_TEMP  >>= 1;	// Shift right 1 bit first
+            HDLC_RX_TEMP |= 0x80; 	// Write 1
 
-            BIT_1_COUNT++;		  //连续1的计数+1
+            BIT_1_COUNT++;		  // Count of consecutive 1s +1
 
             if (BIT_1_COUNT == 7)
             {
-                return 0x05;   //发生错误，连续7个"1",可能是长音或非APRS数据	 	// 重新检测
+                return 0x05;   // An error occurred, 7 consecutive &quot;1&quot;, which may be a long tone or non-APRS data // Re-detect
             }
 
             bit_count++;
@@ -194,49 +194,49 @@ uchar HDLC_RX_BYTE()
     return 	1;
 }
 
-//uchar HDLC_CRC()		 //校验数据最后2位
-//{
-//	GetCrc16_LEN(KISS_DATA,HDLC_RX_LEN-2);	  //计算数据的校验值
-////   	disp_Hex2Ascii2(FCS_LO);   disp_Hex2Ascii2(FCS_HI);
-//
-//	if (FCS_LO!=KISS_DATA[HDLC_RX_LEN-2])	  { return 0;   }
-//	if (FCS_HI!=KISS_DATA[HDLC_RX_LEN-1])	  { return 0;   }
-//	KISS_LEN=HDLC_RX_LEN-2;
-//	return 1;	//	 对比校验码正确，解码成功
-//}
-//
-//
-//uchar HDLC_DECODE( )
-//{      //uint i;	//uchar stu;
-//
-//	if (HDLC_START_7E()!=0x01)	{   return 0; } //寻找数据包前部首个FLAG=7E，没有检索到7E起始标记，则退出
-//
-//	while (1)		//等待数据包头部的7E全部接收完毕
-//	{
-// 		if (HDLC_RX_BYTE()!=0x01)	{ return 0;  }		   //如果断线、杂音、长音等异常错误跳出
-//		if (HDLC_RX_TEMP!=0x7e)	{break; 	}
-//	}
-//
-//	HDLC_RX_LEN=0;				//接收首个KISS数据
-//
-// 	while (1)		//数据包中部
-//	{
-//		KISS_DATA[HDLC_RX_LEN++]=HDLC_RX_TEMP;
-//		if (HDLC_RX_BYTE()!=0x01)	{ return 0;   }		   //如果断线、杂音、长音等异常错误跳出
-//		if (HDLC_RX_LEN>120)  {  return 0;}		           //接收长度超长，如同时2个电台在发射，数据部分重叠，异常错误跳出
-//		if (END_7E==1){break ;}   //结尾标志7E
-//	}
-//
-//	if 	(HDLC_CRC()==1)  { return 1;}	  //校验数据最后2位		   //校验数据错误
-//	return 0;
-//}
-//
+// uchar HDLC_CRC() //Check the last 2 bits of data
+// {
+// GetCrc16_LEN(KISS_DATA,HDLC_RX_LEN-2); //Calculate the checksum of data
+// disp_Hex2Ascii2(FCS_LO);   disp_Hex2Ascii2(FCS_HI);
+// 
+// if (FCS_LO!=KISS_DATA[HDLC_RX_LEN-2])	  { return 0;   }
+// if (FCS_HI!=KISS_DATA[HDLC_RX_LEN-1])	  { return 0;   }
+// KISS_LEN=HDLC_RX_LEN-2;
+// return 1; // The comparison check code is correct and the decoding is successful
+// }
+// 
+// 
+// fly HDLC_DECODE( )
+// { //uint i; //uchar stu;
+// 
+// if (HDLC_START_7E()!=0x01) { return 0; } //Find the first FLAG=7E at the front of the data packet. If the 7E start marker is not found, exit
+// 
+// while (1) //Wait for all 7E in the packet header to be received
+// {
+// if (HDLC_RX_BYTE()!=0x01) { return 0; } //If there is an abnormal error such as disconnection, noise, long sound, etc., the program will be exited
+// if (HDLC_RX_TEMP!=0x7e)	{break; 	}
+// }
+// 
+// HDLC_RX_LEN=0; //Receive the first KISS data
+// 
+// while (1) //Middle of data packet
+// {
+// KISS_DATA[HDLC_RX_LEN++]=HDLC_RX_TEMP;
+// if (HDLC_RX_BYTE()!=0x01) { return 0; } //If there is an abnormal error such as disconnection, noise, long sound, etc., the program will be exited
+// if (HDLC_RX_LEN&gt;120) { return 0;} //The receiving length is too long. If two radio stations are transmitting at the same time, the data will overlap and an abnormal error will be thrown.
+// if (END_7E==1){break;} //End mark 7E
+// }
+// 
+// if (HDLC_CRC()==1) { return 1;} //Check data last 2 bits //Check data error
+// return 0;
+// }
+// 
 
 
-uchar HDLC_CRC()		 //校验数据最后2位
+uchar HDLC_CRC()		 // Check the last 2 digits of the data
 {
-    GetCrc16_LEN(KISS_DATA, KISS_LEN - 2);	 //计算数据的校验值
-//   	disp_Hex2Ascii2(FCS_LO);   disp_Hex2Ascii2(FCS_HI);
+    GetCrc16_LEN(KISS_DATA, KISS_LEN - 2);	 // Calculate the checksum of the data
+// disp_Hex2Ascii2(FCS_LO);   disp_Hex2Ascii2(FCS_HI);
 
     if (FCS_LO != KISS_DATA[KISS_LEN - 2])
     {
@@ -249,7 +249,7 @@ uchar HDLC_CRC()		 //校验数据最后2位
     }
 
     KISS_LEN = KISS_LEN - 2;
-    return 1;	//	 对比校验码正确，解码成功
+    return 1;	// The comparison check code is correct and the decoding is successful.
 }
 
 
@@ -257,14 +257,14 @@ uchar HDLC_DECODE( )
 {
     if (HDLC_START_7E() != 0x01)
     {
-        return 0;    //寻找数据包前部首个FLAG=7E，没有检索到7E起始标记，则退出
+        return 0;    // Look for the first FLAG=7E at the front of the data packet. If the 7E start marker is not found, exit.
     }
 
-    while (1)		//等待数据包头部的7E全部接收完毕
+    while (1)		// Wait for 7E in the packet header to be received completely
     {
         if (HDLC_RX_BYTE() != 0x01)
         {
-            return 1;     //如果断线、杂音、长音等异常错误跳出
+            return 1;     // If there are abnormal errors such as disconnection, noise, long sound, etc., the system will pop up
         }
 
         if (HDLC_RX_TEMP != 0x7e)
@@ -273,39 +273,39 @@ uchar HDLC_DECODE( )
         }
     }
 
-    KISS_LEN = 0;		//接收首个KISS数据
+    KISS_LEN = 0;		// Receive the first KISS data
 
-    while (1)		//数据包中部
+    while (1)		// Middle of packet
     {
         KISS_DATA[KISS_LEN++] = HDLC_RX_TEMP;
 
         if (HDLC_RX_BYTE() != 0x01)
         {
-            return 2;      //如果断线、杂音、长音等异常错误跳出
+            return 2;      // If there are abnormal errors such as disconnection, noise, long sound, etc., the system will pop up
         }
 
         if (KISS_LEN > 190)
         {
-            return 3;   //接收长度超长，如同时2个电台在发射，数据部分重叠，异常错误跳出
+            return 3;   // The receiving length is too long. For example, if two radio stations are transmitting at the same time, the data partially overlaps and an abnormal error pops up.
         }
 
         if (END_7E == 1)
         {
-            break ;   //结尾标志7E
+            break ;   // Ending sign 7E
         }
     }
 
     if 	(HDLC_CRC() == 1)
     {
-        return 5;   //校验数据最后2位		   //校验数据错误
+        return 5;   // Check the last 2 digits of the data //Check data error
     }
 
-//	UART1_SendString("KISS RX:  ");		DEBUG_KISS(KISS_DATA,KISS_LEN);
+// UART1_SendString(&quot;KISS RX: &quot;); DEBUG_KISS(KISS_DATA,KISS_LEN);
 
     return 4;
 }
 
-void DISP_HDLC(uchar dat)	//转成高低符号显示,调试用
+void DISP_HDLC(uchar dat)	// Convert to high and low symbol display, for debugging
 {
     uchar i;
 
@@ -321,7 +321,7 @@ void DISP_HDLC(uchar dat)	//转成高低符号显示,调试用
             UART2_SendData(' ');
         }
 
-        dat <<= 1; //取下一位
+        dat <<= 1; // Take the next one
     }
 }
 
@@ -329,7 +329,7 @@ void DISP_HDLC(uchar dat)	//转成高低符号显示,调试用
 
 
 
-uchar CMX865A_HDLC_RX()			// 独占解码方式
+uchar CMX865A_HDLC_RX()			// Exclusive decoding method
 {
     uchar DCD;
     uint i;
@@ -337,20 +337,20 @@ uchar CMX865A_HDLC_RX()			// 独占解码方式
     uint over_err;
     uint fram_err;
 
-//    DCD=0;
-// 	HDLC_RX_LEN=0;
-//	while (CMX865A_DET()==1)   //检测到信号，开始记录数据
-//	{
-//		DCD=1;
-//		HDLC_RX_BUF[HDLC_RX_LEN++]=CMX865A_RX_DATA();
-//		if (HDLC_RX_LEN>295){break;}	   //限制数据，最多300字节，超长跳出
-//	}
-//
-//	if (DCD==0){return 0;}	 //没信号跳出
+// DCD=0;
+// HDLC_RX_LEN=0;
+// while (CMX865A_DET()==1) //Detect the signal and start recording data
+// {
+// DCD=1;
+// HDLC_RX_BUF[HDLC_RX_LEN++]=CMX865A_RX_DATA();
+// if (HDLC_RX_LEN&gt;295){break;} //Limit data, 300 bytes at most, if it is too long, it will be jumped
+// }
+// 
+// if (DCD==0){return 0;} //No signal jump out
 
 
 
-    stu = CMX865A_READ_E6() ;		  //E6  //新的数据 ，B10=1 B6=1
+    stu = CMX865A_READ_E6() ;		  // E6 //New data, B10=1 B6=1
 
     if ((stu & 0x0400) != 0x0400)
     {
@@ -376,22 +376,22 @@ uchar CMX865A_HDLC_RX()			// 独占解码方式
 
         if ((stu & 0x0010) == 0x0010)
         {
-            fram_err++;   //
+            fram_err++;   // 
         }
 
         if ((stu & 0x0020) == 0x0020)
         {
-            over_err++;   //
+            over_err++;   // 
         }
 
 
-        if ((stu & 0x0040) == 0x0040)	 //收到新的数据 ，B6=1
+        if ((stu & 0x0040) == 0x0040)	 // Receive new data, B6=1
         {
             HDLC_RX_BUF[HDLC_RX_LEN++] = CMX865A_READ_E5();
 
             if (HDLC_RX_LEN > 295)
             {
-                break;   //限制数据，最多300字节，超长跳出
+                break;   // Limit data to 300 bytes at most, if it is too long, it will be skipped
             }
         }
 
@@ -408,19 +408,19 @@ uchar CMX865A_HDLC_RX()			// 独占解码方式
 
 
 
-//	UART1_SendData(0xaa);
-//	for (i=0;i<len;i++)   {	UART1_SendData(HDLC_RX_BUF[i]);  }// 调试
-//  for (i=0;i<30;i++)   {	UART1_SendData(0X00);  }// 调试
+// UART1_SendData(0 yes);
+// for (i=0;i<len;i++)   {	UART1_SendData(HDLC_RX_BUF[i]);  }// 璋冭瘯
+// for (i=0;i<30;i++)   {	UART1_SendData(0X00);  }// 璋冭瘯
 
-//	UART1_SendString("========\r\n"); 	   //带编号格式化调试
-//	for (i=0;i<40;i++)
-//	{
-//	UART1_SendString("("); UART1_DEBUG2(i*5*8);  		    UART1_SendString("): ");
-//
-//	for (n=0;n<5;n++) 	{	DISP_HDLC(HDLC_RX_BUF[i*5+n]);  	}
-//	UART1_SendString(" \r\n");
-//	}
-//	UART1_SendString("========\r\n");
+// UART1_SendString(&quot;========\r\n&quot;); //Format debugging with number
+// for (i=0;i<40;i++)
+// {
+// UART1_SendString(&quot;(&quot;); UART1_DEBUG2(i*5*8); UART1_SendString(&quot;): &quot;);
+// 
+// for (n=0;n<5;n++) 	{	DISP_HDLC(HDLC_RX_BUF[i*5+n]);  	}
+// UART1_SendString(&quot; \r\n&quot;);
+// }
+// UART1_SendString(&quot;========\r\n&quot;);
 
 
     UART2_SendString("TATAL:  ");
@@ -431,7 +431,7 @@ uchar CMX865A_HDLC_RX()			// 独占解码方式
     UART2_DEBUG(fram_err);
 
 
-    RX_OK_COUNT++;	//解码成功计数
+    RX_OK_COUNT++;	// Decoding success count
     UART2_SendString("RX COUNT:  ");
     UART2_DEBUG(RX_OK_COUNT);
 
@@ -441,12 +441,12 @@ uchar CMX865A_HDLC_RX()			// 独占解码方式
     }
 
 
-//	return 0;
+// return 0;
 
-    TOTAL_IDX = HDLC_RX_LEN * 8; //总的索引长度
-    HDLC_RX_IDX = 0;	  		 //起始检查7E索引位置	  //	UART1_SendString("TATAL:  ");	UART1_DEBUG(TOTAL_IDX);
+    TOTAL_IDX = HDLC_RX_LEN * 8; // Total index length
+    HDLC_RX_IDX = 0;	  		 // Start checking 7E index position // UART1_SendString(&quot;TATAL: &quot;); UART1_DEBUG(TOTAL_IDX);
 
-    for (i = 0; i < 10; i++) 	 //最多连续解码10次
+    for (i = 0; i < 10; i++) 	 // Up to 10 consecutive decodings
     {
         stu = HDLC_DECODE();
         UART2_SendString("err:  ");
@@ -455,7 +455,7 @@ uchar CMX865A_HDLC_RX()			// 独占解码方式
 
         if (stu == 5)
         {
-            return 1;	   //解码成功
+            return 1;	   // Decoding success
         }
     }
 
@@ -466,7 +466,7 @@ uchar CMX865A_HDLC_RX()			// 独占解码方式
 
 
 
-uchar CMX865A_HDLC_RX_2()			// 中断解码方式
+uchar CMX865A_HDLC_RX_2()			// Interrupt decoding method
 {
     uint i;
     uchar stu;
@@ -475,70 +475,70 @@ uchar CMX865A_HDLC_RX_2()			// 中断解码方式
 
     if (CMX_RX_BUSY == 1)
     {
-//		 	LED_STU=0;
+// LED_STU=0;
 
-        RX_OK_COUNT++;	//解码成功计数
-//   	UART2_SendString("TATAL:  ");	UART2_DEBUG(HDLC_RX_LEN);
-//   	UART2_SendString("RX COUNT:  ");	UART2_DEBUG(RX_OK_COUNT);
-//	for (i=0;i<HDLC_RX_LEN;i++) 	{	DISP_HDLC(HDLC_RX_BUF[i]);  	}
+        RX_OK_COUNT++;	// Decoding success count
+// UART2_SendString(&quot;TABLE: &quot;); UART2_DEBUG(HDLC_RX_LEN);
+// UART2_SendString("RX COUNT:  ");	UART2_DEBUG(RX_OK_COUNT);
+// for (i=0;i<HDLC_RX_LEN;i++) 	{	DISP_HDLC(HDLC_RX_BUF[i]);  	}
 
 
-        TOTAL_IDX = HDLC_RX_LEN * 8; //总的索引长度
-        HDLC_RX_IDX = 0;	 //起始检查7E索引位置
+        TOTAL_IDX = HDLC_RX_LEN * 8; // Total index length
+        HDLC_RX_IDX = 0;	 // Start checking at index position 7E
 
-        for (i = 0; i < 10; i++) 	 //最多连续解码10次
+        for (i = 0; i < 10; i++) 	 // Up to 10 consecutive decodings
         {
             stu = HDLC_DECODE();
 
-//	UART2_SendString("err:  ");	UART2_SendData(stu+0x30);	 	UART2_SendString("\r\n");
+// UART2_SendString(&quot;err: &quot;); UART2_SendData(stu+0x30); UART2_SendString(&quot;\r\n&quot;);
             if (stu == 5)
             {
-                break;	   //解码成功
+                break;	   // Decoding success
             }
         }
 
-        HDLC_RX_LEN = 0;	//接收长度清0
-        CMX_RX_BUSY = 0;	//重新接收
+        HDLC_RX_LEN = 0;	// The receiving length is cleared to 0
+        CMX_RX_BUSY = 0;	// Re-receive
     }
 
-//	UART1_SendData(0xaa);
-//	for (i=0;i<len;i++)   {	UART1_SendData(HDLC_RX_BUF[i]);  }// 调试
-//  for (i=0;i<30;i++)   {	UART1_SendData(0X00);  }// 调试
+// UART1_SendData(0 yes);
+// for (i=0;i<len;i++)   {	UART1_SendData(HDLC_RX_BUF[i]);  }// 璋冭瘯
+// for (i=0;i<30;i++)   {	UART1_SendData(0X00);  }// 璋冭瘯
 
-//	UART1_SendString("========\r\n"); 	   //带编号格式化调试
-//	for (i=0;i<40;i++)
-//	{
-//	UART1_SendString("("); UART1_DEBUG2(i*5*8);  		    UART1_SendString("): ");
-//
-//	for (n=0;n<5;n++) 	{	DISP_HDLC(HDLC_RX_BUF[i*5+n]);  	}
-//	UART1_SendString(" \r\n");
-//	}
-//	UART1_SendString("========\r\n");
+// UART1_SendString(&quot;========\r\n&quot;); //Format debugging with number
+// for (i=0;i<40;i++)
+// {
+// UART1_SendString(&quot;(&quot;); UART1_DEBUG2(i*5*8); UART1_SendString(&quot;): &quot;);
+// 
+// for (n=0;n<5;n++) 	{	DISP_HDLC(HDLC_RX_BUF[i*5+n]);  	}
+// UART1_SendString(&quot; \r\n&quot;);
+// }
+// UART1_SendString(&quot;========\r\n&quot;);
 
     return stu;
 }
 
-//读接收数据,状态寄存器如下变化，B5=0 B6 =0	3C 00   接收完成 3C 40	  接收溢出3C 60
+// Read received data, the status register changes as follows, B5 = 0 B6 = 0 3C 00 Reception completed 3C 40 Reception overflow 3C 60
 
-void CMX_RX_INT()	//定时中断 ,5ms中断一次
+void CMX_RX_INT()	// Timed interrupt, 5ms interrupt once
 {
     uint DCD;
 
-//	return;
+// return;
 
     if (PTT == 1)
     {
-        return;   //如果在发射状态,则不接收数据
+        return;   // If in the transmitting state, no data is received
     }
 
     if (CMX_RX_BUSY == 1)
     {
-        return;   //等待数据处理,则不接收数据
+        return;   // Waiting for data processing, no data is received
     }
 
-    DCD = CMX865A_READ_E6(); //E6  //新的数据 ，B10=1 B6=1
+    DCD = CMX865A_READ_E6(); // E6 //New data, B10=1 B6=1
 
-    if ((DCD & 0x0400) != 0x0400)	 //B10=0信号消失	 数据长度<20,则作废,重新接收,否则，数据接收完成
+    if ((DCD & 0x0400) != 0x0400)	 // B10=0 signal disappears. Data length &lt;20, then it is invalid and received again. Otherwise, data reception is completed.
     {
         if (HDLC_RX_LEN < 20)
         {
@@ -552,26 +552,26 @@ void CMX_RX_INT()	//定时中断 ,5ms中断一次
         return ;
     }
 
-    //B10=1
+    // B10=1
     if ((DCD & 0x0040) != 0x0040)
     {
-        return ;	 	   //B6=0	 没有可接收的数据
+        return ;	 	   // B6=0 No data to receive
     }
 
-    //B6=1
+    // B6=1
     HDLC_RX_BUF[HDLC_RX_LEN++] = CMX865A_READ_E5();
 
     if (HDLC_RX_LEN > 295)
     {
-        CMX_RX_BUSY = 1;   //限制数据，最多300字节，超长跳出
+        CMX_RX_BUSY = 1;   // Limit data to 300 bytes at most, if it is too long, it will be skipped
     }
 }
 
-void CMX_RX_Initial()	//定时中断
+void CMX_RX_Initial()	// Timer interrupt
 {
     CMX_RX_BUSY = 0;
-    HDLC_RX_LEN = 0;	//接收长度清0
+    HDLC_RX_LEN = 0;	// The receiving length is cleared to 0
 
 
-    RX_OK_COUNT = 0;	//解码成功计数
+    RX_OK_COUNT = 0;	// Decoding success count
 }

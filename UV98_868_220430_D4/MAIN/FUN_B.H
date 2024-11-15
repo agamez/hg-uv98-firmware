@@ -4,6 +4,6 @@
 #define _FUN_B_H_
 
  
-extern uchar FUN_B(uint idx);		//�б�
+extern uchar FUN_B(uint idx);		// ап╠М
 
 #endif

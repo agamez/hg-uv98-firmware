@@ -24,29 +24,29 @@
 #include "PUBLIC_BUF.H"
 
 
-uint GPS_BEACON_TIME; 		   //GPS¶¨Ê±ÐÅ±ê¼ÆÊ±
+uint GPS_BEACON_TIME; 		   // GPS Timing Beacon Timing
 
 
 
-////Íø¹ØµçÌ¨RFÐÅ±ê£¬KISS¸ñÊ½£¬²»º¬C0 00 ..C0£¬²»º¬Ð£ÑéÖµ£¬Ä©Î²²¹½áÊø·û0x00 ,½áÊø·û0X00²»·¢ËÍ
-//unsigned char xdata Gate_beacen[128]=
-//{	 0x82, 0xA0, 0x9E, 0xA8, 0x86, 0x62, 0xE0, 				//	Ä¿±êµØÖ· +SSID
-//	 0x84, 0x90, 0x68, 0xA8, 0x88, 0xAC, 0xF4, 				//	Ô´µØÖ·	 +SSID
-//	 0xAE, 0x92, 0x88, 0x8A, 0x62, 0x40, 0x63, 				//	Â·¾¶	 +SSID
-//	 0x03, 0xF0, 											//	03f0
-//	 0x21, 													//	ÀàÐÍ
-//	 0x33, 0x31, 0x30, 0x30, 0x2E, 0x30, 0x30, 0x4E, 		//	¾­Î³¶È
-//	 0x2F, 													//	·Ö¸ô·û	"/"
-//	 0x31, 0x32, 0x31, 0x30, 0x30, 0x2E, 0x30, 0x30, 0x45, 	//	¾­Î³¶È
-//	 0x3E, 													//	Í¼±êÀàÐÍ
-//	 0x20, 0x30, 0x37, 0x2E, 0x38, 0x56, 0x20, 0x32, 0x31, 0x43, 0x20, 0x6F, 0x74,		 //ÐÅÏ¢
-//	 0x00, };	//·ÇÎÄ±¾×Ö·û´®Î²²¿±àÒëÆ÷²»»á²¹ÉÏ00H£¬ÐèÊÖ¶¯²¹ÉÏ£¬½áÊø·û0X00²»·¢ËÍ
+// Gateway radio RF beacon, KISS format, excluding C0 00 ..C0, excluding checksum, with end character 0x00 added at the end, end character 0X00 is not sent
+// unsigned char xdata Gate_beacen[128]=
+// { 0x82, 0xA0, 0x9E, 0xA8, 0x86, 0x62, 0xE0, // target address + SSID
+// 0x84, 0x90, 0x68, 0xA8, 0x88, 0xAC, 0xF4, // Source address + SSID
+// 0xAE, 0x92, 0x88, 0x8A, 0x62, 0x40, 0x63, // Path + SSID
+// 0x03, 0xF0, 											//	03f0
+// 0x21, // Type
+// 0x33, 0x31, 0x30, 0x30, 0x2E, 0x30, 0x30, 0x4E, // longitude and latitude
+// 0x2F, // separator &quot;/&quot;
+// 0x31, 0x32, 0x31, 0x30, 0x30, 0x2E, 0x30, 0x30, 0x45, // longitude and latitude
+// 0x3E, // Icon type
+// 0x20, 0x30, 0x37, 0x2E, 0x38, 0x56, 0x20, 0x32, 0x31, 0x43, 0x20, 0x6F, 0x74, // information
+// 0x00, }; //The compiler will not add 00H to the end of the non-text string, you need to add it manually, and the end character 0X00 is not sent
 
-//Íø¹ØÍøÂçISÐÅ±ê
-//BH4TDV-10>APET51:!3134.31N/12020.22E>000/000/A=000027	  //14+22  22x833x8	=147ms
-//BH4TDV-10>SYUUQ1:`,<|l+Z[/`"4D}      //14×Ö½Ú
+// Gateway Network IS Beacon
+// BH4TDV-10>APET51:!3134.31N/12020.22E>000/000/A=000027	  //14+22  22x833x8	=147ms
+// BH4TDV-10&gt;SYUUQ1:`,&lt;|l+Z[/`&quot;4D} //14 bytes
 
-uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ±êKISS	 //GPS×ªKISSÊý¾Ý
+uchar GPS_TO_KISS()		// 0 = Gateway beacon KISS, 1 = Weather interface board KISS, 2 = WS1 weather beacon KISS, 3 = GPS beacon KISS // GPS to KISS data
 {
     uchar i, k, temp;
     uchar MICE_EN;
@@ -54,14 +54,14 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
 
     uchar B_SSID, PATH1, PATH2;
 
-//	uchar code  WX_DST_NAME[]  ={"WX51  "} ;	 //Ä¿±êµØÖ·6Î»
-    uchar code   DST_NAME[]    = {"APUV98"} ; //Ä¿±êµØÖ·6Î»
-//	uchar code   KISS_WIDE1[]  ={"WIDE1 "} ;	 //Â·¾¶µØÖ·6Î»£¬º¬¿Õ¸ñ
-//	uchar code   KISS_WIDE2[]  ={"WIDE2 "} ;	 //Â·¾¶µØÖ·6Î»£¬º¬¿Õ¸ñ
-//	uchar code   LOGO[]        ={"51G3"} ;
+// uchar code WX_DST_NAME[] ={&quot;WX51 &quot;}; //6 bits of target address
+    uchar code   DST_NAME[]    = {"APUV98"} ; // Destination address 6 bits
+// uchar code KISS_WIDE1[] ={&quot;WIDE1 &quot;}; //6-digit path address, including spaces
+// uchar code KISS_WIDE2[] ={&quot;WIDE2 &quot;}; //6-digit path address, including spaces
+// flying code LOGO[] ={&quot;51G3&quot;} ;
 
-//BH4TDV-10>APET51:!3134.31N/12020.22E>000/000/A=000027	  //14+22  22x833x8	=147ms
-//BH4TDV-10>SYUUQ1:`,<|l+Z[/`"4D}      //14×Ö½Ú
+// BH4TDV-10>APET51:!3134.31N/12020.22E>000/000/A=000027	  //14+22  22x833x8	=147ms
+// BH4TDV-10&gt;SYUUQ1:`,&lt;|l+Z[/`&quot;4D} //14 bytes
 
     MICE_EN = EEPROM_Buffer[0X10];
 
@@ -73,13 +73,13 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
 
     k = 0;
 
-    if (EEPROM_Buffer[0X2A] == 1) //0=¹Ì¶¨Õ¾£¬Éè¶¨µÄ¾­Î³¶È  1=ÒÆ¶¯Õ¾,GPS¾­Î³¶È
+    if (EEPROM_Buffer[0X2A] == 1) // 0 = Fixed station, set longitude and latitude 1 = Mobile station, GPS longitude and latitude
     {
         if (MICE_EN == 1)
         {
             for (i = 0; i < 6; i++)
             {
-                KISS_DATA[k] = (MICE_WD[i] << 1 );     //×ª»»DST_NAME
+                KISS_DATA[k] = (MICE_WD[i] << 1 );     // Convert DST_NAME
                 k++;
             }
         }
@@ -87,7 +87,7 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
         {
             for (i = 0; i < 6; i++)
             {
-                KISS_DATA[k] = (DST_NAME[i] << 1 );     //×ª»»DST_NAME
+                KISS_DATA[k] = (DST_NAME[i] << 1 );     // Convert DST_NAME
                 k++;
             }
         }
@@ -96,22 +96,22 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
     {
         for (i = 0; i < 6; i++)
         {
-            KISS_DATA[k] = (DST_NAME[i] << 1 );     //×ª»»DST_NAME
+            KISS_DATA[k] = (DST_NAME[i] << 1 );     // Convert DST_NAME
             k++;
         }
     }
 
 
     KISS_DATA[k] = 0x60;
-    k++;	//²åÈë DST_NAME SSID »òWX_DST_NAME SSID
-    //--------------------------------
+    k++;	// Insert DST_NAME SSID or WX_DST_NAME SSID
+    // --------------------------------
 
     for (i = 0; i < 6; i++)
     {
-        KISS_DATA[k + i]	= 0x40;    //SourceºôºÅÌî³ä¿Õ¸ñ
+        KISS_DATA[k + i]	= 0x40;    // Source Call Sign Filler
     }
 
-    for (i = 0; i < 6; i++)  					  	//SourceºôºÅÌî³ä¿Õ¸ñ
+    for (i = 0; i < 6; i++)  					  	// Source Call Sign Filler
     {
         if (EEPROM_Buffer[0x08 + i] == 0x00)
         {
@@ -122,33 +122,33 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
         k++;
     }
 
-    //--------------------------------
+    // --------------------------------
 
-    B_SSID = EEPROM_Buffer[0X0F];	 //ÐÅ±êSSID
+    B_SSID = EEPROM_Buffer[0X0F];	 // Beacon SSID
 
-    PATH1 = EEPROM_Buffer[PATH1_COUNT]; //²åÈë×ª·¢Â·¾¶1
-    PATH2 = EEPROM_Buffer[PATH2_COUNT]; //²åÈë×ª·¢Â·¾¶2
+    PATH1 = EEPROM_Buffer[PATH1_COUNT]; // Insert forwarding path 1
+    PATH2 = EEPROM_Buffer[PATH2_COUNT]; // Insert forwarding path 2
 
     k = 13;
 
     if ((PATH1 == 0) && (PATH2 == 0))
     {
-        KISS_DATA[k] = 0x60 | (B_SSID << 1) | 0x01;    //²åÈëÂ·¾¶½áÊø·û=1
+        KISS_DATA[k] = 0x60 | (B_SSID << 1) | 0x01;    // Insert path terminator = 1
         k++;
     }
     else
     {
         KISS_DATA[k] = 0xE0 | (B_SSID << 1) ;
-        k++;	  //²åÈë Source SSID +Â·¾¶½áÊø·û=0	 ,¸ßÎ»=1
+        k++;	  // Insert Source SSID + path terminator = 0, high bit = 1
 
         if (PATH1 != 0)
         {
             for (i = 0; i < 6; i++)
             {
-                KISS_DATA[k + i]	= 0x40;    //×ª»»Â·¾¶WIDE1
+                KISS_DATA[k + i]	= 0x40;    // Conversion path WIDE1
             }
 
-            for (i = 0; i < 6; i++)  		//SourceºôºÅÌî³ä¿Õ¸ñ
+            for (i = 0; i < 6; i++)  		// Source Call Sign Filler
             {
                 if (EEPROM_Buffer[PATH1_NAME + i] == 0x00)
                 {
@@ -159,11 +159,11 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
             }
 
             k = k + 6;
-            KISS_DATA[k] = 0x60 | (EEPROM_Buffer[PATH1_COUNT] << 1);  	//²åÈë WIDE1 SSID=1  + Â·¾¶½áÊø·û=0»ò1
+            KISS_DATA[k] = 0x60 | (EEPROM_Buffer[PATH1_COUNT] << 1);  	// Insert WIDE1 SSID=1 + path terminator=0 or 1
 
             if(PATH2 == 0)
             {
-                KISS_DATA[k] |= 0x01;    //²åÈëÂ·¾¶½áÊø·û=1
+                KISS_DATA[k] |= 0x01;    // Insert path terminator = 1
                 k++;
             }
             else
@@ -177,10 +177,10 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
         {
             for (i = 0; i < 6; i++)
             {
-                KISS_DATA[k + i]	= 0x40;    //×ª»»Â·¾¶WIDE1
+                KISS_DATA[k + i]	= 0x40;    // Conversion path WIDE1
             }
 
-            for (i = 0; i < 6; i++)  		//SourceºôºÅÌî³ä¿Õ¸ñ
+            for (i = 0; i < 6; i++)  		// Source Call Sign Filler
             {
                 if (EEPROM_Buffer[PATH2_NAME + i] == 0x00)
                 {
@@ -192,47 +192,47 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
 
             k = k + 6;
             KISS_DATA[k] = 0x60 | (EEPROM_Buffer[PATH2_COUNT] << 1) | 0x01;
-            k++;	//²åÈë WIDE2 SSID=1  + Â·¾¶½áÊø·û=1
+            k++;	// Insert WIDE2 SSID=1 + Path terminator=1
         }
 
     }
 
     KISS_DATA[k] = 0x03 ;
-    k++;	//²åÈë¿ØÖÆÂë03
+    k++;	// Insert control code 03
     KISS_DATA[k] = 0xF0 ;
-    k++;	//²åÈëPROÂëF0
+    k++;	// Insert PRO code F0
 
 
-//for(i=0;i<18;i++)  { KISS_DATA[k]= GPS_DATA[i]; k++;} //²åÈëGPS¾­Î³¶È
-//GPSÌáÈ¡³öµÄ¾­Î³¶ÈÊý¾Ý£¬³¤¶È=18×Ö½Ú£¬¸ñÊ½£º3134.03N/12020.19E
+// for(i=0;i<18;i++)  { KISS_DATA[k]= GPS_DATA[i]; k++;} //æ’å…¥GPSç»çº¬åº¦
+// The latitude and longitude data extracted from GPS, length = 18 bytes, format: 3134.03N/12020.19E
 
 
-    if (EEPROM_Buffer[0X2A] == 1) //0=¹Ì¶¨Õ¾£¬Éè¶¨µÄ¾­Î³¶È  1=ÒÆ¶¯Õ¾,GPS¾­Î³¶È
+    if (EEPROM_Buffer[0X2A] == 1) // 0 = Fixed station, set longitude and latitude 1 = Mobile station, GPS longitude and latitude
     {
 
         if (MICE_EN == 1)
         {
             for (i = 0; i < 14; i++)
             {
-                KISS_DATA[k]	= (MICE_JD[i] );     //Ñ¹ËõÊý¾Ý
+                KISS_DATA[k]	= (MICE_JD[i] );     // Compressing Data
                 k++;
             }
 
-//		for (i=0;i<4;i++)  	{  	KISS_DATA[k]	=LOGO[i];  k++; 	}  	//LOGO
+// for (i=0;i<4;i++)  	{  	KISS_DATA[k]	=LOGO[i];  k++; 	}  	//LOGO
         }
         else
         {
             KISS_DATA[k] = EEPROM_Buffer[0X12];
-            k++;	//²åÈëÀàÐÍ·û	   ¡¢31×Ö½Ú
+            k++;	// Insert type symbol, 31 bytes
 
-            //GPSÔ­Ê¼Î³¶È »òGPS¾ÀÆ«ºóµÄÎ³¶È
+            // GPS original latitude or GPS corrected latitude
             for(i = 0; i < 8; i++)
             {
                 KISS_DATA[k] = GPS_WD[i];
                 k++;
             }
 
-            //²åÈëÍ¼±ê¼¯
+            // Insert Icon Set
             if (SMART_MODE == 2)
             {
                 KISS_DATA[k] = EEPROM_Buffer[0XBC];
@@ -244,15 +244,15 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
                 k++;
             }
 
-//			KISS_DATA[k]=EEPROM_Buffer[0X13]; k++;
-            //GPSÔ­Ê¼¾­¶È »òGPS¾ÀÆ«ºóµÄ¾­¶È
+// KISS_DATA[k]=EEPROM_Buffer[0X13]; k++;
+            // GPS original longitude or GPS corrected longitude
             for(i = 0; i < 9; i++)
             {
                 KISS_DATA[k] = GPS_JD[i];
                 k++;
             }
 
-            //²åÈëÍ¼±ê·ûºÅ
+            // Insert Icon Symbol
             if (SMART_MODE == 2)
             {
                 KISS_DATA[k] = EEPROM_Buffer[0XBD];
@@ -264,9 +264,9 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
                 k++;
             }
 
-//			KISS_DATA[k]=EEPROM_Buffer[0X14]; k++;
+// KISS_DATA[k]=EEPROM_Buffer[0X14]; k++;
 
-            tostring(GPS_NOW_DIR);	  //º½Ïò
+            tostring(GPS_NOW_DIR);	  // course
             KISS_DATA[k] = bai;
             k++;
             KISS_DATA[k] = shi;
@@ -276,14 +276,14 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
             KISS_DATA[k] = '/';
             k++;
 
-            tostring(GPS_NOW_SPEED_KNOT);	  //ËÙ¶È
+            tostring(GPS_NOW_SPEED_KNOT);	  // speed
             KISS_DATA[k] = bai;
             k++;
             KISS_DATA[k] = shi;
             k++;
             KISS_DATA[k] = ge;
             k++;
-            //²åÈëº£°Î	   Ò»¹²9¸ö×Ö½Ú		//    /A=000027
+            // Insert altitude, 9 bytes in total // /A=000027
             KISS_DATA[k] = '/';
             k++;
             KISS_DATA[k] = 'A';
@@ -298,12 +298,12 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
             }
         }
     }
-    else	//0=¹Ì¶¨Õ¾£¬Éè¶¨µÄ¾­Î³¶È£¬ÐÅ±êÊ¹ÓÃÉèÖÃµÄ¹Ì¶¨¾­Î³¶È·¢
+    else	// 0 = Fixed station, set longitude and latitude, beacon uses the set fixed longitude and latitude to send
     {
         KISS_DATA[k] = EEPROM_Buffer[0X12];
-        k++;	//²åÈëÀàÐÍ·û	   ¡¢31×Ö½Ú
+        k++;	// Insert type symbol, 31 bytes
 
-        //¹Ì¶¨Õ¾µãÎ³¶È
+        // Fixed site latitude
         for(i = 0; i < 8; i++)
         {
             KISS_DATA[k] = EEPROM_Buffer[0x20 + i];
@@ -311,19 +311,19 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
         }
 
         KISS_DATA[k] = EEPROM_Buffer[0X13];
-        k++;	//²åÈëÍ¼±ê¼¯
+        k++;	// Insert Icon Set
 
         for(i = 0; i < 9; i++)
         {
-            KISS_DATA[k] = EEPROM_Buffer[0x30 + i];     //¹Ì¶¨Õ¾µã¾­¶È
+            KISS_DATA[k] = EEPROM_Buffer[0x30 + i];     // Fixed site longitude
             k++;
         }
 
         KISS_DATA[k] = EEPROM_Buffer[0X14];
-        k++;	//²åÈëÍ¼±ê·ûºÅ
+        k++;	// Insert Icon Symbol
 
 
-        tostring(0);	  //º½Ïò
+        tostring(0);	  // course
         KISS_DATA[k] = bai;
         k++;
         KISS_DATA[k] = shi;
@@ -333,14 +333,14 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
         KISS_DATA[k] = '/';
         k++;
 
-        tostring(0);	  //ËÙ¶È
+        tostring(0);	  // speed
         KISS_DATA[k] = bai;
         k++;
         KISS_DATA[k] = shi;
         k++;
         KISS_DATA[k] = ge;
         k++;
-        //²åÈëº£°Î	   Ò»¹²9¸ö×Ö½Ú		//    /A=000027
+        // Insert altitude, 9 bytes in total // /A=000027
         KISS_DATA[k] = '/';
         k++;
         KISS_DATA[k] = 'A';
@@ -348,7 +348,7 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
         KISS_DATA[k] = '=';
         k++;
 
-        ALT_TEMP =	(float) ( EEPROM_Buffer[0x0129] * 256 + EEPROM_Buffer[0x012A]) * 3.2808;	 //×ª»»³ÉÓ¢ÖÆ
+        ALT_TEMP =	(float) ( EEPROM_Buffer[0x0129] * 256 + EEPROM_Buffer[0x012A]) * 3.2808;	 // Convert to Imperial
 
         GPS_HEIGHT[0] = ALT_TEMP / 100000 % 10 + 0x30;
         GPS_HEIGHT[1] = ALT_TEMP / 10000 % 10 + 0x30;
@@ -356,7 +356,7 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
         GPS_HEIGHT[3] = ALT_TEMP / 100 % 10 + 0x30;
         GPS_HEIGHT[4] = ALT_TEMP / 10 % 10 + 0x30;
         GPS_HEIGHT[5] = ALT_TEMP % 10 + 0x30;
-        GPS_HEIGHT[6] = 0x00; //½áÊø·ûºÅ
+        GPS_HEIGHT[6] = 0x00; // End symbol
 
         for(i = 0; i < 6; i++)
         {
@@ -366,7 +366,7 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
 
     }
 
-    for(i = 0; i < 60; i++) //²åÈë×Ô¶¨ÒåÐÅÏ¢,ÏÞÖÆ×Ô¶¨ÒåÐÅÏ¢³¤¶È
+    for(i = 0; i < 60; i++) // Insert custom information and limit the length of custom information
     {
         temp = EEPROM_Buffer[0x40 + i];
 
@@ -380,20 +380,20 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
 
         if (k > 100)
         {
-            KISS_DATA[k] = '~';      //ÏÞ¶¨×Ö·û³¤¶È
+            KISS_DATA[k] = '~';      // Limit character length
             k++;
             break;
         }
     }
 
 
-    GET_LC();	  //Àï³Ì¼ÆËã
+    GET_LC();	  // Mileage calculation
 
-    if ((EEPROM_Buffer[0X3E] == 1) && (EEPROM_Buffer[0X2A] == 1) )  	 //²åÈëÀï³Ì	 5¸ö×Ö½Ú	  0-650.00km		 //moto 1-4
+    if ((EEPROM_Buffer[0X3E] == 1) && (EEPROM_Buffer[0X2A] == 1) )  	 // Insert mileage 5 bytes 0-650.00km //moto 1-4
     {
 
         KISS_DATA[k] = ' ';
-        k++;	  //	KISS_DATA[k]=LC_TIME;   k++;
+        k++;	  // KISS_DATA[k]=LC_TIME;   k++;
         tostring((uint)(TOTAL_LC / 100));
         KISS_DATA[k] = wan ;
         k++;
@@ -414,17 +414,17 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
         k++;
     }
 
-    //---------------------------------
-    if (EEPROM_Buffer[0X3C] == 1)   	//²åÈëµçÑ¹
+    // ---------------------------------
+    if (EEPROM_Buffer[0X3C] == 1)   	// Insertion voltage
     {
         KISS_DATA[k] = ' ';
-        k++; //²åÈëÒ»¸ö¿Õ¸ñ					   6¸ö×Ö½Ú
-        READ_ADC();	//¶ÁÈ¡µçÑ¹Öµ
+        k++; // Insert a space 6 bytes
+        READ_ADC();	// Read voltage value
         i = 0;
 
         while (DY[i] != 0x00)
         {
-            KISS_DATA[k] = DY[i];    //²åÈëµçÑ¹
+            KISS_DATA[k] = DY[i];    // Insertion voltage
             i++;
             k++;
         }
@@ -433,51 +433,51 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
         k++;
     }
 
-//	if (EEPROM_Buffer[0X3D]==1)   	//²åÈëÎÂ¶È
-//	{
-//		if (DS18B20_READTEMP()==1)
-//		{
-//		i=0;
-//		while (DS18B20_TEMP[i]!=0x00)	  	{KISS_DATA[k]=DS18B20_TEMP[i]; i++; k++;}  //²åÈëÎÂ¶È
-//		KISS_DATA[k]='C';   k++;
-//		}
-//	}
+// if (EEPROM_Buffer[0X3D]==1) //Insert temperature
+// {
+// if (DS18B20_READTEMP()==1)
+// {
+// i=0;
+// while (DS18B20_TEMP[i]!=0x00) {KISS_DATA[k]=DS18B20_TEMP[i]; i++; k++;} //Insert temperature
+// KISS_DATA[k]='C';   k++;
+// }
+// }
 
 
-//
-//	if (EEPROM_Buffer[0X3D]==1)
-//	{
-//		//²åÈëDS18B20
-//		if (DS18B20_READTEMP()==1)	 //Èç¹û¼ì²âµ½DS18B20£¬Ôò²åÈëµÚ2ÎÂ¶È			 6¸ö×Ö½Ú
-//		{
-//		KISS_DATA[k]=' ';   k++; //²åÈëÒ»¸ö¿Õ¸ñ
-//		i=0;
-//		while (DS18B20_TEMP[i]!=0x00)	  	{KISS_DATA[k]=DS18B20_TEMP[i]; i++; k++;}  //²åÈëÎÂ¶È
-//
-//		KISS_DATA[k]='C';   k++;
-//		}
-//	}
+// 
+// if (EEPROM_Buffer[0X3D]==1)
+// {
+// //Insert DS18B20
+// if (DS18B20_READTEMP()==1) //If DS18B20 is detected, insert the second temperature 6 bytes
+// {
+// KISS_DATA[k]=&#39; &#39;; k++; //Insert a space
+// i=0;
+// while (DS18B20_TEMP[i]!=0x00) {KISS_DATA[k]=DS18B20_TEMP[i]; i++; k++;} //Insert temperature
+// 
+// KISS_DATA[k]='C';   k++;
+// }
+// }
 
-//
-//  	if (EEPROM_Buffer[0X3D]==1)
-//	{
-//		//²åÈëDS18B20
-//		if (read_sht2x()==1)	 //Èç¹û¼ì²âµ½sht2x£¬Ôò²åÈëµÚ2ÎÂ¶È			 6¸ö×Ö½Ú
-//		{
-//		KISS_DATA[k]=' ';   k++; //²åÈëÒ»¸ö¿Õ¸ñ
-//		i=0;
-//		while (SHT2X_DATA[i]!=0x00)	  	{KISS_DATA[k]=SHT2X_DATA[i]; i++; k++;}  //²åÈëÎÂ¶È
-//
-//		}
-//	}
-//
+// 
+// if (EEPROM_Buffer[0X3D]==1)
+// {
+// //Insert DS18B20
+// if (read_sht2x()==1) //If sht2x is detected, insert the second temperature 6 bytes
+// {
+// KISS_DATA[k]=&#39; &#39;; k++; //Insert a space
+// i=0;
+// while (SHT2X_DATA[i]!=0x00) {KISS_DATA[k]=SHT2X_DATA[i]; i++; k++;} //Insert temperature
+// 
+// }
+// }
+// 
 
 
 
     READ_BMP280();
 
-    //---------------------------------
-    if (EEPROM_Buffer[0x003D] == 1) 		//±¨¸æÎÂ¶È
+    // ---------------------------------
+    if (EEPROM_Buffer[0x003D] == 1) 		// Reporting Temperature
     {
         if( BMP280_LINK == 1)
         {
@@ -487,7 +487,7 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
 
             while (BMP280_TEMP[i] != 0x00)
             {
-                KISS_DATA[k] = BMP280_TEMP[i];    //²åÈëÎÂ¶È
+                KISS_DATA[k] = BMP280_TEMP[i];    // Insertion temperature
                 i++;
                 k++;
             }
@@ -498,11 +498,11 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
 
     }
 
-    //---------------------------------
+    // ---------------------------------
 
     if (EEPROM_Buffer[0x003b] == 1)
     {
-        if( BMP280_LINK == 1)	//0=Ã»°²×°	1=°²×°	 		//ÆøÑ¹£¨0.1 hpa£©		9¸ö×Ö½Ú
+        if( BMP280_LINK == 1)	// 0 = Not installed 1 = Installed // Air pressure (0.1 hpa) 9 bytes
         {
             KISS_DATA[k] = ' ';
             k++;
@@ -511,7 +511,7 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
 
             while (BMP280_QY[i] != 0x00)
             {
-                KISS_DATA[k] = BMP280_QY[i];    //²åÈëÆøÑ¹
+                KISS_DATA[k] = BMP280_QY[i];    // Insert air pressure
                 i++;
                 k++;
             }
@@ -528,11 +528,11 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
 
 
 
-    if ((EEPROM_Buffer[0X2A] == 1) && (EEPROM_Buffer[0X3F] == 1)) //0=¹Ì¶¨Õ¾£¬Éè¶¨µÄ¾­Î³¶È  1=ÒÆ¶¯Õ¾,GPS¾­Î³¶È	 4¸ö×Ö½Ú
+    if ((EEPROM_Buffer[0X2A] == 1) && (EEPROM_Buffer[0X3F] == 1)) // 0 = Fixed station, set longitude and latitude 1 = Mobile station, GPS longitude and latitude 4 bytes
     {
-        //---------------------------------
+        // ---------------------------------
         KISS_DATA[k] = ' ';
-        k++;   //²åÈë¶¨Î»µÄÎÀÐÇÊýÁ¿
+        k++;   // Insert the number of satellites to locate
         KISS_DATA[k] = 'S';
         k++;
         KISS_DATA[k] = GPS_SIG[0];
@@ -551,9 +551,9 @@ uchar GPS_TO_KISS()		//0=Íø¹ØÐÅ±êKISS,1=ÆøÏó½Ó¿Ú°åKISS,2=WS1ÆøÏóÐÅ±êKISS,3=GPSÐÅ
 
 
 
-void BEACON_GPS_TXD()	 //·¢ËÍÒÆ¶¯Õ¾/¹Ì¶¨Õ¾RFÐÅ±ê
+void BEACON_GPS_TXD()	 // Send mobile/fixed station RF beacon
 {
-    //Èç¹ûÊÇÊ¡µçÄ£Ê½ÏÂ£¬²¢ÇÒGPSÊÇ¹Ø±Õ×´Ì¬£¬Ôò´ò¿ªGPS
+    // If the device is in power saving mode and GPS is off, turn on GPS.
     if ((EEPROM_Buffer[0X2D] == 1) && (GPS_EN == 0))
     {
         GPS_EN = 1;
@@ -565,12 +565,12 @@ void BEACON_GPS_TXD()	 //·¢ËÍÒÆ¶¯Õ¾/¹Ì¶¨Õ¾RFÐÅ±ê
     {
         if (GPS_LOCKED == 0)
         {
-            UART2_SendString("Wait GPS Lock \r\n");    //ÒÆ¶¯Õ¾Ê±£¬GPS±ØÐëËø¶¨²ÅÔÊÐí·¢Éä
+            UART2_SendString("Wait GPS Lock \r\n");    // When moving the station, the GPS must be locked before transmission is allowed
             return;
         }
     }
 
-    GPS_TO_KISS();	   //ÐÅ±êÊý¾Ý×éºÏ
+    GPS_TO_KISS();	   // Beacon data combination
 
     BEACON_TX_CHX(0);
 }
@@ -580,24 +580,24 @@ void BEACON_GPS_TXD()	 //·¢ËÍÒÆ¶¯Õ¾/¹Ì¶¨Õ¾RFÐÅ±ê
 
 void BECON_MODE()
 {
-    if (EEPROM_Buffer[0X02] == 1)			//¶¨Ê±ÐÅ±ê
+    if (EEPROM_Buffer[0X02] == 1)			// Timing Beacon
     {
         if (GPS_BEACON_TIME > (EEPROM_Buffer[0X00] * 256 +	EEPROM_Buffer[0X01]) - 1)
         {
             GPS_BEACON_TIME = 0;
-            BEACON_GPS_TXD();	 	 //·¢ËÍÒÆ¶¯Õ¾/¹Ì¶¨Õ¾RFÐÅ±ê
+            BEACON_GPS_TXD();	 	 // Send mobile/fixed station RF beacon
         }
     }
 
-    //GPSÊ¡µç£¬·¢ÉäÐÅ±êºó£¬×Ô¶¯¹Ø±Õ
-    if ((EEPROM_Buffer[0X03] == 1) | (EEPROM_Buffer[0X02] == 1))	//µ±¿ªÆôÁË¶¨Ê±·¢Éä»ò¿ªÆôÁËÊÖ¶¯·¢ÉäÄ£Ê½
+    // GPS power saving, automatically turns off after transmitting beacon
+    if ((EEPROM_Buffer[0X03] == 1) | (EEPROM_Buffer[0X02] == 1))	// When the timed transmission or manual transmission mode is turned on
     {
-        //µ±ÒÆ¶¯Õ¾Ê±£¬µ±GPSÊ¡µç¹¦ÄÜ¿ªÆô£¬µ±GPSÓÐÐ§¶¨Î»£¬Ôò·¢ËÍÐÅ±ê£¬¹Ø±ÕGPS
+        // When the mobile station is in operation, when the GPS power saving function is turned on, when the GPS is effectively positioned, a beacon is sent and the GPS is turned off.
         if ((EEPROM_Buffer[0X2D] == 1) && (EEPROM_Buffer[0X2A] == 1) && (GPS_EN == 1) && (GPS_LOCKED == 1))
         {
             BEACON_GPS_TXD();
             GPS_EN = 0;
-            GPS_LOCKED = 0; //LED_STU=1;
+            GPS_LOCKED = 0; // LED_STU=1;
             UART2_SendString("GPS OFF\r\n");
         }
     }

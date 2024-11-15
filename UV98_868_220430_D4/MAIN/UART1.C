@@ -6,50 +6,50 @@
 #include "tostring.H"
 
 
-#define BAUD    9600			   //串口/蓝牙通讯速率9600
+#define BAUD    9600			   // Serial port/Bluetooth communication rate 9600
 
 
 
-#define S1_S0 0x40              //P_SW1.6
-#define S1_S1 0x80              //P_SW1.7
+#define S1_S0 0x40              // P_SW1.6
+#define S1_S1 0x80              // P_SW1.7
 
 
-//#define ISP_ON      IAP_CONTR= 0x60;		  //ISP下载
-//#define RESET       IAP_CONTR= 0x20;		  //系统复位
+// #define ISP_ON IAP_CONTR= 0x60; //ISP download
+// #define RESET IAP_CONTR= 0x20; //System reset
 
-unsigned char UART1_BUF_DATA[600];	//接收数据缓存
-unsigned int  UART1_BUF_LENTH;	//串口收发数据长度
+unsigned char UART1_BUF_DATA[600];	// Receive data buffer
+unsigned int  UART1_BUF_LENTH;	// Length of serial port data sent and received
 
-bit UART1_TX_BUSY;		//串口3发送空闲
+bit UART1_TX_BUSY;		// Serial port 3 sends idle
 
-unsigned char UART1_RX_TIME;	//UARTx  接收数据计时
+unsigned char UART1_RX_TIME;	// UARTx Receive Data Timing
 
 /*----------------------------
-发送串口数据
+Send serial data
 ----------------------------*/
 void UART1_SendData(uchar dat)
 {
-    while (UART1_TX_BUSY);    //等待前面的数据发送完成
+    while (UART1_TX_BUSY);    // Waiting for the previous data to be sent
 
     UART1_TX_BUSY = 1;
-    SBUF = dat;                //写数据到UART2数据寄存器
+    SBUF = dat;                // Write data to UART2 data register
 }
 
 /*----------------------------
-发送字符串
+Sending a string
 ----------------------------*/
 void UART1_SendString(char *s)
 {
-    while (*s)                  //检测字符串结束标志
+    while (*s)                  // Detect the end of a string
     {
-        UART1_SendData(*s++);         //发送当前字符
+        UART1_SendData(*s++);         // Send current character
     }
 }
 
 
 
 
-void UART1_DEBUG(unsigned int n)	   //调试输出整数
+void UART1_DEBUG(unsigned int n)	   // Debug output integer
 {
     tostring(n);
  
@@ -59,14 +59,14 @@ void UART1_DEBUG(unsigned int n)	   //调试输出整数
 
 
 
-//*****************************************
-//UART1串行口中断
-//*****************************************
+// *****************************************
+// UART1 serial port interrupt
+// *****************************************
 void UART1() interrupt 4 using 1
 {
     if(TI)
     {
-        TI = 0;	   //注意TI中断引起的死机 	//串口发送完一个字节标志    //清忙标志
+        TI = 0;	   // Note the crash caused by TI interrupt //Serial port sends a byte flag //Clear busy flag
         UART1_TX_BUSY = 0;
         return;
     }
@@ -77,9 +77,9 @@ void UART1() interrupt 4 using 1
 
 
 
-        UART1_RX_TIME = 0;		//接收计时清空
+        UART1_RX_TIME = 0;		// Receive timing clear
         UART1_BUF_DATA[UART1_BUF_LENTH++] = SBUF;
-        UART1_BUF_DATA[UART1_BUF_LENTH] = 0x00;		//	补结束符号//接收1个字节数据
+        UART1_BUF_DATA[UART1_BUF_LENTH] = 0x00;		// Add end symbol //Receive 1 byte of data
 
         if (UART1_BUF_LENTH > 590)
         {
@@ -87,7 +87,7 @@ void UART1() interrupt 4 using 1
             return;
         }
 
-        // 数据大于128，接收数据长度，溢出错误处理			//数据长度重置=0
+        // The data is greater than 128, the receiving data length, overflow error processing //data length reset = 0
     }
 }
 
@@ -95,14 +95,14 @@ void UART1() interrupt 4 using 1
 
 
 
-void UART1_FUN()	//处理串口接收到的数据 ,解析数据
+void UART1_FUN()	// Process the data received by the serial port and parse the data
 {
     uint i;
 
     if ((UART1_BUF_LENTH != 0) && (UART1_RX_TIME > 5))
     {
 
-//	 for(i=0;i<UART1_BUF_LENTH;i++)   	 {   UART2_SendData(UART1_BUF_DATA[i]);    }  //调试
+// for(i=0;i<UART1_BUF_LENTH;i++)   	 {   UART2_SendData(UART1_BUF_DATA[i]);    }  //璋冭瘯
         for(i = 0; i < UART1_BUF_LENTH; i++)
         {
             UARTx_BUF[i] =  UART1_BUF_DATA[i] ;
@@ -119,39 +119,39 @@ void UART1_FUN()	//处理串口接收到的数据 ,解析数据
 }
 
 
-//
-//void UART1_select_p3031()
-//{
-//	ACC = P_SW1;
-//    ACC &= ~(S1_S0 | S1_S1);    //S1_S0=0 S1_S1=0
-//    P_SW1 = ACC;                //(P3.0/RxD, P3.1/TxD)
-//}
-//
-//void UART1_select_p3637()
-//{
-//  ACC = P_SW1;
-//  ACC &= ~(S1_S0 | S1_S1);    //S1_S0=1 S1_S1=0
-//  ACC |= S1_S0;               //(P3.6/RxD_2, P3.7/TxD_2)
-//  P_SW1 = ACC;
-//}
+// 
+// void UART1_select_p3031()
+// {
+// ACC = P_SW1;
+// ACC &amp;= ~(S1_S0 | S1_S1); //S1_S0=0 S1_S1=0
+// P_SW1 = ACC; //(P3.0/RxD, P3.1/TxD)
+// }
+// 
+// void UART1_select_p3637()
+// {
+// ACC = P_SW1;
+// ACC &amp;= ~(S1_S0 | S1_S1); //S1_S0=1 S1_S1=0
+// ACC |= S1_S0;               //(P3.6/RxD_2, P3.7/TxD_2)
+// P_SW1 = ACC;
+// }
 
 void UART1_Initial()
 {
-//  ACC = P_SW1;
-//  ACC &= ~(S1_S0 | S1_S1);    //S1_S0=0 S1_S1=1
-//  ACC |= S1_S1;               //(P1.6/RxD_3, P1.7/TxD_3)
-//  P_SW1 = ACC;
+// ACC = P_SW1;
+// ACC &amp;= ~(S1_S0 | S1_S1); //S1_S0=0 S1_S1=1
+// ACC |= S1_S1; //(P1.6/RxD_3, P1.7/TxD_3)
+// P_SW1 = ACC;
 
-    SCON = 0x50;                //8位可变波特率
-    T2L = (65536 - (FOSC / 4 / BAUD)); //设置波特率重装值
+    SCON = 0x50;                // 8-bit variable baud rate
+    T2L = (65536 - (FOSC / 4 / BAUD)); // Set the baud rate reload value
     T2H = (65536 - (FOSC / 4 / BAUD)) >> 8;
-    AUXR = 0x14;                //T2为1T模式, 并启动定时器2
-    AUXR |= 0x01;               //选择定时器2为串口1的波特率发生器
+    AUXR = 0x14;                // T2 is 1T mode, and start timer 2
+    AUXR |= 0x01;               // Select Timer 2 as the baud rate generator for serial port 1
 
     UART1_TX_BUSY = 0;
-    UART1_BUF_LENTH = 0;	//数据长度重置=0	  //清除串口2缓冲数据
+    UART1_BUF_LENTH = 0;	// Data length reset = 0 // Clear serial port 2 buffer data
 
-    ES = 1;                     //使能串口1中断
+    ES = 1;                     // Enable serial port 1 interrupt
 }
 
 

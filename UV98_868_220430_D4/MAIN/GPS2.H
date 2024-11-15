@@ -4,59 +4,59 @@
 #define _GPS2_H_
 
  
-/*************  外部函数和变量声明 *****************/
+/************* External function and variable declaration*****************/
 
 extern void	GPS_INIT();
-extern void UART3_RX_GPS();	  //调试UART3  GPS数据
+extern void UART3_RX_GPS();	  // Debug UART3 GPS data
 extern bit GPS_LOCKED;
 
-extern uchar GPS_TIME[10];	//时间
-extern uchar GPS_DATE[13];	//日期
+extern uchar GPS_TIME[10];	// time
+extern uchar GPS_DATE[13];	// date
 
-extern uchar GPS_WD[15];	//纬度
-extern uchar GPS_JD[15];    //经度
-extern uint GPS_NOW_DIR;	//GPS当前方向0-359度
-extern uint GPS_NOW_SPEED_KNOT;	//提取的GPS当前速度0-255海里  1海里=1.852公里
-extern uint GPS_SPEED_KM;	//GPS速度 单位公里
+extern uchar GPS_WD[15];	// latitude
+extern uchar GPS_JD[15];    // longitude
+extern uint GPS_NOW_DIR;	// GPS current direction 0-359 degrees
+extern uint GPS_NOW_SPEED_KNOT;	// The current speed extracted from GPS is 0-255 nautical miles. 1 nautical mile = 1.852 kilometers.
+extern uint GPS_SPEED_KM;	// GPS speed in kilometers
 
 
-extern uchar  GPS_ALT_ERR;		//GPS没有效定位，1=无海拔数据，则数据无效  0=海拔数据正常
-extern uchar GPS_HEIGHT[7];	//海拔高度度
+extern uchar  GPS_ALT_ERR;		// GPS has no valid positioning, 1 = no altitude data, then the data is invalid 0 = altitude data is normal
+extern uchar GPS_HEIGHT[7];	// Altitude
 extern long GPS_ALT_MI;
 
-extern uchar GPS_SIG[3];    //定位的卫星数量	00-12
+extern uchar GPS_SIG[3];    // Number of satellites located 00-12
 
-extern uint GPS_WAIT_TIME; //(0-255)*10秒
-
-
+extern uint GPS_WAIT_TIME; // (0-255)*10 seconds
 
 
-extern void BECON_MODE();	//定时信标
+
+
+extern void BECON_MODE();	// Timing Beacon
 extern long GPS_ALT_MI;
 extern uchar SMART_MODE;
 
 
 
 
-extern uint GPS_NOW_DIR;		//GPS当前方向0-359度
+extern uint GPS_NOW_DIR;		// GPS current direction 0-359 degrees
 extern uchar GPS_NOW_DIR_TXT[4];
 
 
 
-extern bit GPS_DIR_NOTHING;	//0=静止，无航向数据  1=移动中，有航向数据
+extern bit GPS_DIR_NOTHING;	// 0 = stationary, no heading data 1 = moving, heading data available
 
 
 
-//extern void LC_MEMORY();  //关机记录里程
+// extern void LC_MEMORY(); //shutdown and record mileage
 
-extern void LC_CLEAN();  //里程清0
+extern void LC_CLEAN();  // Mileage reset to 0
 extern unsigned  long  TOTAL_LC,AB_LC;    // 0-6500.0km
-//extern uchar LC_TIME;   //里程周期A-Z
+// extern uchar LC_TIME; //Mileage cycle AZ
 extern uchar GET_LC();
 
 
-extern bit QUICK_SET_EN;	//0= 禁止快速设置固定站		 1=允许快速设置固定站
+extern bit QUICK_SET_EN;	// 0 = Disable fast station setup 1 = Enable fast station setup
 
-//extern void QUICK_SET_FIXED();	  //快速修改固定站经纬度 
+// extern void QUICK_SET_FIXED(); //Quickly modify the longitude and latitude of the fixed station
 
 #endif

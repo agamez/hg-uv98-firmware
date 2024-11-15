@@ -1,7 +1,7 @@
 
 #include "STC8A8K64D4.H"
 #include "GPS_CHECKSUM.H"
-//#include "UART4.H"
+// #include "UART4.H"
 #include "UART3.H"
 
 #include <string.h>
@@ -24,7 +24,7 @@ uchar checksum_gps(char *s)
     uchar  checksum;
     uchar checksum_A,	 checksum_B ;
 
-    s++;	 //不包含 $
+    s++;	 // Does not contain $
     checksum = *s;
 
     for (i = 0; i < 126; i++)
@@ -33,7 +33,7 @@ uchar checksum_gps(char *s)
 
         if (*s == '*')
         {
-            break;   //不包含 *
+            break;   // Not included *
         }
 
         checksum = checksum ^ (*s);
@@ -44,11 +44,11 @@ uchar checksum_gps(char *s)
     s++;
     checksum_B =	*s;
 
-//	UART1_SendData(checksum_A);	UART1_SendData(checksum_B);
-// 	UART1_SendData(Hex2Ascii_A(checksum>>4));
-//	UART1_SendData(Hex2Ascii_A(checksum));
-//	UART1_SendData(0x0d);
-//	UART1_SendData(0x0a);
+// UART1_SendData(checksum_A);	UART1_SendData(checksum_B);
+// UART1_SendData(Hex2Ascii_A(checksum>>4));
+// UART1_SendData(Hex2Ascii_A(checksum));
+// UART1_SendData(0x0d);
+// UART1_SendData(0x0a);
 
     if (checksum_A != Hex2Ascii_A(checksum >> 4))
     {

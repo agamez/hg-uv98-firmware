@@ -4,16 +4,16 @@
 #define _CMX865A_DECODE_H_
 
 
-/*************  外部函数和变量声明 *****************/
+/************* External function and variable declaration*****************/
 
   
-extern uchar CMX865A_HDLC_RX() ;   // 独占解码方式
+extern uchar CMX865A_HDLC_RX() ;   // Exclusive decoding method
 
-extern uchar CMX865A_HDLC_RX_2();  // 中断解码方式
+extern uchar CMX865A_HDLC_RX_2();  // Interrupt decoding method
 
-extern void CMX_RX_Initial();	//定时中断
+extern void CMX_RX_Initial();	// Timer interrupt
 
-extern void CMX_RX_INT();	//定时中断 ,5ms中断一次
+extern void CMX_RX_INT();	// Timed interrupt, 5ms interrupt once
 
 extern unsigned char CMX_RX_BUSY;
 

@@ -1,7 +1,7 @@
 #include "STC8A8K64D4.H"
 #include "STC_EEPROM.H"
 
-//#include "UART1.H"
+// #include "UART1.H"
 #include "DELAY.H"
 #include "io.H"
 #include "BEACON.H"
@@ -12,7 +12,7 @@
 #include "CMX865A_CODE.H"
 #include "CMX865A_SPI.H"
 
-//#include "tostring.H"
+// #include "tostring.H"
 
 #include "UART2.H"
 #include "UART4.H"
@@ -20,85 +20,85 @@
 #include "PUBLIC_BUF.H"
 
 
-#include  <INTRINS.H> //Keil library 
+#include  <INTRINS.H> // Keil library
 
 
-//************* ·¢ËÍ¼Ä´æÆ÷
+// ************* Send Register
 bit HDLC_TX_BIT;
-uchar HDLC_TX_COUNT;			//ÖØÖÃÁ¬Ğø5¸ö1µÄ¼ÆÊı
+uchar HDLC_TX_COUNT;			// Reset the count of 5 consecutive 1s
 uchar HDLC_TX_BUF[300];
-uint HDLC_TX_IDX;	  //µ±Ç°Î»Ë÷Òı
+uint HDLC_TX_IDX;	  // Current bit index
 
-//************* ½ÓÊÕ¼Ä´æÆ÷
-//uchar HDLC_RX_BUF[300];
+// ************* Receive Register
+// float HDLC_RX_BUF[300];
 
-//uchar HDLC_TX_BIT_OLD;//ÉÏ´ÎÎ»µÄ×´Ì¬
-//uchar BIT_1_COUNT; //Á¬Ğø1µÄ¼ÆÊı
-//uchar END_7E; 	   //7E½áÊø±ê¼Ç
-//uchar HDLC_TEMP;   //ÁÙÊ±½âÂëÊı¾İ
-//uint  TOTAL_IDX;   //×ÜµÄÎ»Êı
+// uchar HDLC_TX_BIT_OLD; //Last bit status
+// uchar BIT_1_COUNT; //Count of consecutive 1s
+// uchar END_7E; //7E end mark
+// uchar HDLC_TEMP; //temporary decoding data
+// uint TOTAL_IDX; //Total number of digits
 
-//************* Êä³öKISSÊı¾İ¼Ä´æÆ÷
+// ************* Output KISS data register
 
-//uchar APRS_KISS_BUF[300];
-
-
-//Ã¿¸öÖ¡Ç°¡¢ºó¾ùÓĞÒ»±êÖ¾Âë01111110£¬ÓÃ×÷Ö¡µÄÆğÊ¼¡¢ÖÕÖ¹Ö¸Ê¾¼°Ö¡µÄÍ¬²½¡£
-//±êÖ¾Âë²»ÔÊĞíÔÚÖ¡µÄÄÚ²¿³öÏÖ£¬ÒÔÃâÒıÆğÆçÒå¡£
-//Îª±£Ö¤±êÖ¾ÂëµÄÎ¨Ò»ĞÔµ«ÓÖ¼æ¹ËÖ¡ÄÚÊı¾İµÄÍ¸Ã÷ĞÔ£¬¿ÉÒÔ²ÉÓÃ¡°0±ÈÌØ²åÈë·¨¡±À´½â¾ö¡£
-//¸Ã·¨ÔÚ·¢ËÍ¶Ë¼àÊÓ³ı±êÖ¾ÂëÒÔÍâµÄËùÓĞ×Ö¶Î£¬
-//µ±·¢ÏÖÓĞÁ¬Ğø5¸ö¡°1¡±³öÏÖÊ±£¬±ãÔÚÆäºóÌí²åÒ»¸ö¡°0¡±£¬È»ºó¼ÌĞø·¢ºó¼ÌµÄ±ÈÌØÁ÷¡£
-//ÔÚ½ÓÊÕ¶Ë£¬Í¬Ñù¼à³ıÆğÊ¼±êÖ¾ÂëÒÔÍâµÄËùÓĞ×Ö¶Î¡£
-//µ±Á¬Ğø·¢ÏÖ5¸ö¡°1¡±³öÏÖºó£¬ÈôÆäºóÒ»¸ö±ÈÌØ¡°0¡±Ôò×Ô¶¯É¾³ıËü£¬ÒÔ»Ö¸´Ô­À´µÄ±ÈÌØÁ÷£»
-//Èô·¢ÏÖÁ¬Ğø6¸ö¡°1¡±£¬Ôò¿ÉÄÜÊÇ²åÈëµÄ¡°0¡±·¢Éú²î´í±ä³ÉµÄ¡°1¡±£¬Ò²¿ÉÄÜÊÇÊÕµ½ÁËÖ¡µÄÖÕÖ¹±êÖ¾Âë¡£
-//ºóÁ½ÖÖÇé¿ö£¬¿ÉÒÔ½øÒ»²½Í¨¹ıÖ¡ÖĞµÄÖ¡¼ìÑéĞòÁĞÀ´¼ÓÒÔÇø·Ö¡£
-//¡°0±ÈÌØ²åÈë·¨¡±Ô­Àí¼òµ¥£¬ºÜÊÊºÏÓÚÓ²¼şÊµÏÖ¡£
+// float APRS_KISS_BUF[300];
 
 
-//uchar HDLC_SendByte (uchar inbyte,uchar aprs_flag)  //aprs_flag 1= Ç°ºó±êÖ¾7E£¬0=Êı¾İ7E
-//{
-//	uchar k, bt; uchar HDLC_TEMP;
-//
-//	for (k=0;k<8;k++)
-//	{                                                         //do the following for each of the 8 bits in the byte
-//		bt = inbyte & 0x01;    //È¡Ò»Î»
-//		if (bt == 0)
-//		{
-//			HDLC_TX_BIT=!HDLC_TX_BIT;  	//Êä³öÈ¡·´
-//			HDLC_TX_COUNT=0;			//ÖØÖÃÁ¬Ğø5¸ö1µÄ¼ÆÊı
-//		}
-//		else
-//		{			HDLC_TX_COUNT++; 	 	}
-//
-//		HDLC_TEMP<<=1; 		HDLC_TEMP|=HDLC_TX_BIT;
-//
-//		if ((HDLC_TX_COUNT == 5)&&(aprs_flag == 0) )		  //Á¬Ğø5¸ö¡°1¡±£¬²¢ÇÒ²»ÊÇaprs_flagÇ°ºó±êÊ¶Âë£¬Ôò²åÈë1¸ö¡°0¡±
-//		{
-//			HDLC_TX_BIT=!HDLC_TX_BIT;  	//Á¬Ğø5¸ö¡°1¡±£¬Êä³öÈ¡·´,¼´²åÈë1¸ö0
-//			HDLC_TEMP<<=1; 	   	HDLC_TEMP|=HDLC_TX_BIT;
-//			HDLC_TX_COUNT=0;	 	   //ÖØÖÃÁ¬Ğø5¸ö1µÄ¼ÆÊı
-//		}
-//
-//	  	inbyte = inbyte>>1;   //È¡ÏÂÒ»Î»
-//	}
-//
-//	CMX865A_TX_DATA(HDLC_TEMP);	   FX604_TX=!FX604_TX;
-//	return 	HDLC_TEMP;
-//}
+// Each frame has a flag code 01111110 before and after, which is used to indicate the start and end of the frame and for frame synchronization.
+// The flag code is not allowed to appear inside the frame to avoid ambiguity.
+// In order to ensure the uniqueness of the identification code while taking into account the transparency of the data within the frame, the &quot;0-bit insertion method&quot; can be used to solve the problem.
+// This method monitors all fields except the flag code at the sending end.
+// When five consecutive &quot;1&quot;s are found, a &quot;0&quot; is inserted after them, and then the subsequent bit stream is sent.
+// At the receiving end, all fields except the start flag code are also monitored.
+// When five &quot;1&quot;s are found in succession, if the next bit is &quot;0&quot;, it will be automatically deleted to restore the original bit stream;
+// If six consecutive &quot;1&quot;s are found, it may be that the inserted &quot;0&quot; has an error and turned into a &quot;1&quot;, or it may be that the end flag code of the frame has been received.
+// The latter two cases can be further distinguished by the frame check sequence in the frame.
+// The principle of the &quot;0-bit insertion method&quot; is simple and very suitable for hardware implementation.
 
-//  C0 00
-//  82 A0 6A 62 90 62 60
-//  9C 9E 86 82 98 98 73
-//  03 F0
-//  21 	  //21F0  20
-//  33 31 33 34 2E 38 30 4E
-//  2F
-//  31 32 30 32 30 2E 39 39 45
-//  3E 	 //3E45   1E
-//  36 6F
-//  C0
 
-void HDLC_WIRITE_TX_BIT(uchar dat)	   // Ğ´ÈëÒ»Î»
+// uchar HDLC_SendByte (uchar inbyte,uchar aprs_flag) //aprs_flag 1 = front and back flag 7E, 0 = data 7E
+// {
+// flying k, bt; float HDLC_TEMP;
+// 
+// for (k=0;k<8;k++)
+// {                                                         //do the following for each of the 8 bits in the byte
+// bt = inbyte &amp; 0x01; // take one bit
+// if (bt == 0)
+// {
+// HDLC_TX_BIT=!HDLC_TX_BIT; //Invert the output
+// HDLC_TX_COUNT=0; //Reset the count of 5 consecutive 1s
+// }
+// else
+// {			HDLC_TX_COUNT++; 	 	}
+// 
+// HDLC_TEMP&lt;&lt;=1; HDLC_TEMP|=HDLC_TX_BIT;
+// 
+// if ((HDLC_TX_COUNT == 5)&amp;&amp;(aprs_flag == 0) ) //5 consecutive &quot;1&quot;s, and not the aprs_flag before and after identification code, then insert 1 &quot;0&quot;
+// {
+// HDLC_TX_BIT=!HDLC_TX_BIT; //5 consecutive &quot;1&quot;, the output is inverted, that is, insert a 0
+// HDLC_TEMP&lt;&lt;=1; HDLC_TEMP|=HDLC_TX_BIT;
+// HDLC_TX_COUNT=0; //Reset the count of 5 consecutive 1s
+// }
+// 
+// inbyte = inbyte&gt;&gt;1; //Get the next bit
+// }
+// 
+// CMX865A_TX_DATA(HDLC_TEMP);	   FX604_TX=!FX604_TX;
+// return 	HDLC_TEMP;
+// }
+
+// C0 00
+// 82 A0 6A 62 90 62 60
+// 9C 9E 86 82 98 98 73
+// 03 F0
+// 21 //21F0 20
+// 33 31 33 34 2E 38 30 4E
+// 2F
+// 31 32 30 32 30 2E 39 39 45
+// 3E //3E45 1E
+// 36 6F
+// C0
+
+void HDLC_WIRITE_TX_BIT(uchar dat)	   // Write one bit
 {
     uint byte_idx;
     uchar bit_idx;
@@ -113,19 +113,19 @@ void HDLC_WIRITE_TX_BIT(uchar dat)	   // Ğ´ÈëÒ»Î»
     }
 }
 
-void HDLC_SendByte2 (uchar inbyte, uchar aprs_flag) //aprs_flag 1= Ç°ºó±êÖ¾7E£¬0=Êı¾İ7E»òÆäËûÊı¾İ
+void HDLC_SendByte2 (uchar inbyte, uchar aprs_flag) // aprs_flag 1 = pre and post flag 7E, 0 = data 7E or other data
 {
     uchar k, bt;
 
     for (k = 0; k < 8; k++)
     {
-        //do the following for each of the 8 bits in the byte
-        bt = inbyte & 0x01;    //È¡Ò»Î»
+        // do the following for each of the 8 bits in the byte
+        bt = inbyte & 0x01;    // Take one
 
         if (bt == 0)
         {
-            HDLC_TX_BIT = !HDLC_TX_BIT;  	//Êä³öÈ¡·´
-            HDLC_TX_COUNT = 0;			//ÖØÖÃÁ¬Ğø5¸ö1µÄ¼ÆÊı
+            HDLC_TX_BIT = !HDLC_TX_BIT;  	// Output inversion
+            HDLC_TX_COUNT = 0;			// Reset the count of 5 consecutive 1s
         }
         else
         {
@@ -135,125 +135,125 @@ void HDLC_SendByte2 (uchar inbyte, uchar aprs_flag) //aprs_flag 1= Ç°ºó±êÖ¾7E£¬0
 
         HDLC_WIRITE_TX_BIT(HDLC_TX_BIT);
 
-        if ((HDLC_TX_COUNT == 5) && (aprs_flag == 0) )		 //Á¬Ğø5¸ö¡°1¡±£¬²¢ÇÒ²»ÊÇaprs_flagÇ°ºó±êÊ¶Âë£¬Ôò²åÈë1¸ö¡°0¡±
+        if ((HDLC_TX_COUNT == 5) && (aprs_flag == 0) )		 // If there are five consecutive &quot;1&quot;s and they are not the identification codes before or after aprs_flag, insert a &quot;0&quot;
         {
-            HDLC_TX_COUNT = 0;	 	 //ÖØÖÃÁ¬Ğø5¸ö1µÄ¼ÆÊı
-            HDLC_TX_BIT = !HDLC_TX_BIT;  //Á¬Ğø5¸ö¡°1¡±£¬Êä³öÈ¡·´,¼´²åÈë1¸ö0
+            HDLC_TX_COUNT = 0;	 	 // Reset the count of 5 consecutive 1s
+            HDLC_TX_BIT = !HDLC_TX_BIT;  // If there are five consecutive &quot;1s&quot;, the output is inverted, that is, a 0 is inserted
             HDLC_WIRITE_TX_BIT(HDLC_TX_BIT);
         }
 
-        inbyte = inbyte >> 1; //È¡ÏÂÒ»Î»
+        inbyte = inbyte >> 1; // Take the next one
     }
 }
 
-//void DISP_HDLC(uchar dat)	//×ª³É¸ßµÍ·ûºÅÏÔÊ¾,µ÷ÊÔÓÃ
-//{	  uchar i;
-//	for (i=0;i<8;i++)
-//	{
-//	if ((dat&0x80)==0x80){UART1_SendData('-');}else{UART1_SendData('_');UART1_SendData(' ');}
-//	dat<<=1;   //È¡ÏÂÒ»Î»
-//	}
-////		UART1_SendData('|');
-//}
+// void DISP_HDLC(uchar dat) //Convert to high and low symbol display, for debugging
+// { fly i;
+// for (i=0;i<8;i++)
+// {
+// if ((dat&amp;0x80)==0x80){UART1_SendData(&#39;-&#39;);}else{UART1_SendData(&#39;_&#39;);UART1_SendData(&#39; &#39;);}
+// that&lt;&lt;=1; // å–ä¸‹ä¸€ä½
+// }
+// UART1_SendData(&#39;|&#39;);
+// }
 
-//
-//void CMX865A_HDLC_TX(uchar *pData,uchar nlen)	   //HDLC±àÂë
-//{	uint i;	  uint HDLC_LEN;	  //»º´æ³¤¶È
-//
-////	KISS_TO_ASCII(SN_RX_BUFFER,0);	 	 //µçÌ¨½ÓÊÕµ½µÄ KISSÊı¾İ,RF½âÂëºó,×ª»»ASCII UI¸ñÊ½,²¢È¡µÃUIÊı¾İ³¤¶È	UI_DIGI_LEN
-////  UART4_SendString(SN_RX_BUFFER );
-////	UART1_SendString(SN_RX_BUFFER );	 //´®¿Ú1¼à¿Ø
-//
-//	BT_OUT();	 //À¶ÑÀÊä³ö
-//
-//	Delay_time_25ms(2);//ÑÓÊ±50ms,¸ø´ó°å´¦ÀíÊ±¼ä
-//
-//	for (i=0;i<250;i++)   {HDLC_TX_BUF[i]=0;   }	  //
-//	HDLC_TX_IDX=0;  HDLC_TX_BIT=0;
-//
-//	GetCrc16_LEN(pData,nlen);	//¼ÆËãÊı¾İµÄĞ£ÑéÖµ	   //	SendData(FCS_LO)	;  	   //58	 //SendData( FCS_HI)	; 	   //D5
-//
-//
-//	PTT=1;	   LED_STU=0; 	Delay_time_1ms(10);
-//
-//	CMX865A_TX_ON();  	//Æô¶¯PTT
-//
-//
-//	//±àÂë
-//	for (i=0;i<(8*EEPROM_Buffer[0X07]);i++) {HDLC_SendByte2(0x7E,1);  }//·¢ËÍ50¸öÇ°ÖÃFLAG±êÖ¾Êı¾İ Ô¼µÈÓÚPTTÑÓÊ±8x6.6=53ms
-////	for (i=0;i<(8*8);i++) {HDLC_SendByte2(0x7E,1);  }//·¢ËÍ50¸öÇ°ÖÃFLAG±êÖ¾Êı¾İ Ô¼µÈÓÚPTTÑÓÊ±8x6.6=53ms
-//
-//
-//	for (i=0;i<nlen;i++) {HDLC_SendByte2(*pData,0); pData++;}	//±àÂë
-//	HDLC_SendByte2(FCS_LO,0);	HDLC_SendByte2(FCS_HI,0);	   	//·¢ËÍĞ£ÑéÖµÊı¾İ£¬ÏÈµÍºó¸ß
-//	for (i=0;i<2;i++)   {HDLC_SendByte2(0x7E,1);   }	  //·¢ËÍºóÖÃFLAG±êÖ¾Êı¾İ
-//
-//	HDLC_LEN=  HDLC_TX_IDX/8+1; //±ØĞë+2ÒÔÉÏ
-//	for (i=0;i<HDLC_LEN;i++)   {CMX865A_TX_DATA(HDLC_TX_BUF[i]);  }	//·¢ËÍ
-//
-////   	UART1_DEBUG(HDLC_LEN);
-//
-//	CMX865A_TX_OFF();
-//	PTT=0;	  LED_STU=1;   //¹Ø±ÕPTT
-//
-//
-////	for (i=0;i<HDLC_LEN;i++) 	{	DISP_HDLC(HDLC_TX_BUF[i]);  	}
-////
-////   	UART1_SendString("TATAL:  ");	UART1_DEBUG(HDLC_LEN);
-//
-//
-//
-////UART1_SendData(0xC0);	 UART1_SendData(0x00);
-////for (i=0;i<HDLC_LEN;i++)   {UART1_SendData(HDLC_TX_BUF[i]);   }// µ÷ÊÔ
-////UART1_SendData(FCS_LO);	  	UART1_SendData(FCS_HI);
-////UART1_SendData(0xC0);
-//
-//
-//
-////	UART1_SendData(0xC0);	UART1_SendData(0x00); 		//À¶ÑÀ´®¿ÚÊä³öKISSÊı¾İ
-////	for (i=0;i<KISS_LEN;i++)    {  UART1_SendData(KISS_DATA[i]);}
-////  UART1_SendData(FCS_LO);  	UART1_SendData(FCS_HI);
-////	UART1_SendData(0xC0);
-//
-////	KISS_TO_ASCII(SN_RX_BUFFER,0);	//KISSÊı¾İ×ª»»ASCII UI¸ñÊ½,²¢È¡µÃUIÊı¾İ³¤¶È	UI_DIGI_LEN
-////  KISS_TO_ASCII(SN_RX_BUFFER,1);	 	 //µçÌ¨½ÓÊÕµ½µÄ KISSÊı¾İ,RF½âÂëºó,×ª»»ASCII UI¸ñÊ½,²¢È¡µÃUIÊı¾İ³¤¶È	UI_DIGI_LEN
-//// 	UART1_SendString(SN_RX_BUFFER );	 //´®¿Ú1¼à¿Ø
-//
-//}
-
-
+// 
+// void CMX865A_HDLC_TX(uchar *pData,uchar nlen) //HDLC data
+// { uint i; uint HDLC_LEN; //buffer length
+// 
+// KISS_TO_ASCII(SN_RX_BUFFER,0); //The KISS data received by the radio, after RF decoding, convert to ASCII UI format and obtain the UI data length UI_DIGI_LEN
+// UART4_SendString(SN_RX_BUFFER );
+// UART1_SendString(SN_RX_BUFFER); //Serial port 1 monitoring
+// 
+// BT_OUT(); //Bluetooth output
+// 
+// Delay_time_25ms(2); //Delay 50ms to give the main board time to process
+// 
+// for (i=0;i<250;i++)   {HDLC_TX_BUF[i]=0;   }	  //
+// HDLC_TX_IDX=0;  HDLC_TX_BIT=0;
+// 
+// GetCrc16_LEN(pData,nlen); //Calculate the checksum of data // SendData(FCS_LO); //58 //SendData(FCS_HI); //D5
+// 
+// 
+// PTT=1;	   LED_STU=0; 	Delay_time_1ms(10);
+// 
+// CMX865A_TX_ON(); //Start PTT
+// 
+// 
+// //coding
+// for (i=0;i<(8*EEPROM_Buffer[0X07]);i++) {HDLC_SendByte2(0x7E,1);  }//å‘é€50ä¸ªå‰ç½®FLAGæ ‡å¿—æ•°æ® çº¦ç­‰äºPTTå»¶æ—¶8x6.6=53ms
+// for (i=0;i<(8*8);i++) {HDLC_SendByte2(0x7E,1);  }//å‘é€50ä¸ªå‰ç½®FLAGæ ‡å¿—æ•°æ® çº¦ç­‰äºPTTå»¶æ—¶8x6.6=53ms
+// 
+// 
+// for (i=0;i<nlen;i++) {HDLC_SendByte2(*pData,0); pData++;}	//ç¼–ç 
+// HDLC_SendByte2(FCS_LO,0); HDLC_SendByte2(FCS_HI,0); //Send checksum data, low first then high
+// for (i=0;i<2;i++)   {HDLC_SendByte2(0x7E,1);   }	  //å‘é€åç½®FLAGæ ‡å¿—æ•°æ®
+// 
+// HDLC_LEN= HDLC_TX_IDX/8+1; //must be +2 or more
+// for (i=0;i<HDLC_LEN;i++)   {CMX865A_TX_DATA(HDLC_TX_BUF[i]);  }	//å‘é€
+// 
+// UART1_DEBUG(HDLC_LEN);
+// 
+// CMX865A_TX_OFF();
+// PTT=0; LED_STU=1; //Turn off PTT
+// 
+// 
+// for (i=0;i<HDLC_LEN;i++) 	{	DISP_HDLC(HDLC_TX_BUF[i]);  	}
+// 
+// UART1_SendString(&quot;TATAL: &quot;); UART1_DEBUG(HDLC_LEN);
+// 
+// 
+// 
+// UART1_SendData(0xC0); UART1_SendData(0x00);
+// for (i=0;i<HDLC_LEN;i++)   {UART1_SendData(HDLC_TX_BUF[i]);   }// è°ƒè¯•
+// UART1_SendData(FCS_LO);	  	UART1_SendData(FCS_HI);
+// UART1_SendData(0xC0);
+// 
+// 
+// 
+// UART1_SendData(0xC0); UART1_SendData(0x00); //Bluetooth serial port outputs KISS data
+// for (i=0;i<KISS_LEN;i++)    {  UART1_SendData(KISS_DATA[i]);}
+// UART1_SendData(FCS_LO);  	UART1_SendData(FCS_HI);
+// UART1_SendData(0xC0);
+// 
+// KISS_TO_ASCII(SN_RX_BUFFER,0); //Convert KISS data to ASCII UI format and get UI data length UI_DIGI_LEN
+// KISS_TO_ASCII(SN_RX_BUFFER,1); //The KISS data received by the radio, after RF decoding, convert to ASCII UI format and obtain the UI data length UI_DIGI_LEN
+// UART1_SendString(SN_RX_BUFFER); //Serial port 1 monitoring
+// 
+// }
 
 
 
-void CMX865A_HDLC_TX(uchar *pData, uchar nlen)	  //HDLC±àÂë
+
+
+void CMX865A_HDLC_TX(uchar *pData, uchar nlen)	  // HDLC Encoding
 {
     uint i;
-    uint HDLC_LEN;	  //»º´æ³¤¶È
+    uint HDLC_LEN;	  // Buffer length
 
-//	Delay_time_25ms(1);//ÑÓÊ±50ms,¸ø´ó°å´¦ÀíÊ±¼ä
-//	CMX865A_Init();
+// Delay_time_25ms(1); //Delay 50ms to give the main board time to process
+// CMX865A_Init();
 
 
     for (i = 0; i < 250; i++)
     {
-        HDLC_TX_BUF[i] = 0;      //
+        HDLC_TX_BUF[i] = 0;      // 
     }
 
     HDLC_TX_IDX = 0;
     HDLC_TX_BIT = 1;
 
-    GetCrc16_LEN(pData, nlen);	//¼ÆËãÊı¾İµÄĞ£ÑéÖµ	   //	SendData(FCS_LO)	;  	   //58	 //SendData( FCS_HI)	; 	   //D5
+    GetCrc16_LEN(pData, nlen);	// Calculate the checksum of data // SendData(FCS_LO); //58 // SendData(FCS_HI); //D5
 
 
-//	PTT=1;
-//	LED_STU=0;	 //Delay_time_1ms(10);
-//		CMX_RX_OFF(); //¹Ø±Õ½ÓÊÕ
-    CMX865A_TX_ON();  	//Æô¶¯PTT
+// PTT=1;
+// LED_STU=0;	 //Delay_time_1ms(10);
+// CMX_RX_OFF(); //Turn off receiving
+    CMX865A_TX_ON();  	// Start PTT
 
-    //±àÂë
+    // coding
     for (i = 0; i < (8 * EEPROM_Buffer[0X07] + 30); i++)
     {
-        HDLC_SendByte2(0x7E, 1);     //·¢ËÍ50¸öÇ°ÖÃFLAG±êÖ¾Êı¾İ Ô¼µÈÓÚPTTÑÓÊ±8x6.6=53ms
+        HDLC_SendByte2(0x7E, 1);     // Sending 50 pre-flag data is approximately equal to PTT delay 8x6.6=53ms
     }
 
     for (i = 0; i < nlen; i++)
@@ -263,33 +263,33 @@ void CMX865A_HDLC_TX(uchar *pData, uchar nlen)	  //HDLC±àÂë
     }
 
     HDLC_SendByte2(FCS_LO, 0);
-    HDLC_SendByte2(FCS_HI, 0);	   	//·¢ËÍĞ£ÑéÖµÊı¾İ£¬ÏÈµÍºó¸ß
+    HDLC_SendByte2(FCS_HI, 0);	   	// Send checksum data, low first then high
 
     for (i = 0; i < 2; i++)
     {
-        HDLC_SendByte2(0x7E, 1);      //·¢ËÍºóÖÃFLAG±êÖ¾Êı¾İ
+        HDLC_SendByte2(0x7E, 1);      // Send post-FLAG mark data
     }
 
-    //·¢ËÍ
-    HDLC_LEN =  HDLC_TX_IDX / 8 + 1; //±ØĞë+2ÒÔÉÏ
+    // send
+    HDLC_LEN =  HDLC_TX_IDX / 8 + 1; // Must be +2 or above
 
     for (i = 0; i < HDLC_LEN; i++)
     {
-        CMX865A_TX_DATA(HDLC_TX_BUF[i]);     //·¢ËÍÊı¾İ
+        CMX865A_TX_DATA(HDLC_TX_BUF[i]);     // Sending Data
     }
 
-//   	UART1_DEBUG(HDLC_LEN);
+// UART1_DEBUG(HDLC_LEN);
 
     CMX865A_TX_OFF();
-//	CMX_RX_ON();
+// CMX_RX_ON();
 
-//	PTT=0;	//  LED_STU=1;   //¹Ø±ÕPTT
-
-
+// PTT=0; // LED_STU=1; //Turn off PTT
 
 
-//	UART2_SendString("$E00\r\n");	UART4_SendString("$E00\r\n"); 	    	Delay_time_25ms(1);
-//	UART2_SendString("$E00\r\n");	UART4_SendString("$E00\r\n"); 	    	Delay_time_25ms(1);
+
+
+// UART2_SendString(&quot;$E00\r\n&quot;); UART4_SendString(&quot;$E00\r\n&quot;); Delay_time_25ms(1);
+// UART2_SendString(&quot;$E00\r\n&quot;); UART4_SendString(&quot;$E00\r\n&quot;); Delay_time_25ms(1);
 
 }
 
