@@ -441,3 +441,19 @@ Render tests of the bitmap-ish tables with row- and column-major packings were n
 - Transport primitives confirmed: `0x080179C8` = set_window (cmd 0x2A CASET + 0x2B RASET, 16-bit coords), `0x08017A6A` = command write (CS low → byte → CS high), `0x08017A8C` = data write byte; panel bus on GPIOB/GPIOC (literal cluster 0x08017FAC-0x08017FB4); write strobe = GPIOC pin op seen at 0x0801780x.
 
 Display stack now identified end-to-end: ST7735 panel (GPIO parallel bus) ← blit per-class geometry (partial) ← renderer semantics (recovered) ← CJK glyphs (external SPI2 flash, recovered) ← asset tables (recovered). Remaining: blit per-class geometry + MADCTL/geometry orientation + panel GPIO pin assignment map.
+
+### 2026-10-15 — Session 15: key-table architecture, MADCTL, port-map corrections, dispatcher characterized
+
+**1. Key handler table = RAM, runtime-registered.** The pump's table base literal (0x0800F5D8) = **0x20000CA4** — a RAM block (static data below the MSP top). Each screen registers its own 8-byte key entries ([handler, arg] × key-id) at runtime; a static dump is impossible by design. The static structure is the deliverable: 8-byte entries, indexed by the key ID byte at 0x20005166.
+
+**2. MADCTL = 0xA8** (MY | MV | BGR): rotated-landscape orientation on the ST7735 native 128×160 panel, BGR pixel order — consistent with the 160-wide axis and the renderer's wrap at 0x9C.
+
+**3. Port-map correction:** the font-flash CS literal is **0x40011400 = GPIOD** (pin 4 = PD4), not GPIOC as previously logged — font.c fixed and rebuilt. LCD control lines (cmd writer 0x08017A6A toggles GPIOC bit 3) are on GPIOC; keys on GPIOC (PC7/PC8/PC11+); RF on GPIOA; font flash CS on PD4.
+
+**4. "Master dispatcher" 0x08010D5E re-characterized — it is the MENU-LIST REDRAW:**
+- Argument = the 20-byte block memcpy'd by the key pump: `{[18]=y_base, [19]=class, [1A]=start_idx, [1C]=end_idx, [20]=string-table (u32/entry), [24]=fg, [26]=bg}`.
+- Loop: `draw_text(&cursor, table[i], fg, bg)` per row with **row pitch 0x11 (17 px)**; then selection-bar call `0x08018E0C` at `y_base + 0x11 * sel_idx` (highlight/invert rectangle).
+- The prior "67 callees" attribution from the call-graph pass refers to transitive reachability, not this function's own shape.
+- The following function 0x08010DEA = a 10 ms poll loop (OSTimeDlyHMSM(0,0,0,10)) incrementing a periodic counter ([base+0x7C]) and checking flag [base+0x119] — the menu-input poller.
+
+**Key→UI model now complete:** TIM2/GPIOC scanners → key ID byte (0x20005166) → pump 0x0800F1F0 (RAM handler table 0x20000CA4, per-screen registration) → handlers perform actions → menu-list redraw 0x08010D5E repaints the list with the selection bar.

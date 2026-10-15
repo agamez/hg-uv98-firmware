@@ -1,7 +1,7 @@
 /* Font & asset storage — [RECOVERED] from the original image (session 11).
  *
  * ARCHITECTURE: the CJK 16x16 glyphs live in an EXTERNAL SPI flash on
- * hardware SPI2 (0x40003800), CS on GPIOC pin 4. Reads use flash READ
+ * hardware SPI2 (0x40003800), CS on GPIOD pin 4. Reads use flash READ
  * opcode 0x03 with a 24-bit address. Internal flash holds record tables
  * (menu strings, DCS tone names, APRS symbol names/icons) addressed by
  * the asset lookup below.
@@ -45,8 +45,8 @@
 #define SPI_SR_TXE      (1u << 1)
 #define SPI_SR_RXNE     (1u << 0)
 
-#define GPIOC_BASE      0x40011400u
-#define FONT_FLASH_CS   0x10u                   /* PC4 */
+#define GPIOD_BASE      0x40011400u
+#define FONT_FLASH_CS   0x10u                   /* PD4 */
 
 /* [0x08027E92 | RECOVERED] full-duplex SPI2 byte transfer. */
 static uint8_t spi2_xfer(uint8_t data)
@@ -59,10 +59,10 @@ static uint8_t spi2_xfer(uint8_t data)
     return (uint8_t)SPI2_DR;
 }
 
-/* GPIOC BSRR-style pin set/clear — mirrors the original's pin helpers
+/* GPIOD BSRR-style pin set/clear — mirrors the original's pin helpers
  * 0x0801F780 (set) / 0x0801F788 (clear), which wrap the same registers. */
-static void cs_assert(void)   { *(volatile uint32_t *)(GPIOC_BASE + 0x10u) = FONT_FLASH_CS; }
-static void cs_deassert(void) { *(volatile uint32_t *)(GPIOC_BASE + 0x14u) = FONT_FLASH_CS; }
+static void cs_assert(void)   { *(volatile uint32_t *)(GPIOD_BASE + 0x10u) = FONT_FLASH_CS; }
+static void cs_deassert(void) { *(volatile uint32_t *)(GPIOD_BASE + 0x14u) = FONT_FLASH_CS; }
 
 /* [0x08024F28 | RECOVERED] read len bytes at addr24 from the font flash. */
 void font_flash_read(uint32_t addr24, uint32_t len, uint8_t *dst)
