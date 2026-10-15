@@ -101,6 +101,7 @@ HG-UV98/
 | Tema | Archivo | Descripción |
 |------|---------|-------------|
 | Arquitectura dual de CPUs | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Diagrama de bloques, protocolo UART, memoria compartida |
+| Inventario de firmware | [`docs/FIRMWARE_INVENTORY.md`](docs/FIRMWARE_INVENTORY.md) | Todos los firmwares disponibles (bin, hex, exe) con links y status |
 | Análisis del código fuente | [`docs/SOURCE_CODE_ANALYSIS.md`](docs/SOURCE_CODE_ANALYSIS.md) | Funciones, variables, protocolos, estructura de archivos |
 | Índice de fuentes | [`docs/SOURCE_INDEX.md`](docs/SOURCE_INDEX.md) | Lista completa de los 73 archivos fuente con descripción |
 | Versiones de firmware | [`docs/FIRMWARE_VERSIONS.md`](docs/FIRMWARE_VERSIONS.md) | Historial completo para ambos CPUs, instrucciones de flash |

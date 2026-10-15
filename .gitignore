@@ -1,4 +1,12 @@
 # Firmware binaries (keep source code, not all compiled binaries)
+# Exceptions: firmware/ directory keeps copies of official firmware
+# (see docs/FIRMWARE_INVENTORY.md for all available firmwares)
+!firmware/*.hex
+!firmware/*.bin
+!firmware/*.zip
+!firmware/*.rar
+!firmware/*.exe
+!firmware/**/*.docx
 *.hex
 *.bin
 *.zip
