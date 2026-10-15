@@ -309,3 +309,35 @@ Toolchain note: `gcc-arm-none-eabi` installed via `apt-get download` + `dpkg -x`
 **4. Build state:** clean (`-Wall -Wextra` zero warnings after cfg cleanup), 4124 B text, 76-entry vector table valid, `SystemInit` + kernel symbols verified in the built image. No runtime claims (per rules).
 
 **Next actions:** unchanged (O5 font format → display glyphs; RF chip ID → rf.c; key matrix → ui.c; QEMU decision), plus: adopt vendor SPL calls inside uart.c/display.c where the original demonstrably used them; re-run the constant probe restricted to code regions to build a vendor-confirmed function map.
+
+### 2026-10-15 — Session 11: ADDRESS-BASE CORRECTION + full IRQ architecture recovered
+
+**1. The distributed file is the APPLICATION at flash 0x08004000 — not 0x08000000.** Disassembling the original's USART inits (capstone) led to main()'s prologue at image-label 0x08029120:
+
+```
+mov.w r1, #0x4000 ; movs.w r0, #0x8000000 ; bl 0x08026EEA   ; NVIC_SetVectorTable
+```
+with `0x08026EEA`: `VTOR = (r1 & 0x1FFFFF80) | r0` = **0x08004000**. Corroboration: (a) 75/76 vector entries resolve inside the file only under base 0x08004000 (the single "outside" is the MSP — a RAM pointer); (b) the Default entries [2]..[13] (0x08044685..0x0804468F) land exactly on six consecutive `b .` stubs at file offset 0x40684; (c) the KT file length is 0x7C000 = 512 KB − 16 KB (app spans sectors 4..511, bootloader 0x08000000..0x08003FFF is NOT distributed); (d) the entry the old analysis called "Reset 0x08044691 OUTSIDE file" is inside at file 0x40690 and contains **2× NOP.W** — the vendor neutered the distributed image's reset. **Addressing convention: every address previously logged as "0x080xxxxx" is file_offset + 0x08000000 (image label); physical flash = label + 0x4000.** All prior analysis (offsets, BL targets, structure) remains valid; flash-sector arithmetic and the "Reset outside file" and "PendSV/SysTick are BEEF" claims are retracted.
+
+**2. PendSV and SysTick are REAL in the image** (old verdict was a wrong-base artifact — the BEEF at old-base 0x2B21A/0x2BD68 is an unrelated stripped region):
+- PendSV entry[14] 0x0802B21A → file 0x2721A: `cpsid i; mrs r0, psp; ...` — the Micrium ARMv7-M port handler, recoverable in full.
+- SysTick entry[15] 0x0802BD69 → file 0x27D68: `SR_Save; OSIntNesting++; SR_Restore; bl 0x0802740E (OSTimeTick); bl 0x0802731A (OSIntExit)`.
+- OSStart **confirmed** = 0x08027392 (main's tail call); OSTaskNameSet(3, name, &err) = 0x08024A6C observed in main.
+
+**3. Full IRQ dispatch architecture recovered:**
+- Vector [16+e] → **10-byte trampoline** at file 0x26F4E+e*10: `push {r7,lr}; movs r0,#e; bl dispatcher; pop {r0,pc}` (60 of them, 0xA stair).
+- **Dispatcher 0x080271A6**: `cpu_sr=Save(); OSIntNesting++; if (e<60) { h=ram_vectors[e]; if (h) h(); } Restore(cpu_sr); OSIntExit();` — handlers run with interrupts masked; OSIntExit runs after the restore.
+- **irq_install 0x08026F30**: `Save(); if (irq<60) ram_vectors[irq]=handler; Restore();` — RAM table at **0x20004AA4** (between task stacks and flag bank 0x20005094).
+- USART2 init installs (38, 0x0801F921) at 0x0801F8A2; USART1 installs (37, 0x080292F9) at 0x080293CE. NVIC numbering: vector slot = 16+external-IRQ (entry[54] = external 38 = USART2 — earlier "entry[38]" conflation fixed).
+
+**4. The original's SPL is the ST-struct-style GD32F10x V1.0.0-era API** (session-10's V2.2.1 is flat-API, later vintage; kept for register semantics). Recovered call shapes from USART2 init 0x0801F810 (1:1 sequence):
+`RCC_APB1PeriphClockCmd(0x20000, ENABLE)` [0x08026ADE] → `USART_DeInit(0x40004400)` [0x08026BC8] → `GPIO_Init(GPIOA, {pin=PA2, speed=3(50MHz), mode=0x18 AF_PP})` + `{PA3, mode=0x04 IN_FLOATING}` [0x0801F678, ST GPIO_InitTypeDef body verified] → `NVIC_Init({38, 3, 3, ENABLE})` [0x08026E26] → `irq_install(38, &isr)` → `USART_Init(usart, {9600, 8b(0), 1stop(0), noparity(0), Rx|Tx(0xC), noflow})` [0x08026C5C, ST USART_InitTypeDef layout] → `USART_ITConfig(usart, 0x0525 RXNE, ENABLE)` [0x08026D32] → `USART_Cmd(usart, ENABLE)` [0x08026D14]. USART1 analog at 0x0802932C (APB2 clock 0x4000 via 0x08026AC2, PA9/PA10, NVIC {37, 0, 1, 1}, extra `bl 0x08026E18(0x700)` TBD). RX ISR uses `USART_GetITStatus(usart, 0x0525)` [0x08026DB8] + `USART_ReceiveData` [0x08026D9C] — ring + '$'-gate + CRLF terminator, matching our protocol.c. PRIMASK pair = 0x080289DC/0x080289E4. These library functions are RECOVERED-vendor code (ST-SPL semantics).
+
+**5. Reconstruction updated to the corrected architecture:**
+- `linker.ld`: FLASH ORIGIN = 0x08004000, LENGTH = 496K.
+- `startup.c`: vector table = MSP, Reset (ours, runnable — the distribution's is NOP.W-neutered), defaults, PendSV/SysTick → vendored port handlers, and **60 C trampolines → `irq_dispatcher` → `ram_vectors[60]`**; `irq_install()` implemented with kernel PRIMASK primitives. Documented deviation: our stubs are compiler-generated (not the original's 10-byte armcc stair); semantics 1:1.
+- `main.c`: sets VTOR = (0x4000 & 0x1FFFFF80) | 0x08000000 first, like the original.
+- `uart.c`: installs USART1/2 handlers via irq_install; NVIC comments corrected.
+- Build: clean, 7192 B text, all 76 built-vector entries valid at 0x08004000.
+
+**Follow-ups:** re-run the BEEF census under the corrected base to re-derive the true stripped-region list; identify 0x080272E6 (main's second call) and 0x08026E18(0x700); optionally mirror the 10-byte stub stair in asm; font region = file 0x130..0xB000 (O5 analysis used file offsets — unaffected).

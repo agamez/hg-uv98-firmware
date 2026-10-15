@@ -141,6 +141,13 @@ int main(void)
 {
     int mbox_owner;
 
+    /* [RECOVERED, main prologue 0x08029120..0x08029130]: VTOR = (0x4000 &
+     * 0x1FFFFF80) | 0x08000000 = 0x08004000 — the app's own vector table
+     * (the 16 KB below it is the non-distributed bootloader). Our link
+     * base is 0x08004000, so this points at our table exactly like the
+     * original. */
+    REG32(0xE000ED08u) = (0x4000u & 0x1FFFFF80u) | 0x08000000u;
+
     /* PendSV lowest-priority setup is performed by the port's
      * OSStartHighRdy (os_cpu_a.S).                                        */
 
@@ -163,6 +170,6 @@ int main(void)
     (void)task_create(timeout_task, 0, 512, 30);
     (void)task_create(stats_task,   0, 512, 31);
 
-    rtos_start();                        /* [0x08027392 candidate]          */
-    return 0;
+    rtos_start();                        /* [0x08027392 — OSStart, now      */
+    return 0;                            /*  confirmed from main's tail]    */
 }

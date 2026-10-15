@@ -3,6 +3,8 @@
 #include "hwregs.h"
 #include "protocol.h"
 
+extern void irq_install(uint32_t irq, void (*handler)(void));  /* startup.c */
+
 /* ---- USART2: APRS coprocessor / BT-app link (RECOVERED) ------------------ */
 
 static uint8_t  u2_ring[64];          /* original reassembles frames directly */
@@ -20,8 +22,10 @@ void usart2_init(void)
     GPIO_CRL(GPIOA_BASE) &= ~0x0000FF00u;
     GPIO_CRL(GPIOA_BASE) |=  0x00004B00u;   /* PA2: 0xB (AF-PP 50MHz), PA3: 0x4 (floating) */
 
-    /* NVIC: IRQ 38, priority 3 (original NVIC_Init pre=3 sub=3). */
+    /* NVIC: IRQ 38, priority 3 (original NVIC_Init pre=3 sub=3), then the
+     * runtime handler install [0x0801F8A2: irq_install(38, 0x0801F921)]. */
     REG8(NVIC_IP_BASE + IRQ_USART2) = (3 << 4) & 0xFF;
+    irq_install(IRQ_USART2, USART2_IRQHandler);
 
     USART_BRR(USART2_BASE) = 0x2580;                  /* 9600 baud at 72/108 MHz per SPL */
     USART_CR1(USART2_BASE) = USART_CR1_TE | USART_CR1_RE | USART_CR1_RXNEIE;
@@ -87,7 +91,12 @@ void usart1_init(void)
     GPIO_CRH(GPIOA_BASE) &= ~0x00000FF0u;
     GPIO_CRH(GPIOA_BASE) |=  0x000004B0u;
 
+    /* NVIC: IRQ 37 — original NVIC_Init struct {37, pre=0, sub=1, enable}
+     * [0x0802938A..0x080293A2]; IPR byte here keeps our prior priority
+     * choice (grouping unknown). Then the runtime install
+     * [0x080293CE: irq_install(37, 0x080292F9)]. */
     REG8(NVIC_IP_BASE + IRQ_USART1) = (3 << 4) & 0xFF;
+    irq_install(IRQ_USART1, USART1_IRQHandler);
 
     USART_BRR(USART1_BASE) = 0x2580;                  /* 9600 baud */
     USART_CR1(USART1_BASE) = USART_CR1_TE | USART_CR1_RE | USART_CR1_RXNEIE;

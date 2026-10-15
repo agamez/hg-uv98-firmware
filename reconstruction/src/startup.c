@@ -24,91 +24,125 @@ void OS_CPU_SysTickHandler(void);   /* uC/OS-II port — 1 ms tick             *
 void USART1_IRQHandler(void);       /* uart.c    — RXNE, ring + sink         */
 void USART2_IRQHandler(void);       /* uart.c    — RXNE, frame assembler    */
 
-/* Original vector values (190416 image, word 0..15):
- *   [0] 0x20006780 (MSP)   [1] 0x08044691 (Reset, OUTSIDE file)
- *   [2] 0x08044685 NMI     [3] 0x08044687 HardFault
- *   [4] 0x0804468D         [5] 0x08044689   [6] 0x0804468B
- *   [7..13] 0x0804468F (Default)
- *   [14] 0x0802B21B PendSV [15] 0x0802BD69 SysTick   (both -> stripped BEEF) */
+/* ------------------------------------------------------------------ *
+ * IRQ dispatch — [RECOVERED] architecture (session 11):
+ *
+ *   flash vector [16+e] -> 10-byte trampoline (image file 0x26F4E+e*10):
+ *       push {r7, lr}; movs r0, #e; bl dispatcher; pop {r0, pc}
+ *   dispatcher [0x080271A6]:
+ *       cpu_sr = OS_CPU_SR_Save(); OSIntNesting++;
+ *       if (e < 60) { h = ram_vectors[e]; if (h) h(); }   [ints masked]
+ *       OS_CPU_SR_Restore(cpu_sr); OSIntExit();
+ *   irq_install [0x08026F30]:
+ *       cpu_sr = Save(); if (irq < 60) ram_vectors[irq] = handler; Restore();
+ *
+ * The RAM table lives at 0x20004AA4 in the original (between the task
+ * stacks and the flag bank 0x20005094); handlers are installed at init
+ * time: irq_install(38, &USART2_IRQHandler) [USART2 init 0x0801F8A2],
+ * irq_install(37, &USART1_IRQHandler) [USART1 init 0x080293CE].
+ * The tail call 0x0802731A after the restore is OSIntExit.
+ * ------------------------------------------------------------------ */
+#include "ucos_ii.h"
+
+static uint32_t ram_vectors[60];        /* orig 0x20004AA4                  */
+
+void irq_install(uint32_t irq, void (*handler)(void))
+{
+    OS_CPU_SR cpu_sr;
+    cpu_sr = OS_CPU_SR_Save((CPU_CFG_KA_IPL_BOUNDARY << (8u - CPU_CFG_NVIC_PRIO_BITS)));
+    if (irq < 60u)
+        ram_vectors[irq] = (uint32_t)handler;
+    OS_CPU_SR_Restore(cpu_sr);
+}
+
+extern uint8_t OSIntNesting;            /* uC/OS-II kernel global           */
+
+static void irq_dispatcher(uint32_t irq)
+{
+    OS_CPU_SR cpu_sr;
+    cpu_sr = OS_CPU_SR_Save((CPU_CFG_KA_IPL_BOUNDARY << (8u - CPU_CFG_NVIC_PRIO_BITS)));
+    OSIntNesting++;                     /* original inlines OSIntEnter      */
+    if (irq < 60u) {
+        void (*h)(void) = (void (*)(void))ram_vectors[irq];
+        if (h)
+            h();
+    }
+    OS_CPU_SR_Restore(cpu_sr);
+    OSIntExit();                        /* orig tail call 0x0802731A        */
+}
+
+#define IRQ_STUB(n) \
+    static void irq_stub_##n(void) { irq_dispatcher(n); }
+#define IRQ_STUB2(n) IRQ_STUB(n##0) IRQ_STUB(n##1) IRQ_STUB(n##2) \
+                     IRQ_STUB(n##3) IRQ_STUB(n##4) IRQ_STUB(n##5) \
+                     IRQ_STUB(n##6) IRQ_STUB(n##7) IRQ_STUB(n##8) \
+                     IRQ_STUB(n##9)
+IRQ_STUB2() IRQ_STUB2(1) IRQ_STUB2(2) IRQ_STUB2(3) IRQ_STUB2(4) IRQ_STUB2(5)
+#undef IRQ_STUB
+#undef IRQ_STUB2
+
+static void (*const irq_trampolines[60])(void) = {
+    irq_stub_0,  irq_stub_1,  irq_stub_2,  irq_stub_3,  irq_stub_4,
+    irq_stub_5,  irq_stub_6,  irq_stub_7,  irq_stub_8,  irq_stub_9,
+    irq_stub_10, irq_stub_11, irq_stub_12, irq_stub_13, irq_stub_14,
+    irq_stub_15, irq_stub_16, irq_stub_17, irq_stub_18, irq_stub_19,
+    irq_stub_20, irq_stub_21, irq_stub_22, irq_stub_23, irq_stub_24,
+    irq_stub_25, irq_stub_26, irq_stub_27, irq_stub_28, irq_stub_29,
+    irq_stub_30, irq_stub_31, irq_stub_32, irq_stub_33, irq_stub_34,
+    irq_stub_35, irq_stub_36, irq_stub_37, irq_stub_38, irq_stub_39,
+    irq_stub_40, irq_stub_41, irq_stub_42, irq_stub_43, irq_stub_44,
+    irq_stub_45, irq_stub_46, irq_stub_47, irq_stub_48, irq_stub_49,
+    irq_stub_50, irq_stub_51, irq_stub_52, irq_stub_53, irq_stub_54,
+    irq_stub_55, irq_stub_56, irq_stub_57, irq_stub_58, irq_stub_59,
+};
+
+/* Original vector values (190416 file; entries are FLASH addresses,
+ * file base 0x08004000 — session 11 correction):
+ *   [0] 0x20006780 (MSP)     [1] 0x08044691 Reset -> 2x NOP.W (neutered
+ *       in the distribution; the real startup code was removed)
+ *   [2]..[7]  0x08044685..0x0804468D: six `b .` stubs (file 0x40684)
+ *   [8]..[13] 0x0804468F (shared Default)
+ *   [14] 0x0802B21B PendSV  -> file 0x2721A, REAL (CPSID I; MRS r0,PSP
+ *       — Micrium ARMv7-M port; earlier "stripped BEEF" verdict was a
+ *       wrong-base artifact)
+ *   [15] 0x0802BD69 SysTick -> file 0x27D68, REAL (SR save, OSIntNesting
+ *       ++, OSTimeTick 0x0802740E, OSIntExit 0x0802731A)
+ *   [16+e] 0x0802AF4F+e*10 trampoline stair -> dispatcher 0x080271A6 */
 __attribute__((section(".isr_vector"), used))
 void *const vector_table[] = {
     &_estack,                       /* [0]  initial MSP                    */
-    Reset_Handler,                  /* [1]  Reset (SCAFFOLD: original lost)*/
+    Reset_Handler,                  /* [1]  Reset (SCAFFOLD: distribution  */
+                                    /*      has 2x NOP.W here)             */
     Default_Handler,                /* [2]  NMI         orig 0x08044684    */
     Default_Handler,                /* [3]  HardFault   orig 0x08044686    */
     Default_Handler,                /* [4]  MemManage   orig 0x0804468C    */
     Default_Handler,                /* [5]  BusFault    orig 0x08044688    */
     Default_Handler,                /* [6]  UsageFault  orig 0x0804468A    */
-    Default_Handler, Default_Handler, Default_Handler, Default_Handler,
-    Default_Handler,                /* [11] SVCall                         */
-    Default_Handler,                /* [12] DebugMon                       */
-    0,                              /* [13] reserved                       */
-    OS_CPU_PendSVHandler,           /* [14] PendSV   orig 0x0802B21A       */
-    OS_CPU_SysTickHandler,          /* [15] SysTick  orig 0x0802BD68       */
-
-    /* [16..75] device IRQs — F103xE high-density layout, 60 entries.
-     * Original trampolines are BEEF placeholders; only USART1 (IRQ 37) and
-     * USART2 (IRQ 38) are wired to recovered handlers. */
-    Default_Handler,                /*  0 WWDG        */
-    Default_Handler,                /*  1 PVD         */
-    Default_Handler,                /*  2 TAMPER      */
-    Default_Handler,                /*  3 RTC         */
-    Default_Handler,                /*  4 FLASH       */
-    Default_Handler,                /*  5 RCC         */
-    Default_Handler,                /*  6 EXTI0       */
-    Default_Handler,                /*  7 EXTI1       */
-    Default_Handler,                /*  8 EXTI2       */
-    Default_Handler,                /*  9 EXTI3       */
-    Default_Handler,                /* 10 EXTI4       */
-    Default_Handler,                /* 11 DMA1_Ch1    */
-    Default_Handler,                /* 12 DMA1_Ch2    */
-    Default_Handler,                /* 13 DMA1_Ch3    */
-    Default_Handler,                /* 14 DMA1_Ch4    */
-    Default_Handler,                /* 15 DMA1_Ch5    */
-    Default_Handler,                /* 16 DMA1_Ch6    */
-    Default_Handler,                /* 17 DMA1_Ch7    */
-    Default_Handler,                /* 18 ADC1_2      */
-    Default_Handler,                /* 19 USB_HP      */
-    Default_Handler,                /* 20 USB_LP      */
-    Default_Handler,                /* 21 CAN_RX1     */
-    Default_Handler,                /* 22 CAN_SCE     */
-    Default_Handler,                /* 23 EXTI9_5     */
-    Default_Handler,                /* 24 TIM1_BRK    */
-    Default_Handler,                /* 25 TIM1_UP     */
-    Default_Handler,                /* 26 TIM1_TRG_COM*/
-    Default_Handler,                /* 27 TIM1_CC     */
-    Default_Handler,                /* 28 TIM2        */
-    Default_Handler,                /* 29 TIM3        */
-    Default_Handler,                /* 30 TIM4        */
-    Default_Handler,                /* 31 I2C1_EV     */
-    Default_Handler,                /* 32 I2C1_ER     */
-    Default_Handler,                /* 33 I2C2_EV     */
-    Default_Handler,                /* 34 I2C2_ER     */
-    Default_Handler,                /* 35 SPI1        */
-    Default_Handler,                /* 36 SPI2        */
-    USART1_IRQHandler,              /* 37 USART1      */
-    USART2_IRQHandler,              /* 38 USART2      */
-    Default_Handler,                /* 39 EXTI15_10   */
-    Default_Handler,                /* 40 RTC_Alarm   */
-    Default_Handler,                /* 41 USBWake     */
-    Default_Handler,                /* 42 TIM8_BRK    */
-    Default_Handler,                /* 43 TIM8_UP     */
-    Default_Handler,                /* 44 TIM8_TRG_COM*/
-    Default_Handler,                /* 45 TIM8_CC     */
-    Default_Handler,                /* 46 ADC3        */
-    Default_Handler,                /* 47 FSMC        */
-    Default_Handler,                /* 48 SDIO        */
-    Default_Handler,                /* 49 TIM5        */
-    Default_Handler,                /* 50 SPI3        */
-    Default_Handler,                /* 51 UART4       */
-    Default_Handler,                /* 52 UART5       */
-    Default_Handler,                /* 53 TIM6_DAC    */
-    Default_Handler,                /* 54 TIM7        */
-    Default_Handler,                /* 55 DMA2_Ch1    */
-    Default_Handler,                /* 56 DMA2_Ch2    */
-    Default_Handler,                /* 57 DMA2_Ch3    */
-    Default_Handler,                /* 58 DMA2_Ch4    */
-    Default_Handler,                /* 59 DMA2_Ch5    */
+    Default_Handler,                /* [7]  SVCall etc  orig 0x0804468E    */
+    Default_Handler, Default_Handler, Default_Handler,
+    Default_Handler, Default_Handler, Default_Handler,
+    OS_CPU_PendSVHandler,           /* [14] PendSV   orig 0x0802B21A REAL  */
+    OS_CPU_SysTickHandler,          /* [15] SysTick  orig 0x0802BD69 REAL  */
+    irq_trampolines[0], irq_trampolines[1], irq_trampolines[2],
+    irq_trampolines[3], irq_trampolines[4], irq_trampolines[5],
+    irq_trampolines[6], irq_trampolines[7], irq_trampolines[8],
+    irq_trampolines[9], irq_trampolines[10], irq_trampolines[11],
+    irq_trampolines[12], irq_trampolines[13], irq_trampolines[14],
+    irq_trampolines[15], irq_trampolines[16], irq_trampolines[17],
+    irq_trampolines[18], irq_trampolines[19], irq_trampolines[20],
+    irq_trampolines[21], irq_trampolines[22], irq_trampolines[23],
+    irq_trampolines[24], irq_trampolines[25], irq_trampolines[26],
+    irq_trampolines[27], irq_trampolines[28], irq_trampolines[29],
+    irq_trampolines[30], irq_trampolines[31], irq_trampolines[32],
+    irq_trampolines[33], irq_trampolines[34], irq_trampolines[35],
+    irq_trampolines[36], irq_trampolines[37], irq_trampolines[38],
+    irq_trampolines[39], irq_trampolines[40], irq_trampolines[41],
+    irq_trampolines[42], irq_trampolines[43], irq_trampolines[44],
+    irq_trampolines[45], irq_trampolines[46], irq_trampolines[47],
+    irq_trampolines[48], irq_trampolines[49], irq_trampolines[50],
+    irq_trampolines[51], irq_trampolines[52], irq_trampolines[53],
+    irq_trampolines[54], irq_trampolines[55], irq_trampolines[56],
+    irq_trampolines[57], irq_trampolines[58], irq_trampolines[59],
 };
 
 void Reset_Handler(void)

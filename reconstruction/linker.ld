@@ -1,14 +1,25 @@
 /* HG-UV98 main-MCU reconstruction — GD32F103RET6 memory map.
  *
- * Evidence (confirmed, static):
- *   - Vector table at 0x08000000 with initial SP 0x20006780 (image word 0).
- *   - 76 vector entries = 16 ARMv7-M system + 60 device IRQs, matching the
- *     STM32F103xE / GD32F103 high-density layout (research log, session 1).
- *   - RAM: 64 KB at 0x20000000 (initial SP inside it), flash 512 KB.
+ * Evidence (confirmed, static; session 11):
+ *   - The distributed file is the APPLICATION image based at flash
+ *     0x08004000: main() sets VTOR = (0x4000 & 0x1FFFFF80) | 0x08000000
+ *     = 0x08004000 [main prologue 0x08029120..0x08029130], every vector
+ *     entry resolves inside the file only under that base (75/76 — the
+ *     one "outside" is the MSP, a RAM pointer), the Default-handler
+ *     pointers land on the six `b .` stubs at file 0x40684, and the KT
+ *     file length (0x7C000) is exactly 512 KB minus the 16 KB below
+ *     0x08004000. A bootloader occupies 0x08000000..0x08003FFF and is
+ *     NOT part of the distributed image.
+ *   - Vector table = 76 entries: MSP 0x20006780, Reset (neutered to
+ *     2x NOP.W in the distribution), 6+6 Default `b .` stubs, PendSV
+ *     0x0802B21A (REAL: CPSID I; MRS r0,PSP — Micrium ARMv7-M port),
+ *     SysTick 0x0802BD69 (REAL), then 60 x 10-byte trampolines
+ *     dispatching through a RAM vector table at 0x20004AA4.
+ *   - RAM: 64 KB at 0x20000000, flash 512 KB.
  */
 MEMORY
 {
-    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 512K
+    FLASH (rx)  : ORIGIN = 0x08004000, LENGTH = 496K
     RAM   (rwx) : ORIGIN = 0x20000000, LENGTH = 64K
 }
 
@@ -34,8 +45,9 @@ SECTIONS
         _etext = .;
     } > FLASH
 
-    /* Original assets (fonts/bitmaps) lived between the vector table and the
-     * code region (0x08000130-0x0800B000); we do not reproduce them here. */
+    /* Original assets (fonts/bitmaps) start right after the 0x130-byte
+     * vector table (file 0x130..0xB000 image-labels); we do not reproduce
+     * them here. */
 
     .data : AT (_etext) {
         _sdata = .;
