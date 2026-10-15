@@ -285,3 +285,27 @@ Toolchain note: `gcc-arm-none-eabi` installed via `apt-get download` + `dpkg -x`
 2. RF chip identification (reg 0x1F read, PA15 bit-bang protocol) → rf.c.
 3. Key matrix + screen semantics → ui.c replacing the scaffolds.
 4. Emulation decision: QEMU MPS2-AN385 (Cortex-M3) could run the image with a UART backend for the protocol layer.
+
+### 2026-10-15 — Session 10: real uC/OS-II kernel + GigaDevice BSP vendored
+
+**Directive followed:** user suggested downloading uC/OS-II and the GigaDevice BSP ("the vendor used as much code from GigaDevice as available — when in doubt trust that source"). Both adopted.
+
+**1. Real uC/OS-II kernel vendored** (`reconstruction/ucos2/`, upstream weston-embedded/uC-OS2 V2.93.01 + uC-CPU + uC-LIB headers, **Apache-2.0** — license files included). The session-9 REPLACEMENT scheduler is retired; `src/rtos.c` is now a thin wrapper mapping the recovered call shapes onto the real kernel:
+- `mbox_create/post/pend` → `OSMboxCreate/OSMboxPost/OSMboxPend` [original sites 0x08024C78/0x08024DAC/0x08024CC6]; messages biased +1 across the wrapper because uC/OS-II reserves NULL; mailboxes are single-depth (matches recovered one-at-a-time posting).
+- `task_create` → `OSTaskCreateExt` [0x080249A4] with stacks carved from the `.taskstacks` pool (mirrors the original's static stacks 0x20001F74..0x2000449C).
+- PendSV/SysTick vectors → `OS_CPU_PendSVHandler`/`OS_CPU_SysTickHandler` (port sets PendSV priority itself in `OSStartHighRdy`); `board_setup_tick` → `OS_CPU_SysTickInitFreq`.
+- `os_cfg.h`: 7 app tasks + idle, mailboxes on, all other kernel objects off, 1 ms tick; `cpu_cfg.h`/`app_cfg.h`: 4 NVIC bits, kernel-aware boundary 1 (recovered ISRs run at prio 3, inside the maskable range); empty app hooks in `src/os_hooks.c` + `CPU_TS_TmrRd` stub (referenced by cpu_core.c even with measurement disabled).
+- **Port bug fixed** (documented modification): `os_cpu_a.S` marks `OSCtxSw` with `.thumb_func` but the aliased label `OSIntCtxSw` on the next line stayed ARM-typed → `Unknown destination type (ARM/Thumb)` / `dangerous relocation` at link. Added a second `.thumb_func`. Verified via readelf symbol values (odd = Thumb).
+- Kernel version banner: the original image contains only the `uC/OS-II Idle/Stat/Tmr` task-name strings — no version banner — so the shipped kernel version is **not pinned**; V2.93.01 is API-compatible with the observed surface (recorded as an open question).
+
+**2. GigaDevice GD32F10x BSP V2.2.1 vendored** (`reconstruction/vendor/gd32f10x/`, from CommunityGD32Cores/gigadevice-firmware-and-docs; SPL + CMSIS + `gd32f10x_libopt.h`). Chosen over the current official V2.7.0 because V2.2.1's headers are the 2018-era vintage matching the 190416 firmware build. **License: GigaDevice SLA-GD0001** (not OSI) — source redistribution permitted with notices, restricted to execution on GD devices; the reconstruction targets exactly this GD32F103RET6, so the terms are met; `GIGADEVICE-SLA.txt` is vendored alongside. One documented modification: `gd32f10x_libopt.h` guards the CL-only ENET include behind `GD32F10X_CL` (it drags in `<stdlib.h>`); `gd32f10x_enet.c` excluded from the build. Our hand-rolled `src/gd32f10x.h` renamed `src/hwregs.h` (its `GD32F10X_H` guard silently swallowed the vendor header — caught via implicit-declaration error; REG32/16/8 now come from the vendor header). No macro collisions: vendor names peripherals `USART0/1` + `RCU_*`, our sugar keeps the original-image numbering `USART1_BASE` (APB2, GPS) / `USART2_BASE` (APB1, APRS/BT).
+
+**3. Vendor clock code confirmed IN the original image** — `tools/vendor_fingerprint.py` (new) compiles each vendored SPL/CMSIS function with GCC -O2 and searches the 190416 image for compiler-invariant **constant clusters** (armcc-vs-gcc code bytes never match byte-exactly — 0 hits at 8/16-byte prefixes — but register-write constants do):
+- RCU base `0x40021000`, `HXTAL_VALUE 0x7A1200` (8 MHz), prediv `0x3D0900` (4 MHz), and mask `0xFEF6FFFF` cluster at **0x08026B70..0x08026BA8** — the vendor `SystemInit`/`rcu_clock_freq_get` literal pool (matches `rcu_clock_freq_get` 3/3 distinctive constants).
+- The SystemInit prologue byte-slice `ldr r3,[r2,#0]; mov.w r4,#0x9F0000` appears at **0x08029008 and 0x08029018**, immediately before `main()` at 0x08029120.
+⇒ The original embedded the vendor `system_gd32f10x.c` (108 MHz PLL from 8 MHz HXTAL). **Adopted as the authoritative clock init**: `Reset_Handler` now calls vendor `SystemInit()` [VENDOR | RECOVERED], `hw_init` no longer asserts flash wait states by hand, and the Makefile notes the vendored file's default config is already `__SYSTEM_CLOCK_108M_PLL_HXTAL`.
+- Probe noise: tail-region (0x0803Cxxx-0x0803Dxxx) clusters with generic constants are coincidences inside asset/font data; a code-region filter is a future refinement. Deeper per-function SPL adoption (usart/gpio into uart.c/display.c) is queued as a Level-3 step.
+
+**4. Build state:** clean (`-Wall -Wextra` zero warnings after cfg cleanup), 4124 B text, 76-entry vector table valid, `SystemInit` + kernel symbols verified in the built image. No runtime claims (per rules).
+
+**Next actions:** unchanged (O5 font format → display glyphs; RF chip ID → rf.c; key matrix → ui.c; QEMU decision), plus: adopt vendor SPL calls inside uart.c/display.c where the original demonstrably used them; re-run the constant probe restricted to code regions to build a vendor-confirmed function map.

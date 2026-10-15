@@ -9,7 +9,7 @@
  *     init 0x080227AA, USART1 init + pump, misc. USART2 init 0x0801F810
  *     sits in the same cluster.
  */
-#include "gd32f10x.h"
+#include "hwregs.h"
 #include "rtos.h"
 #include "uart.h"
 #include "protocol.h"
@@ -116,11 +116,11 @@ static void stats_task(void *arg)
  * reconstruction asserts the documented 108 MHz HCLK as INFERRED. */
 static void hw_init(void)
 {
+    /* Clock tree (108 MHz HCLK / 2 flash wait states) is configured by the
+     * vendor SystemInit() called from Reset_Handler — its code is present
+     * in the original image [VENDOR | RECOVERED, see startup.c]. */
     RCC_APB2ENR |= RCC_APB2ENR_GPIOAEN | RCC_APB2ENR_GPIOBEN |
                    RCC_APB2ENR_GPIOCEN | RCC_APB2ENR_AFIOEN;
-
-    /* Fill the pipeline latency for 108 MHz / 3.3 V (2 wait states). */
-    REG32(0x40022000u) = (REG32(0x40022000u) & ~7u) | 2u;
 
     board_setup_tick(108000000u);
 
@@ -141,7 +141,8 @@ int main(void)
 {
     int mbox_owner;
 
-    REG32(0xE000ED0Cu) = 0x0000FA05u;    /* SCB->SHPR3: PendSV lowest prio */
+    /* PendSV lowest-priority setup is performed by the port's
+     * OSStartHighRdy (os_cpu_a.S).                                        */
 
     hw_init();
 

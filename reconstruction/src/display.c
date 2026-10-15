@@ -1,6 +1,6 @@
 /* Display subsystem — see display.h for provenance. */
 #include "display.h"
-#include "gd32f10x.h"
+#include "hwregs.h"
 
 /* ---- transport (SCAFFOLD) --------------------------------------------------
  * The original drives the panel through GPIOB/GPIOC control lines plus a

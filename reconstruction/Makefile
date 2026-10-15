@@ -10,14 +10,32 @@ SIZE    = $(TOOLCHAIN_PATH)arm-none-eabi-size
 
 CPUFLAGS = -mcpu=cortex-m3 -mthumb
 CFLAGS   = $(CPUFLAGS) -std=c11 -O2 -g -Wall -Wextra -ffreestanding -nostdlib \
-           -fno-builtin -ffunction-sections -fdata-sections
+           -fno-builtin -ffunction-sections -fdata-sections -DGD32F10X_HD
+# Note: no -D__SYSTEM_CLOCK_* needed — the vendored V2.2.1 system_gd32f10x.c
+# defaults to __SYSTEM_CLOCK_108M_PLL_HXTAL, which is exactly the original's
+# configuration [VENDOR | RECOVERED, see startup.c].
 LDFLAGS  = $(CPUFLAGS) -nostdlib -Wl,--gc-sections -Wl,-T,linker.ld \
            -Wl,-Map=build/hguv98.map
 
-SRC = src/startup.c src/mem.c src/rtos.c src/uart.c src/protocol.c src/display.c src/main.c
-HDR = src/gd32f10x.h src/rtos.h src/uart.h src/protocol.h src/display.h
+SRC  = src/startup.c src/mem.c src/os_hooks.c src/rtos.c src/uart.c src/protocol.c src/display.c src/main.c
+KFILES := ucos_ii.c os_dbg_r.c   # ucos_ii.c includes all os_*.c
+KOBJ  = $(addprefix build/k-,$(KFILES:.c=.o))
+POBJ  = build/p-os_cpu_c.o build/p-os_cpu_a.o
+COBJ  = build/c-cpu_core.o build/c-cpu_a.o
+
+# Vendored GigaDevice GD32F10x firmware library V2.2.1 (SLA-GD0001, see
+# vendor/gd32f10x/GIGADEVICE-SLA.txt): era-matching vendor BSP for the 190416
+# firmware. Unused modules are pruned by --gc-sections.
+VSRC = vendor/gd32f10x/CMSIS/GD/GD32F10x/Source/system_gd32f10x.c \
+       $(filter-out %gd32f10x_enet.c,$(wildcard vendor/gd32f10x/SPL/Source/*.c))
+VOBJ = $(addprefix build/v-,$(notdir $(VSRC:.c=.o)))
+HDR = src/hwregs.h src/rtos.h src/uart.h src/protocol.h src/display.h
 
 OBJ = $(patsubst src/%.c,build/%.o,$(SRC))
+
+INC = -Isrc -Iucos2/cfg -Iucos2/ucos2 -Iucos2/port -Iucos2/cpu -Iucos2/lib \
+      -Ivendor/gd32f10x/CMSIS -Ivendor/gd32f10x/CMSIS/GD/GD32F10x/Include \
+      -Ivendor/gd32f10x/conf -Ivendor/gd32f10x/SPL/Include
 
 all: build/hguv98.bin
 	@$(SIZE) build/hguv98.elf
@@ -26,10 +44,31 @@ build:
 	mkdir -p build
 
 build/%.o: src/%.c $(HDR) | build
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 
-build/hguv98.elf: $(OBJ) linker.ld
-	$(CC) $(LDFLAGS) $(OBJ) -o $@
+build/k-%.o: ucos2/ucos2/%.c | build
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+
+build/v-system_gd32f10x.o: vendor/gd32f10x/CMSIS/GD/GD32F10x/Source/system_gd32f10x.c | build
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+
+build/v-%.o: vendor/gd32f10x/SPL/Source/%.c | build
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+
+build/p-os_cpu_c.o: ucos2/port/os_cpu_c.c | build
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+
+build/p-os_cpu_a.o: ucos2/port/os_cpu_a.S | build
+	$(CC) $(CPUFLAGS) $(INC) -c $< -o $@
+
+build/c-cpu_core.o: ucos2/cpu/cpu_core.c | build
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+
+build/c-cpu_a.o: ucos2/cpu/cpu_a.s | build
+	$(CC) $(CPUFLAGS) $(INC) -c $< -o $@
+
+build/hguv98.elf: $(OBJ) $(KOBJ) $(POBJ) $(COBJ) $(VOBJ) linker.ld
+	$(CC) $(LDFLAGS) $(OBJ) $(KOBJ) $(POBJ) $(COBJ) $(VOBJ) -o $@
 
 build/hguv98.bin: build/hguv98.elf
 	$(OBJCOPY) -O binary $< $@

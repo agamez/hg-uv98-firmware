@@ -8,7 +8,8 @@
  * PendSV/SysTick present), and the original handler addresses are kept in
  * comments for traceability.
  */
-#include "gd32f10x.h"
+#include "hwregs.h"
+#include "gd32f10x.h"      /* [VENDOR] SystemInit from the GigaDevice BSP */
 #include "uart.h"
 
 extern uint32_t _estack, _sdata, _edata, _sidata, _sbss, _ebss;
@@ -18,10 +19,10 @@ void Reset_Handler(void);
 void Default_Handler(void);
 
 /* Implemented handlers (see respective modules). */
-void PendSV_Handler(void);          /* rtos.c    — context switch          */
-void SysTick_Handler(void);         /* rtos.c    — 1 ms tick               */
-void USART1_IRQHandler(void);       /* uart.c    — RXNE, ring + sink       */
-void USART2_IRQHandler(void);       /* uart.c    — RXNE, frame assembler   */
+void OS_CPU_PendSVHandler(void);    /* uC/OS-II port — context switch        */
+void OS_CPU_SysTickHandler(void);   /* uC/OS-II port — 1 ms tick             */
+void USART1_IRQHandler(void);       /* uart.c    — RXNE, ring + sink         */
+void USART2_IRQHandler(void);       /* uart.c    — RXNE, frame assembler    */
 
 /* Original vector values (190416 image, word 0..15):
  *   [0] 0x20006780 (MSP)   [1] 0x08044691 (Reset, OUTSIDE file)
@@ -42,8 +43,8 @@ void *const vector_table[] = {
     Default_Handler,                /* [11] SVCall                         */
     Default_Handler,                /* [12] DebugMon                       */
     0,                              /* [13] reserved                       */
-    PendSV_Handler,                 /* [14] PendSV   orig 0x0802B21A       */
-    SysTick_Handler,                /* [15] SysTick  orig 0x0802BD68       */
+    OS_CPU_PendSVHandler,           /* [14] PendSV   orig 0x0802B21A       */
+    OS_CPU_SysTickHandler,          /* [15] SysTick  orig 0x0802BD68       */
 
     /* [16..75] device IRQs — F103xE high-density layout, 60 entries.
      * Original trampolines are BEEF placeholders; only USART1 (IRQ 37) and
@@ -119,6 +120,17 @@ void Reset_Handler(void)
         *dst++ = *src++;
     for (dst = &_sbss; dst < &_ebss; )
         *dst++ = 0;
+
+    /* [VENDOR | RECOVERED]: the original's startup is stripped, but its
+     * SystemInit code is present in the image — the compiled vendor 108 MHz
+     * HXTAL constants (RCU base 0x40021000, HXTAL_VALUE 0x7A1200, prediv
+     * 0x3D0900, mask 0xFEF6FFFF) cluster at 0x08026B70..0x08026BA8, and the
+     * SystemInit prologue pattern (ldr r3,[r2]; mov.w r4,#0x9F0000) appears
+     * at 0x08029008/0x08029018, immediately before main() at 0x08029120
+     * (session 9, tools/vendor_fingerprint.py). The GigaDevice vendor
+     * startup convention calls SystemInit() here; the original binary
+     * corroborates that the vendor file was used. */
+    SystemInit();
 
     main();
     for (;;)

@@ -1,6 +1,6 @@
 /* UART drivers — see uart.h for address/provenance annotations. */
 #include "uart.h"
-#include "gd32f10x.h"
+#include "hwregs.h"
 #include "protocol.h"
 
 /* ---- USART2: APRS coprocessor / BT-app link (RECOVERED) ------------------ */

@@ -1,16 +1,19 @@
-/* Minimal GD32F103 register definitions used by the reconstruction.
- * Original work (register layout is public in GigaDevice/ST reference
- * manuals; GD32F103 is register-compatible with STM32F103). Addresses
- * cross-checked against constants found in the original image
- * (research log: peripheral literal census). */
-#ifndef GD32F10X_H
-#define GD32F10X_H
+/* Minimal GD32F103 register sugar used by the reconstruction.
+ * Register layout is public in the GigaDevice reference manuals and the
+ * vendored GigaDevice BSP; addresses cross-checked against constants found
+ * in the original image (research log: peripheral literal census).
+ *
+ * REG32/REG16/REG8 and the peripheral bases come from the vendored
+ * GigaDevice header (gd32f10x.h); this header only adds the peripheral
+ * register sugar used by our recovered code. NOTE: this file uses ST-style
+ * peripheral numbering (USART1 = APB2 0x40013800, USART2 = APB1
+ * 0x40004400) matching the original image's evidence; the vendor header
+ * numbers them USART0/USART1 respectively. */
+#ifndef HWREGS_H
+#define HWREGS_H
 
+#include "gd32f10x.h"
 #include <stdint.h>
-
-#define REG32(addr) (*(volatile uint32_t *)(addr))
-#define REG16(addr) (*(volatile uint16_t *)(addr))
-#define REG8(addr)  (*(volatile uint8_t  *)(addr))
 
 /* --- RCC (0x40021000) --- */
 #define RCC_BASE        0x40021000U
@@ -67,4 +70,4 @@
 #define IRQ_USART1      37
 #define IRQ_USART2      38
 
-#endif /* GD32F10X_H */
+#endif /* HWREGS_H */

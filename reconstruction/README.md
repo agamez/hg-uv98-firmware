@@ -7,10 +7,22 @@ annotated in each file's header.
 
 ## Status
 
-**Builds** (`make` → `build/hguv98.bin`, ~2.4 KB) and is **consistent with
+**Builds** (`make` → `build/hguv98.bin`, ~4.1 KB) and is **consistent with
 static evidence**. Per the project rules, without emulation or hardware this
 is a Level-3 result of the "builds + consistent with static evidence" kind —
 no runtime behavior is claimed.
+
+## Vendored third-party code
+
+| Tree | Source | License |
+|---|---|---|
+| `ucos2/` | weston-embedded/uC-OS2 V2.93.01 + uC-CPU + uC-LIB headers (the kernel the original runs) | Apache-2.0 (`ucos2/*-LICENSE`) |
+| `vendor/gd32f10x/` | GigaDevice GD32F10x Firmware Library **V2.2.1** (2018-era vintage matching the 190416 build; SPL + CMSIS + `system_gd32f10x.c`) | GigaDevice **SLA-GD0001** (`GIGADEVICE-SLA.txt`) — source redistribution permitted with notices, use restricted to GD devices; this reconstruction targets exactly the GD32F103RET6, satisfying the terms |
+
+`SystemInit()` (vendor, 108 MHz HXTAL) is called from `Reset_Handler`; its
+constants were located in the original image (see startup.c and the research
+log session 10), making the vendor clock init RECOVERED-vendor code rather
+than a guess.
 
 ## Evidence key (used in per-file annotations)
 
@@ -19,16 +31,18 @@ no runtime behavior is claimed.
 | RECOVERED | Disassembly/protocol evidence is direct (addresses cited) |
 | INFERRED  | Strong indirect evidence; details documented in the log |
 | SCAFFOLD  | Placeholder pending missing evidence (stripped regions) |
-| REPLACEMENT | Clean-room re-implementation of a stripped component with observed semantics (RTOS kernel) |
+| REPLACEMENT | Clean-room re-implementation of a stripped component with observed semantics |
+| VENDOR | Vendored GigaDevice/uC-OS2 source confirmed (or strongly indicated) in the original image |
 
 ## Modules
 
 | File | Status | Provenance |
 |---|---|---|
-| `src/gd32f10x.h` | original work | public register map, addresses cross-checked against image literals |
-| `src/startup.c` | SCAFFOLD | original startup is stripped; vector structure + original handler addresses documented in comments |
+| `src/hwregs.h` | original work | register sugar over the vendored GigaDevice header; addresses cross-checked against image literals (ST-style USART numbering per the image) |
+| `src/startup.c` | SCAFFOLD + VENDOR clock init | original startup is stripped; vector structure + original handler addresses documented; `SystemInit()` vendored (constants found in image) |
 | `src/mem.c` | RECOVERED semantics | counterparts 0x080198E0/0x080198C0/0x0801F610/0x080199A0 |
-| `src/rtos.c` | REPLACEMENT | uC/OS-II primitives re-implemented; task table recovered (7 tasks, priorities, stacks) |
+| `src/rtos.c` | thin wrappers over vendored uC/OS-II | OSMbox*/OSTaskCreateExt/OSTimeDly* mapped to the recovered call sites; task table recovered (7 tasks, priorities, stacks) |
+| `src/os_hooks.c` | scaffold hooks | empty uC/OS-II app hooks + CPU_TS_TmrRd stub (never exercised) |
 | `src/uart.c` | RECOVERED | USART2 init 0x0801F810, RX ISR 0x0801F920, TX 0x0801FEAA; USART1 init 0x0802932C, RX ISR 0x080292F8 |
 | `src/protocol.c` | RECOVERED set / reordered dispatcher | command set cross-verified (ARM image + 8051 UARTX.C + vendor xlsx); original table lives in the stripped tail |
 | `src/display.c` | RECOVERED primitives / SCAFFOLD transport | cmd 0x2C ILI9341-family write, GB2312 16 px cells, ASCII 8 px; panel bus wiring open |
