@@ -8,6 +8,16 @@
 *.pdf
 *.uvoptx
 *.opt*
+*.uvproj
+*.uvprojx
+*.uvs
+*.bat
+*.xlsx
+*.xls
+
+# Build artifacts
+OBJ/
+DAP/
 
 # OS
 .DS_Store
