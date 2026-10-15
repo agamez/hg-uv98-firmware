@@ -3,7 +3,7 @@
 Target: `firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin` (primary), `firmware/V1.0.1_190619-KT.bin` (diff target).
 MCU: GigaDevice GD32F103RET6, ARM Cortex-M3, 108 MHz, 512 KB flash @ `0x08000000`, 64 KB RAM @ `0x20000000`.
 
-**Success level: 1 (Architecture) — complete. 2 (Behavior) — complete for this effort's scope** (protocols, task architecture, memory maps, subsystem anchors, data structures). Next: Level 3 (original C reconstruction with reproducible build) — not started, per plan.
+**Success level: 1 (Architecture) — complete. 2 (Behavior) — complete for this effort's scope** (protocols, task architecture, memory maps, subsystem anchors, data structures). **3 (Functional implementation) — started 2026-10-15, "builds + consistent with static evidence" demonstrated** (reconstruction/ tree, arm-none-eabi-gcc, vector table verified, spot-checked disassembly); runtime behavior not claimed (no emulator/hardware). Level 4 not pursued.
 
 Status legend: **[confirmed]** static evidence sufficient · **[probable]** strong but incomplete evidence · **[speculative]** hypothesis only.
 
@@ -263,3 +263,25 @@ Artifacts: `analysis/bl_graph.json`, `analysis/ram_globals.json`; xlsx extractio
 **UI structures** [confirmed partial]: channel-grid selector `FUN_0800C9BC` (sprintf "%02d", 5-column grid at 16 px, cursor via `(ch%5)*0x10+0x16`); GPS neighbor-list parser `FUN_0800C0E4` (10 comma fields of `CALLSIGN DIST.Km`); flag bank `0x20005094` (+9 protocol ready, +0xA/+0xB/+0xC UI refresh bits) referenced by 28 functions; master dispatcher `FUN_08010D5E` (67 callees) driven by UI task.
 
 **Level 2 status: closed for this effort's scope.** Documented: full inter-MCU protocol (both directions), clone protocol, task architecture, memory map (flash+RAM+EEPROM), display/menu/RF/ADC subsystem anchors with evidence. Remaining explicitly-unknown items are logged as open questions (channel sync path, RF chip model, screen-by-screen semantics, stripped-region contents).
+
+### 2026-10-15 — Session 9: Level 3 started — reconstruction tree builds
+
+Created `reconstruction/`: Makefile (arm-none-eabi-gcc, Cortex-M3 Thumb), linker script (0x08000000/512 K, RAM split MSP-then-task-pool mirroring the original layout), and seven modules with per-file provenance annotations (RECOVERED / INFERRED / SCAFFOLD / REPLACEMENT):
+
+- `startup.c` — SCAFFOLD (original stripped); 76-entry vector table with original handler addresses in comments; off-by-one in the ARMv7-M reserved slot found and fixed via built-binary verification.
+- `mem.c` — re-implements the original helpers (0x080198E0/0x080198C0/0x0801F610/0x080199A0).
+- `rtos.c` — REPLACEMENT clean-room scheduler: PendSV PSP/MSP context switch, 1 ms SysTick, mailboxes with pend-timeout, task pool from linker section; the uC/OS-II API surface observed in the image (OSMboxCreate/Post/Pend, OSTaskCreateExt, OSTimeDly/HMSM) is preserved under different names, with the recovered task table (7 tasks / prios 3,10,11,13,29,30,31) as the creation order.
+- `uart.c` — RECOVERED: USART2 (9600, PA2/PA3, IRQ 38, RXNE frame assembler with '$' gate, TC-polled send) and USART1 (9600, PA9/PA10, IRQ 37, ring + sink). IRQs 37/38 live in NVIC_ISER1 (fixed after build warning).
+- `protocol.c` — RECOVERED command set ($A00/$A01/$A02/$A08/$A09/$B/$C framing rules incl. the 0x216 length check), computed dispatcher replacing the stripped table (documented reordering); 519-byte settings-frame sender.
+- `display.c` — RECOVERED primitives (0x2C ILI9341-family write, set-window, GB2312 16 px / ASCII 8 px text walk) over SCAFFOLD transport; glyph blitting pending font-format analysis (O5).
+- `main.c` — RECOVERED structure: main 0x08029120-equivalent, hw_init, the seven tasks with documented priorities/stacks; task bodies SCAFFOLD.
+
+Validation actually performed: clean build (arm-none-eabi-gcc 14.2.1, `-Wall -Wextra` clean), built-binary vector-table check (MSP 0x20006800, 76 valid Thumb entries, USART1/2 at slots 37/38), disassembly spot-checks (PendSV switch sequence, USART2 TC-poll send loop match the recovered patterns). No runtime/emulation claims.
+
+Toolchain note: `gcc-arm-none-eabi` installed via `apt-get download` + `dpkg -x` to `/tmp/opencode/arm-tc` (system dpkg was locked by an unrelated apt session); Makefile takes `TOOLCHAIN_PATH`.
+
+**Next actions (Level 3 continuation):**
+1. Font/asset region format analysis (O5) → real glyph blitting in display.c.
+2. RF chip identification (reg 0x1F read, PA15 bit-bang protocol) → rf.c.
+3. Key matrix + screen semantics → ui.c replacing the scaffolds.
+4. Emulation decision: QEMU MPS2-AN385 (Cortex-M3) could run the image with a UART backend for the protocol layer.

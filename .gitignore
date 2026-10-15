@@ -40,3 +40,4 @@ analysis/
 *.gzf
 ghidra-project/
 rea-ghidra-*/
+reconstruction/build/
