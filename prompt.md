@@ -282,7 +282,7 @@ Once the entry point, probable memory map, major executable regions, and initial
 ### First-session requirements
 
 The first session must produce:
-- Complete repository and REA tool discovery (inspect all available MCP tools and capabilities).
+- Inspect all available REA MCP tools, schemas, and capabilities, but investigate only those relevant to the current phase. Do not execute every tool merely to demonstrate discovery.
 - Inspection of both firmware images and the available documentation.
 - A preliminary reconnaissance report.
 - A persistent research log initialized with the investigation plan.
