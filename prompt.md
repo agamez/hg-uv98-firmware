@@ -171,7 +171,7 @@ Report progress against these levels. Never claim a level has been achieved with
 - Call relationship diagrams or lists
 
 **Level 2 — Behavior recovered:**
-- Function signatures and implementations with evidence
+- Function signatures, behavioral descriptions, and supporting evidence
 - Data structures recovered from EEPROM map and behavioral analysis
 - Protocol documentation for UART bridge, USB clone, and EEPROM layouts
 - String extraction and menu structure mapping
@@ -217,9 +217,7 @@ Maintain a concise, version-controlled research log containing:
 - Tools and scripts used, including reproducible commands where practical.
 - Next recommended actions and their expected value.
 
-Update the log after significant findings and before ending a session. Keep detailed generated data outside the main log and reference it by path.
-
-On resumption, read the log, inspect Git status, and verify that referenced artifacts still exist before repeating analysis.
+Update the log after significant findings and before ending a session. Keep detailed generated data outside the main log and reference it by path. Do not create a separate commit for each log update. Accumulate log changes throughout the session and include them in the same commit as the related milestone. On resumption, read the log, inspect Git status, and verify that referenced artifacts still exist before repeating analysis.
 
 ### Investigation Decisions
 
@@ -280,6 +278,17 @@ Reconnaissance must produce a useful preliminary report before expanding into ex
 If the image layout or load address remains uncertain, document the competing hypotheses and continue with analyses that remain valid under those hypotheses.
 
 Once the entry point, probable memory map, major executable regions, and initial function map are sufficiently understood, proceed to the highest-value subsystem. Refine the map as new evidence becomes available.
+
+### First-session requirements
+
+The first session must produce:
+- Complete repository and REA tool discovery (inspect all available MCP tools and capabilities).
+- Inspection of both firmware images and the available documentation.
+- A preliminary reconnaissance report.
+- A persistent research log initialized with the investigation plan.
+- A prioritized investigation plan based on initial findings.
+
+Do not begin large-scale C reconstruction during this first phase. Do not stop after producing the plan if a high-value, low-risk initial analysis can already be performed.
 
 ---
 
