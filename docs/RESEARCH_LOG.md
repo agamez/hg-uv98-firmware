@@ -235,5 +235,9 @@ Artifacts: `analysis/bl_graph.json`, `analysis/ram_globals.json`; xlsx extractio
 - **The 190416→KT data shift is NOT constant** [confirmed]: +0xB0 for slots `0x080104CC–F8` but +0x104 for slot `0x08010500` (format-string block), +0x78 further down at `0x080419CC` — the June build regrouped string blocks. Cross-build string archaeology therefore requires per-slot verification; single-shift mapping is invalid. (This may explain the earlier "dead compare" readings — treat April-vs-June string identifications as tentative except where measured per-slot.)
 - **CPS installer checked** (pwnj0hn `HG-UV98 EN V2.0 setup.rar` → PE32, May 2019): no embedded ARM firmware (no vector-table signature, no clone strings); 7z reports no NSIS payload. No local artifact carries the missing 190416 tail. Bounded negative result.
 
-### Session-5 status
-Level 1 is substantially complete (memory map, load address, vector layout, subsystem boundaries: UART1/2, LCD renderer, RTOS, protocol dispatch); Level 2 protocol layer is closed (both directions, both protocols). Remaining Level-2 items: task list, channel-memory structures in ARM code, TX dispatch case map, display/menu structures.
+### 2026-10-15 — Session 6 addendum: VFO pane drawing decompiled
+
+`FUN_08010CD4` (REA dossier, evidence `ev_` session): copies a 20-byte VFO record from `0x20005080`-based slots and calls pane-drawer `FUN_08018FD0(pane_idx, x, y)` for pane 0/1 (VFO A/B), then `FUN_0801060C()` (status line). The 20-byte VFO record layout (freq, channel, tone, …) is the next Level-2 structure to decode — via the writer paths that populate `0x20005080`.
+
+### Session-6 status
+Level 1 substantially complete; Level 2 protocol layer closed. Remaining Level-2 items: 20-byte VFO record layout, task list, channel-memory storage path (flash vs EEPROM), TX dispatch case map, screen/menu semantics.
