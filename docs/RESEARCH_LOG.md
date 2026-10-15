@@ -373,3 +373,23 @@ Render tests of the bitmap-ish tables with row- and column-major packings were n
 **6. Reconstruction:** added `src/font.c` + `font.h` [RECOVERED]: `spi2_xfer`, `font_flash_read`, `cjk16_fetch`, `asset_table_get` with the full addressing math and table map. `display.c`'s CJK path now calls `cjk16_fetch` (blit itself still waits on the panel transport). Currently gc-pruned (no live callers — UI task bodies are SCAFFOLD); links once the UI lands. Build stays clean at 7192 B.
 
 **Next:** scan callers of the compact SPI reader (0x08024F28) for the ASCII font + splash bitmaps; dump SPI-flash addresses implied by asset tables to map the external flash layout; then RF chip ID and key matrix.
+
+### 2026-10-15 — Session 13: renderer semantics completed; blit = per-class RGB565 pusher
+
+**1. Text renderer 0x08018B60 — full semantics recovered:**
+- Signature (r0, r1) = POINTERS to the cursor cells (y at [r0], x at [r1]; 8-bit coords); r2 = string; r3 = fg; [sp+0x20] = 5th arg = **asset-table class**.
+- Gate: `flag_byte[8] & 1` (literal 0x20005094-family) returns early; lock flag set/cleared around the walk (0x08019840(1/0)).
+- CJK branch (c0 ≥ 0x81 && c1 ≥ 0x81): draw 0x08018914, advance **x += 0x10**, s += 2.
+- ASCII branch: advance helper 0x0801899E (&y, &x, class) — **wraps x ≥ 0x9C → x = 6/7?? and y += 6/7/12 by mode**; then the cheeky **in-place digit bias**: `if (c < 0x0A) *s += 0x30` (MUTATES the caller's string — binary digits stored as 0..9 are rendered as '0'..'9'); then draw 0x0801895E(x, y, &c, fg, {0, class}); s += 1; second advance 0x08018AC0.
+
+**2. Vertical string drawer 0x08018F62** (second user of the asset fetch): fixed x, **y starts 3, advances 8 px per char**, max 0x14 (20) chars — vertical lists (channel/menu columns). Same fetch + blit with mode arg **1** (vs 0 in the horizontal path).
+
+**3. The blit 0x08017FB8 is a per-class RGB565 pixel pusher** (~900 B):
+- Palette select switch on a color-ish arg → (fg, bg) pairs incl. literal **0xF800 (red)**, **0x001F (blue)**, 0xA5-region greens — plus the 0xBEEF sentinel as "no color".
+- Window setup via 0x080179C8 (geometry constants per class: e.g. +4/+6, +7/+15, +5/+9 offsets observed) then cmd **0x2C** via 0x08017A6A.
+- Per-class bit-expansion loops: read record bytes, emit fg/bg as byte-PAIRS (two 0x08017A8C calls per 16-bit pixel) — inner loops of 5/6/8 iterations per class observed.
+- Full per-class geometry + bit order = well-scoped follow-up (REA/Ghidra on 0x08017FB8; capstone linear sweep misparses several Thumb-2 spots).
+
+**Consequence for O5:** the ASCII "font" is not a single flat table — text rendering always routes through asset_table_get(class, ch) and the blit's per-class geometry; the earlier render-test failures are explained (wrong assumed geometry; the real per-record geometry lives in the blit's branches). CJK side unchanged (external SPI flash, fully recovered).
+
+**Reconstruction:** display.c annotation updated to the recovered signature semantics; no code churn this session (blit geometry pending).

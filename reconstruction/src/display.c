@@ -38,7 +38,17 @@ void display_draw_area(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t 
 }
 
 /* [0x08018B60 | RECOVERED logic; CJK glyph source now RECOVERED via
- * font.c (SPI2 flash), ASCII glyphs still SCAFFOLD] */
+ * font.c (SPI2 flash), ASCII records still SCAFFOLD pending the blit's
+ * per-class geometry]
+ *
+ * Recovered signature semantics (session 13):
+ *   draw_text(&y, &x, s, fg, class) — r0/r1 are POINTERS to 8-bit cursor
+ *   cells; the 5th arg selects the asset-table class (font/menu/DCS/APRS).
+ *   ASCII: advance (&wrap x>=0x9C), in-place bias c<0x0A -> c+='0'
+ *   (mutates the caller's string!), draw, advance. CJK: 16 px advance.
+ *   A second renderer 0x08018F62 draws vertical strings (y += 8, max 20).
+ *   The blit 0x08017FB8 expands class records to RGB565 via palette
+ *   (0xF800 red / 0x001F blue literals) + per-class geometry. */
 void display_draw_text(uint16_t x, uint16_t y, const char *s, uint8_t style)
 {
     (void)style;    /* style byte rides the 5-arg original call signature    */
