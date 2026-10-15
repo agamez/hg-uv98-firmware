@@ -66,6 +66,8 @@ void protocol_frame_received(const uint8_t *frame, uint32_t len)
      * match copy the frame to the handler buffer. The $A00-style settings
      * upload requires length == 0x216 (534). */
     if (len >= 5 && mem_cmp(frame, "$A01,", 5) == 0) {
+        if (len != 0x216)        /* settings upload frame length check   */
+            return;              /* original clears the ready flag       */
         mem_copy(rxBuf, frame, len);
         rxLen = len;
         proto_flags |= FLAG_FRAME_READY;
@@ -86,9 +88,7 @@ void protocol_frame_received(const uint8_t *frame, uint32_t len)
         proto_flags |= FLAG_FRAME_READY;
         return;
     }
-    if (len >= 5 && mem_cmp(frame, "$A00,", 5) == 0) {
-        if (len != 0x216)        /* settings upload frame length check   */
-            return;              /* original clears the ready flag       */
+    if (len >= 4 && mem_cmp(frame, "$A00", 4) == 0) {
         mem_copy(rxBuf, frame, len);
         rxLen = len;
         proto_flags |= FLAG_FRAME_READY;

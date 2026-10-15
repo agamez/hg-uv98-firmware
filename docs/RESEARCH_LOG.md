@@ -421,6 +421,23 @@ Render tests of the bitmap-ish tables with row- and column-major packings were n
 
 **Next:** decode blit per-class geometry with REA; identify both RF chips via init register sequences; trace key→UI event path through the dispatcher cluster; panel init sequence.
 
+### 2026-10-15 — Session 17: remaining queue cleared; protocol layer now runtime-tested
+
+**1. `0x08010D06` = selection-state setter (`ui_list_select(first, last, table)`)**, not a handler invoker: clamps/wraps the selected index (mod-5 wrap when a UI flag is set) into a state struct {sel, first, last, table}. Consequence: the RAM "key handler table" entries are **per-key string-table pointers** — each key press swaps the menu-list source before the redraw. The 20-byte block memcpy'd before `0x08010D5E` carries the redraw args.
+
+**2. AT1846S register semantics annotated** (full table from OpenRTX):
+- `0x1F` = **GPIO mode config** (pairs of 2 bits per GPIO: hi-z/func/low/high). The observed writes 0x9BA9/0x9AA9 = squelch-out on GPIO6, code/CSS on GPIO3/GPIO0 — the CTCSS/DCS signaling pin map, per band.
+- `0x30` transitions = standby (0x4006: power-on, 12.5 kHz? bits 13:12) / TX (0x4046: +bit6) / RX (0x40A6: +bit5) with 25 kHz variants (0x7046: bits13:12=11).
+- `0x0A` = PA bias (0x4A → 1.09V), `0x35` = DTMF tone freq 1 (0x1CF6 ≈ 1.81 kHz), `0x2B/0x2C` = reference/ADC clock kHz, `0x48/0x49` = squelch thresholds, `0x5F` = RSSI (1/8 dB).
+- Undocumented in the public table: 0x79 (0xD932/0x9932 toggle), 0x4E, 0x57-0x59, 0x5B, 0x96, 0x99.
+
+**3. The wiped 21 KB zone is a CLEAN WIPE — closed.** Fill = alternating halfwords 0xBEEF / 0x9EEF plus zero padding; no surviving code, no literal pools, and **zero live-code callers** into the zone (BL scan over the whole image). It is a removed feature-variant module, not stripped live code — the distributed build is self-consistent without it. Nothing recoverable; the live UI layer is what the earlier sessions mapped.
+
+**4. Host-side protocol conformance tests — the emulation question made practical.** QEMU MPS2-AN385 cannot model GD32F103 peripherals, so runtime validation is delivered as a native test harness instead: `make test-host` compiles `protocol.c` (hardware-independent) with a mocked `usart2_send` capture and executes the documented frame rules — send commands, 0x216-checked settings upload (accept/reject), telemetry/beacon/list/detail frames, unknown-command fall-through. **All tests pass**; this upgrades the protocol layer's Level-3 claim to "passes executed conformance tests".
+- Found + fixed a real inversion bug the tests caught: the 0x216 length check sat on `$A00` instead of `$A01,` (the settings-write direction per the 8051 UARTX.C ground truth: `$A01,` = "Receiving Settings", `$A00\r\n` = read whose RESPONSE is the long frame).
+
+**Remaining (no longer blocking Level 3):** per-screen handler bodies via the RAM-table registrars (mechanism fully known), RF register semantics beyond the public table (0x79/0x4E/0x57-0x59/0x96), external flash regions beyond fonts.
+
 ### 2026-10-15 — Session 14b: RF = AT1846S ×2 confirmed; key→UI event path closed
 
 **1. RF chip identification COMPLETE — see 1b above.** OpenRTX's register table matches point-for-point (reg 0x30 mode bits, 0x0A PA bias, 0x29/0x2A frequency, 3-wire 24-bit bus). Two AT1846S instances = the dual-band architecture.

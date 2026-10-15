@@ -40,6 +40,17 @@ INC = -Isrc -Iucos2/cfg -Iucos2/ucos2 -Iucos2/port -Iucos2/cpu -Iucos2/lib \
 all: build/hguv98.bin
 	@$(SIZE) build/hguv98.elf
 
+# Host-side conformance tests for the protocol layer (session 17):
+# compiles protocol.c natively with a mocked UART sink and executes the
+# documented frame rules. Gives the protocol layer an executed-test claim.
+CC_HOST ?= cc
+test-host: build/test_protocol
+	./build/test_protocol
+
+build/test_protocol: tests/test_protocol.c src/protocol.c src/mem.c src/mem.h src/protocol.h
+	mkdir -p build
+	$(CC_HOST) -std=c11 -O1 -g -Wall -Wextra -Isrc -o $@ tests/test_protocol.c src/mem.c
+
 build:
 	mkdir -p build
 
