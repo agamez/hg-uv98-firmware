@@ -214,3 +214,12 @@ Artifacts: `analysis/bl_graph.json`, `analysis/ram_globals.json`; xlsx extractio
 2. TX-side closure: `$A30/$A31/$H/$J/$L/$M` senders; dispatcher entry/case map (function entry before 0x08010128).
 3. Level-1 subsystem clustering (SCC over bl_graph.json) + name display/menu/radio subsystems.
 4. Channel-memory structures in ARM (correlate CHIRP EEPROM map with the ARM's EEPROM/I2C or flash access code).
+
+### 2026-10-15 — Session 5 addendum: dispatcher entry found; KT string-shift is non-constant
+
+- **Dispatcher entry = `FUN_08010128`** [confirmed] (`push.w {r3-r11,lr}`; takes the command ID byte in r0; 1000/200-byte scratch memsets then the case chain). A second RX-frame handler `FUN_080100xx` (ends `0x08010114`) compares the RX copies (`0x20002F74`/`0x20004B94`) against 5-byte literals — its strings (`0x080447B4/B4/BC`, missing tail) map to KT's `-9.0 dB`/`-7.5 dB` under a +0xB0 shift.
+- **The 190416→KT data shift is NOT constant** [confirmed]: +0xB0 for slots `0x080104CC–F8` but +0x104 for slot `0x08010500` (format-string block), +0x78 further down at `0x080419CC` — the June build regrouped string blocks. Cross-build string archaeology therefore requires per-slot verification; single-shift mapping is invalid. (This may explain the earlier "dead compare" readings — treat April-vs-June string identifications as tentative except where measured per-slot.)
+- **CPS installer checked** (pwnj0hn `HG-UV98 EN V2.0 setup.rar` → PE32, May 2019): no embedded ARM firmware (no vector-table signature, no clone strings); 7z reports no NSIS payload. No local artifact carries the missing 190416 tail. Bounded negative result.
+
+### Session-5 status
+Level 1 is substantially complete (memory map, load address, vector layout, subsystem boundaries: UART1/2, LCD renderer, RTOS, protocol dispatch); Level 2 protocol layer is closed (both directions, both protocols). Remaining Level-2 items: task list, channel-memory structures in ARM code, TX dispatch case map, display/menu structures.
