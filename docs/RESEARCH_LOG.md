@@ -341,3 +341,35 @@ with `0x08026EEA`: `VTOR = (r1 & 0x1FFFFF80) | r0` = **0x08004000**. Corroborati
 - Build: clean, 7192 B text, all 76 built-vector entries valid at 0x08004000.
 
 **Follow-ups:** re-run the BEEF census under the corrected base to re-derive the true stripped-region list; identify 0x080272E6 (main's second call) and 0x08026E18(0x700); optionally mirror the 10-byte stub stair in asm; font region = file 0x130..0xB000 (O5 analysis used file offsets — unaffected).
+
+### 2026-10-15 — Session 12: O5 broken open — CJK font is in an EXTERNAL SPI flash
+
+**1. BEEF census (corrected base).** The vendor fill is the halfword `0xBEEF` (bytes EF BE). Tiny 2–6 halfword runs occur throughout — those are armcc inter-function padding, not stripping. The real stripped region is one contiguous zone, **file 0x29B60–0x2EE02 (labels 0x08029B60–0x0802EE02, ≈21 KB)**, immediately after main's object cluster: hundreds of BEEF runs (largest 0x29C, 0x244, 0x152, 0x14E…) interleaved with 4–90 byte surviving fragments. This zone is the vendor-neutered application/UI layer (the clone-handler region among it). The same zone exists in the KT build shifted 0xC bytes earlier. Re-deriving what each stripped function was (via surviving fragments' BL targets) is queued.
+
+**2. Two unknowns identified:** `0x08026E18` = flag-word OR-setter (`flags |= arg`; USART1 init sets 0x700 — the flag bank at 0x20005094 family). `0x080272E6` (main's post-VTOR init call) = app-init orchestrator calling 12 sub-inits in sequence: 0x08027C90, 0x080276F6, 0x08027744, 0x080277FE, 0x080276A8, 0x08028B1C, 0x08028B6C, 0x08027786, 0x080277C2, 0x08028BB2, 0x08027C98, 0x08028E30 (all in the real-code region; to be named individually).
+
+**3. O5 MAJOR RESULT — the CJK 16×16 font is NOT in internal flash.** The glyph draw path (renderer 0x08018B60 → CJK draw 0x08018914 → fetch 0x08024E78) ends in an **external SPI flash read**:
+- `0x08024E78` (fetch): range-check hi ∈ [0xB0,0xF8), lo ≥ 0xA1; **addr24 = ((hi−0xB0)×94 + (lo+685)) << 5** — HZK16-style layout whose array starts 846 glyphs (9×94) before GB2312 zone-16 row 0, so zones 7..15 (symbols) are included; 32 bytes per glyph.
+- `0x08024F28` (block read, compact) and `0x08024E10` (split-arg form): **CS assert on GPIOC pin 4 → opcode 0x03 → 3 address bytes MSB-first → read len bytes → CS deassert**.
+- `0x08027E92`: hardware **SPI2** (0x40003800) full-duplex byte transfer (poll TXE, write DR, poll RXNE, read DR) — not bit-bang.
+- Pin helpers `0x0801F780`/`0x0801F788` = universal GPIO set/clear wrappers (~90 call sites across display/RF/keys/SPI).
+
+**4. Asset record tables (internal flash).** `0x08024F8C(class, *ch)` indexes 9 tables — mixed content, verified by dumping:
+| class | base | stride | content |
+|---|---|---|---|
+| 1 | 0x08041F00 | 12 | bitmap-ish (packing TBD) |
+| 2 | 0x080419CC | 14 | menu strings ("MEM-CH:", "DEL-CH:", "SURE", "BAACK") |
+| 3 | 0x080413CC | 16 | DCS tone names ("D371N", "D411N", …) |
+| 4 | 0x08042410 | 20 | bitmap-ish; ' '/'.'/'-' have fixed slots |
+| 5 | 0x080401EC | 24 | APRS symbol names ("$  Phone", "/  Red Dot", "?  File svr") |
+| 6 | 0x0803F490 | 36 | APRS symbol names ext ("t  Truck Stop", "w  Water Stn", …) |
+| 7 | 0x080421C4 | 45 | bitmap-ish; ' '/'.'/'-' special |
+| 8 | 0x0803DF68 | 57 | bitmap |
+| 9 | 0x0803C7A8 | 64 | bitmap |
+Render tests of the bitmap-ish tables with row- and column-major packings were noisy — their pixel format is TBD. **The ASCII text bitmap font was not found in internal flash**; likely also in the external SPI flash (the split-arg reader's other call sites TBD — scan shows only 2, both inside the CJK fetch; the compact reader's callers not yet scanned).
+
+**5. Renderer details:** CJK path = memset(32B buf) → SPI fetch → blit `0x08017D3C`; ASCII path passes through `0x08024F8C`; cursor advance/wrap helper `0x0801899E` (wrap thresholds 0x9A/0x9C, advances 6/7/12 depending on mode); blit `0x08017FB8` uses `0xBEEF` as an internal sentinel value (mode-flag default).
+
+**6. Reconstruction:** added `src/font.c` + `font.h` [RECOVERED]: `spi2_xfer`, `font_flash_read`, `cjk16_fetch`, `asset_table_get` with the full addressing math and table map. `display.c`'s CJK path now calls `cjk16_fetch` (blit itself still waits on the panel transport). Currently gc-pruned (no live callers — UI task bodies are SCAFFOLD); links once the UI lands. Build stays clean at 7192 B.
+
+**Next:** scan callers of the compact SPI reader (0x08024F28) for the ASCII font + splash bitmaps; dump SPI-flash addresses implied by asset tables to map the external flash layout; then RF chip ID and key matrix.
