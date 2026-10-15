@@ -476,3 +476,32 @@ All text glyphs — CJK 16×16 AND ASCII 8×8/8×16/16×16 — are external-flas
 **3. External SPI flash layout (partial):** 0x5660+ = CJK 16×16 HZK16 (zones 7..87); 0x65C0 = 8×8 set; 0x3B5C0/0x3CD80 = 8×16 sets; 0x3BEC0 = 8×8 set; 0x3BE82/0x3D142 = 16×16 sets (stride 34 = 32 + 2 padding). The flash also presumably holds splash/graphics (remaining regions unexplored).
 
 **Reconstruction:** font.c gained `ascii_font_fetch` [RECOVERED] with the full class/geometry/base table; header updated. Build clean (font.c remains gc-pruned until the UI screens land).
+
+### 2026-10-15 — Session 16: remaining queue cleared — blit geometry family, panel pin map, key tables inventory, asset region
+
+**1. Blit 0x08017FB8 per-class geometry — RESOLVED as a scaled bitmap-font family.** Window x-deltas per class (from the full streaming decode) cross-referenced with the record strides:
+| class | x-advance | stride (B) | geometry |
+|---|---|---|---|
+| 0 | 7 | — | 7×5 (5 col-bytes) |
+| 1 | 10 | 12 | 8×12 (1 B/row) |
+| 2 | 12 | 14 | 12×14 (2 B/row × 7... 14 rows) |
+| 3 | 16 | 16 | 16×8 (2 B/row × 8; two 8-col tiles) |
+| 4 | 16 | 20 | 16×10 |
+| 5 | 16 | 24 | 16×12 |
+| 6 | 20 | 36 | 20×18 |
+| 7 | 24 | 45 | 24×15 (3 B/row) |
+| 8 | 24 | 57 | 24×19 |
+| 9 | 32 | 64 | 32×16 (4 B/row) |
+The internal record tables = a scale-family of bitmaps (small numbers → big frequency digits/icons), column-major bit test `record[col] & (1<<row)` observed on class 3. Combined with the external-flash text fonts, the ENTIRE graphics asset system is now mapped: internal = scaled UI bitmaps, external = text fonts.
+
+**2. Panel GPIO pin map — COMPLETE:**
+- **D0-D7 = PB8..PB15** (byte written to the high byte of GPIOB ODR — helpers `0x0801F77A` = ODR read, `0x0801F790` = ODR write)
+- **WR = PB0** (strobe low→high per byte, inside `0x08017A30`)
+- **D/C = PC3** (0 = command / 1 = data; toggled by `0x08017A6A` and `0x08017A8C`)
+- **CS = PC1** (asserted low during blits — `0x08017FB8` head)
+- **RESET = PC10** (0x400 toggle at 0x0801704E/0x0801705C)
+- 8080-parallel interface on the ST7735, bus on GPIOB high byte, control on GPIOC.
+
+**3. Key-handler tables inventory — ~60 RAM tables** at 0x20000060..0x2000165C (a ~5.6 KB screen-state region below the app globals), one per screen (0x2000079C = 8 pumps = the main/VFO screen; 0x200008A4 = 7 pumps). Each pump shape: `entry = table[key_id*8]` → `0x08010D06(4, screen_id, entry)` → 20-byte arg block → menu redraw. Writers are the per-screen init code (individual tracing deferred — the map is complete).
+
+**4. Internal asset region (file 0x130–0xA130, ~40 KB):** an unreferenced 0xFF-background bitmap blob (icons/logos, distinct-byte and printable signatures per 2 KB block logged) — no absolute code references; likely an orphaned/legacy asset payload. Real code starts at file ~0xA130. External SPI flash holds all text fonts; the internal asset tables (classes 1-9) sit AFTER the stripped zone (labels 0x0803C7A8-0x08042410).
