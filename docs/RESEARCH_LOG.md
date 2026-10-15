@@ -393,3 +393,22 @@ Render tests of the bitmap-ish tables with row- and column-major packings were n
 **Consequence for O5:** the ASCII "font" is not a single flat table — text rendering always routes through asset_table_get(class, ch) and the blit's per-class geometry; the earlier render-test failures are explained (wrong assumed geometry; the real per-record geometry lives in the blit's branches). CJK side unchanged (external SPI flash, fully recovered).
 
 **Reconstruction:** display.c annotation updated to the recovered signature semantics; no code churn this session (blit geometry pending).
+
+### 2026-10-15 — Session 14: RF bus fully mapped; key-input infrastructure found
+
+**1. RF chip interface — transport fully recovered** (all on GPIOA):
+- **CLK = PA15** (0x8000), **DATA = PA9** (0x200), **two chip-selects PA8 (0x100) / PA12 (0x1000)** selected by a mode helper `0x08022838(0/1/other)` that drives the two CS pins complementary ("other" = both, used for the trailing byte 0x04).
+- Write frame `0x0802289A(chip, {u8 reg, u16 data})`: select chip → CLK low → delay 8 → send 3 bytes [R/W+addr7, data_hi, data_lo] via bit-bang `0x08022712` (MSB-first, CLK toggled per bit, delay 10) → delay 8 → trailing select pattern.
+- Read frame `0x0802292E(chip, reg)`: select chip → send **reg | 0x80** (R/W in bit 7, 7-bit address) → turnaround `0x080226F6` → clock data in. Caller masks the value to 20 bits (conservative; frames are 24-bit = 1+7+16 — **AT1846S/BK4819-family shape**).
+- **Chip-ID probe `0x0801F4CC`**: for each of two flags/chips, read **reg 0x1F**; if value & 0xFFFFF == 0x0FFF → call `0x080232E2(chip, 1)` + delay 30 (mark dead / retry path). Two chips ⇒ dual-band RF section.
+- Chip-name confirmation (register value tables / PLL math) queued — the transport is done.
+
+**2. Key-input infrastructure found:**
+- GPIO helpers family: `0x0801F75E` = **pin read** (`(IDR & pin) != 0`), `0x0801F780`/`0x0801F788` = set/clear (~90 call sites), `0x0801F798`/`0x0801F678` = config (ST gpio_init shape).
+- **TIM2 ISR** (irq 28, installed at 0x08029586, handler 0x080295B4): tiny — tests flag word (0x0802816E/0x0802819C helpers), on set calls the poll work **0x080294A6**: reads **PC8** with edge detection (saved copy at 0x20005163 → "changed" byte) and **PC7** level (state byte 0x20005164/0x20005165, next to the flag bank). Likely PTT/monitor-class keys.
+- **Keypad scanner** at 0x080218xx-0x08021Cxx (6+ gpio_read calls): keys are INDIVIDUAL GPIOC inputs (e.g. **PC11**) with per-key **debounce counter (threshold 5)** and **auto-repeat (500 ms = 0x1F4 timeout)** at struct 0x2000-51xx — not a scanned matrix.
+- Breadcrumb: the UI task (prio 3, 0x08029178) is the task ORCHESTRATOR (creates 10/13 via 0x080175A8 and the service set via 0x08017738, then OSTimeDly loop over the dispatcher cluster 0x0800FE58/0x08010302/0x08015DCC/0x0800ED24) — full key→UI event path to trace next. Note: the prior "key matrix at 0x080175A8/0x08017738" pointers were actually the task creators.
+
+**3. Blit geometry (partial, from a clean streaming decode):** palette pairs per mode arg (RGB565: 0xF800 red, 0x001F blue, 0x13A2, 0x8D5E, 0x58E1; 0xBEEF sentinel); tile shapes are **column-major bit maps** (bit test `record[col] & (1<<row)`, MSB = top row): 7×5 (class-0 branch), 16×8 as two 8-col tiles (class-3 branch), 6×8-ish (class-1 branch); each 16-bit pixel emitted as hi/lo byte pairs through 0x08017A8C. The complete arg↔class↔geometry mapping still needs function-context (REA) — capstone snippets mislead on the arg slots.
+
+**Next:** decode blit per-class geometry with REA; identify both RF chips via init register sequences; trace key→UI event path through the dispatcher cluster; panel init sequence.
