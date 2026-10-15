@@ -8,5 +8,6 @@
 void           font_flash_read(uint32_t addr24, uint32_t len, uint8_t *dst);
 int            cjk16_fetch(uint8_t *buf, const uint8_t *gb);   /* 0 = filled */
 const uint8_t *asset_table_get(uint8_t class, uint8_t ch);
+int            ascii_font_fetch(uint8_t *dst, int class, uint8_t ch); /* 0 = bad class/char */
 
 #endif /* FONT_H */

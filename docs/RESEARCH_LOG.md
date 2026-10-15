@@ -457,3 +457,22 @@ Display stack now identified end-to-end: ST7735 panel (GPIO parallel bus) ← bl
 - The following function 0x08010DEA = a 10 ms poll loop (OSTimeDlyHMSM(0,0,0,10)) incrementing a periodic counter ([base+0x7C]) and checking flag [base+0x119] — the menu-input poller.
 
 **Key→UI model now complete:** TIM2/GPIOC scanners → key ID byte (0x20005166) → pump 0x0800F1F0 (RAM handler table 0x20000CA4, per-screen registration) → handlers perform actions → menu-list redraw 0x08010D5E repaints the list with the selection bar.
+
+### 2026-10-15 — Session 15b: UI screen inventory; ASCII fonts found in the external flash — O5 CLOSED
+
+**1. UI screen inventory: 85 menu-redraw call sites, each a screen pump.** Every caller of 0x08010D5E follows the same pump shape (RAM key table + `0x08010D06(4, screen_id, handler_entry)` + 20-byte arg block + redraw). Screen IDs extracted: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 25, 26, 30, 40, 49, 51, 59, 93, 211 (small ids = genuine screens; a few large values may include arg mismatches from the walk-back heuristic). The three sibling RAM structs 0x20000C24/0x20000C54/0x20000CA4 = three screens' key tables; each screen owns one.
+
+**2. ASCII fonts SOLVED — they live in the EXTERNAL SPI flash.** `0x08027EC8 = ascii_font_fetch(ch, class, dst)`: range-checks ch to 0x20..0x7E (95 glyphs), then per class:
+| class | geometry | stride | SPI base |
+|---|---|---|---|
+| 1 | 8×8 | 8 | 0x03BEC0 |
+| 2 | 8×8 | 8 | 0x0065C0 |
+| 3 | 8×16 | 16 | 0x03B5C0 |
+| 4 | 8×16 | 16 | 0x03CD80 |
+| 5 | 16×16 | 34 (32 used) | 0x03BE82 |
+| 6 | 16×16 | 34 (32 used) | 0x03D142 |
+All text glyphs — CJK 16×16 AND ASCII 8×8/8×16/16×16 — are external-flash assets. The internal-flash record tables (asset_table_get, classes 1-9) hold icons/strings only. **O5 is closed**: both font systems mapped with addressing math and transport.
+
+**3. External SPI flash layout (partial):** 0x5660+ = CJK 16×16 HZK16 (zones 7..87); 0x65C0 = 8×8 set; 0x3B5C0/0x3CD80 = 8×16 sets; 0x3BEC0 = 8×8 set; 0x3BE82/0x3D142 = 16×16 sets (stride 34 = 32 + 2 padding). The flash also presumably holds splash/graphics (remaining regions unexplored).
+
+**Reconstruction:** font.c gained `ascii_font_fetch` [RECOVERED] with the full class/geometry/base table; header updated. Build clean (font.c remains gc-pruned until the UI screens land).

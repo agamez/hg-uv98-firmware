@@ -94,8 +94,7 @@ int cjk16_fetch(uint8_t *buf, const uint8_t *gb)
 
 /* [0x08024F8C | RECOVERED] record-table lookup. class 1..9 selects the
  * table; ch is the character byte (see header comment for slot rules).
- * Returns the record pointer, or 0 for an unknown class. */
-const uint8_t *asset_table_get(uint8_t class, uint8_t ch)
+ * Returns the record pointer, or 0 for an unknown class. */const uint8_t *asset_table_get(uint8_t class, uint8_t ch)
 {
     uint32_t base, stride;
 
@@ -123,4 +122,40 @@ const uint8_t *asset_table_get(uint8_t class, uint8_t ch)
         return 0;
     }
     return (const uint8_t *)(base + (uint32_t)(ch - 0x20u) * stride);
+}
+
+/* ------------------------------------------------------------------------ *
+ * ASCII fonts — also in the EXTERNAL SPI flash.
+ *
+ * [0x08027EC8 | RECOVERED] fetches one glyph for a printable ASCII char
+ * (0x20..0x7E, else returns 0). Class = font set; geometry per class:
+ *
+ *   class 1:  8x8  (stride  8)  base 0x03BEC0
+ *   class 2:  8x8  (stride  8)  base 0x0065C0
+ *   class 3:  8x16 (stride 16)  base 0x03B5C0
+ *   class 4:  8x16 (stride 16)  base 0x03CD80
+ *   class 5: 16x16 (stride 34, 32 used) base 0x03BE82
+ *   class 6: 16x16 (stride 34, 32 used) base 0x03D142
+ *
+ * This resolves O5 fully: ALL text glyphs (CJK 16x16 and ASCII 8x8/8x16/
+ * 16x16) live in the external SPI flash; the internal-flash record
+ * tables (asset_table_get) hold icons and strings, not text fonts.
+ * ------------------------------------------------------------------------ */
+int ascii_font_fetch(uint8_t *dst, int class, uint8_t ch)
+{
+    uint32_t addr;
+
+    if (ch < 0x20u || ch > 0x7Eu)
+        return 0;
+    switch (class) {
+    case 1: addr = 0x03BEC0u + (uint32_t)ch * 8u;  font_flash_read(addr, 8,  dst); break;
+    case 2: addr = 0x0065C0u + (uint32_t)ch * 8u;  font_flash_read(addr, 8,  dst); break;
+    case 3: addr = 0x03B5C0u + (uint32_t)ch * 16u; font_flash_read(addr, 16, dst); break;
+    case 4: addr = 0x03CD80u + (uint32_t)ch * 16u; font_flash_read(addr, 16, dst); break;
+    case 5: addr = 0x03BE82u + (uint32_t)ch * 34u; font_flash_read(addr, 32, dst); break;
+    case 6: addr = 0x03D142u + (uint32_t)ch * 34u; font_flash_read(addr, 32, dst); break;
+    default:
+        return 0;
+    }
+    return 1;
 }
