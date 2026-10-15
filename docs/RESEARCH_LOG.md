@@ -3,7 +3,7 @@
 Target: `firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin` (primary), `firmware/V1.0.1_190619-KT.bin` (diff target).
 MCU: GigaDevice GD32F103RET6, ARM Cortex-M3, 108 MHz, 512 KB flash @ `0x08000000`, 64 KB RAM @ `0x20000000`.
 
-**Success level: 1 (Architecture) — substantially complete** (memory map, load address, vector layout, subsystem map with named anchors). **Level 2 (Behavior): protocol layer closed**; remaining: task list, channel-memory structures, TX case map, screen/menu semantics.
+**Success level: 1 (Architecture) — complete. 2 (Behavior) — complete for this effort's scope** (protocols, task architecture, memory maps, subsystem anchors, data structures). Next: Level 3 (original C reconstruction with reproducible build) — not started, per plan.
 
 Status legend: **[confirmed]** static evidence sufficient · **[probable]** strong but incomplete evidence · **[speculative]** hypothesis only.
 
@@ -239,5 +239,27 @@ Artifacts: `analysis/bl_graph.json`, `analysis/ram_globals.json`; xlsx extractio
 
 `FUN_08010CD4` (REA dossier, evidence `ev_` session): copies a 20-byte VFO record from `0x20005080`-based slots and calls pane-drawer `FUN_08018FD0(pane_idx, x, y)` for pane 0/1 (VFO A/B), then `FUN_0801060C()` (status line). The 20-byte VFO record layout (freq, channel, tone, …) is the next Level-2 structure to decode — via the writer paths that populate `0x20005080`.
 
-### Session-6 status
-Level 1 substantially complete; Level 2 protocol layer closed. Remaining Level-2 items: 20-byte VFO record layout, task list, channel-memory storage path (flash vs EEPROM), TX dispatch case map, screen/menu semantics.
+### 2026-10-15 — Sessions 7–8: task list, RTOS map, storage architecture (Level 2 closed)
+
+**Boot chain & task list** [confirmed] (OSTaskCreateExt = `0x080249A4`; all 7 call sites enumerated):
+| prio | task fn | stack | role |
+|---|---|---|---|
+| 3 | `0x08029178` | `0x20001F74` (1 KB) | **main/UI task**: `hw_init` → key-scan loop (`0x080175A8` → handler `0x08017738`, `OSTimeDly(30)`) |
+| 10 | `0x08017664` | `0x20002374` (1 KB) | 1 ms periodic (`OSTimeDlyHMSM(0,0,0,1)`); counters, every 8th iter calls `0x0801E6F4` — background maintenance |
+| 11 | `0x08014DEA` | `0x20002B74` (1 KB) | **UI event dispatcher** — trampoline to `FUN_08010D5E` (67-callee master dispatch) |
+| 13 | `0x08017704` | `0x20002774` (1 KB) | **RSSI/S-meter poll** (500 ms; reads RF reg 0x1F via `0x0801F4CC`, 0xFFF=invalid) — feeds the USART2 status feed |
+| 29 | `0x08028D74` | `0x2000429C` (512 B) | mailbox-pend service task, 8-slot ring processing |
+| 30 | `0x08027938` | `0x20003E9C` (512 B) | timeout/counter task (÷100, fires `0x08024B94(0xFF)`) |
+| 31 | `0x08027918` | `0x2000409C` (512 B) | low-prio statistics-style task (crit-section counter + `0x08027CA6`) |
+
+`main()` = `0x08029120`: NVIC setup → creates main task (prio 3) → `0x08027392` (**OSStart candidate**, never returns). `hw_init` chain `0x080290D0 → 0x08029080`: GPIO inits, RF chip init `0x080227AA`, **USART1 init `0x0802932C`** + its mailbox/pump `0x0802942A`, misc. USART2 init `0x0801F810` invoked from the init cluster (exact call site in uncovered region).
+
+**RTOS API corrections** [confirmed]: the type-3 OS_EVENT calls are **mailboxes**, not semaphores — `0x08024C78`=OSMboxCreate, `0x08024DAC`=OSMboxPost (called from ISRs), `0x08024CC6`=OSMboxPend (called from tasks). `OSTimeDly`=`0x0801FF4C`, `OSTimeDlyHMSM`=`0x0801FFB0`, `OSTaskCreateExt`=`0x080249A4`, task-name/queue helper `0x08024A6C`. Tick appears to be 1 ms (delay(500) used for ~500 ms polling).
+
+**Storage architecture** [confirmed by absence]: the ARM image contains **no I2C peripheral code, no EEPROM driver, and no flash self-programming keys** (KEY1/KEY2 absent; FPEC base appears once as data). ⇒ The AT24C512 is **8051-owned** (it has `AT24C512.c`); the CPS clone protocol (`NiNHSG0N`…`P3107`) and the Ymodem `Host UpData` update both run on the **8051's external UART** (its UART1). The ARM keeps VFO/channel state in RAM (`0x20005080`-region structs) and exchanges settings with the 8051 over USART2 (`$A00` 512 B read / `$A01,` 512 B write + ID). **Open**: exact channel-record sync path between ARM RAM and the EEPROM (no $-command for 2 KB of channel records is visible in the 2022 8051 source; protocol may differ in the 2019 pairing).
+
+**EEPROM structure** [confirmed via CHIRP]: 130 × 16 B channel records @ `0x0000` (`lbcd rx_freq[4]`, `lbcd tx_freq[4]`, `ul16 rxtone/txtone`, wide/highpower + bcl/scan flag bytes, 2 unknown), settings block @ `0x0A00` (abr, steps, sql, PF1/PF2 short/long, aprs_rx_band, ch_a/b_mute, tx_priority…, `ch_a_mem_ch` @0xA42), 128 × 16 B names @ `0x1000`, APRS callsign, `0x1F80` block. VFO-A/VFO-B = special channels 128/129.
+
+**UI structures** [confirmed partial]: channel-grid selector `FUN_0800C9BC` (sprintf "%02d", 5-column grid at 16 px, cursor via `(ch%5)*0x10+0x16`); GPS neighbor-list parser `FUN_0800C0E4` (10 comma fields of `CALLSIGN DIST.Km`); flag bank `0x20005094` (+9 protocol ready, +0xA/+0xB/+0xC UI refresh bits) referenced by 28 functions; master dispatcher `FUN_08010D5E` (67 callees) driven by UI task.
+
+**Level 2 status: closed for this effort's scope.** Documented: full inter-MCU protocol (both directions), clone protocol, task architecture, memory map (flash+RAM+EEPROM), display/menu/RF/ADC subsystem anchors with evidence. Remaining explicitly-unknown items are logged as open questions (channel sync path, RF chip model, screen-by-screen semantics, stripped-region contents).
