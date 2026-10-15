@@ -431,3 +431,13 @@ Render tests of the bitmap-ish tables with row- and column-major packings were n
 - The dispatcher's menu-action handler table (16-byte entries, `blx [table+id*16+4]`, seen at 0x0801625A/0x08016296) plugs into the same hub.
 
 **Queue refinement:** master dispatcher 0x08010D5E internals = the remaining UI unknown (its 67 callees = per-screen handlers); blit geometry (REA); panel init; key table dump (8-byte entries: handler + args per key).
+
+### 2026-10-15 — Session 14c: panel identified — ST7735-family 160×128
+
+**Panel init sequence recovered** (0x08017B66-0x08017D22):
+`0x11 SLPOUT → 0xB1/0xB2/0xB3 FRMCTR1-3 → 0xB4 INVCTR → 0xC0-0xC4 PWCTR1-5 → 0xC5 VMCTR1 → 0x36 MADCTL → 0xE0/0xE1 gamma (16-value tables in code) → 0x3A COLMOD → 0x29 DISPON`.
+- The B1-B4 + C0-C5 set with NO ILI9341 vendor power commands (0xCB/0xCF/0xE8/0xED/0xF7) = **ST7735 family** (160×128-class TFT; matches the renderer's x-wrap threshold 0x9C ≈ 156 on a 160-wide axis).
+- Hardware reset via GPIO pin toggle (0x0801704E/0x0801705C: pin 0x400 set/clear on the panel port).
+- Transport primitives confirmed: `0x080179C8` = set_window (cmd 0x2A CASET + 0x2B RASET, 16-bit coords), `0x08017A6A` = command write (CS low → byte → CS high), `0x08017A8C` = data write byte; panel bus on GPIOB/GPIOC (literal cluster 0x08017FAC-0x08017FB4); write strobe = GPIOC pin op seen at 0x0801780x.
+
+Display stack now identified end-to-end: ST7735 panel (GPIO parallel bus) ← blit per-class geometry (partial) ← renderer semantics (recovered) ← CJK glyphs (external SPI2 flash, recovered) ← asset tables (recovered). Remaining: blit per-class geometry + MADCTL/geometry orientation + panel GPIO pin assignment map.
