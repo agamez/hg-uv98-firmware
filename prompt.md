@@ -1,295 +1,137 @@
-# REA Reverse Engineering Prompt
+# REA Reverse Engineering Prompt — HG-UV98 Main MCU
+
+## Purpose and Legal Scope
+
+This is a clean-room-style reverse engineering effort for **interoperability, preservation, and personal/community firmware development** of the HG-UV98 main MCU firmware, whose source was never released.
+
+- Reconstructed code must be written as original, readable C, not as mechanical decompiler dumps.
 
 ---
 
-## Operating Rules — Mandatory
+## Operating Rules (Mandatory)
 
-### 1. Discover Before Acting
+### 1. Discover before acting
+Inspect the installed REA MCP tools (names, descriptions, schemas, current analysis state), the repository, `git status`, history, branches, submodules, firmware files, documentation, and any locally available tools (disassemblers, decompilers, emulators). Do not assume tool names, arguments, or capabilities from this prompt. Use only the tools relevant to the current phase.
 
-Before using REA, inspect the available MCP tools, their descriptions, parameter schemas, current analysis state, and supported workflows. Do not assume tool names, arguments, or capabilities from this prompt. Use the actual installed interfaces.
-
-Inspect the repository, Git status, submodules, firmware files, documentation, and available analysis tools before modifying anything.
-
-Do not overwrite, delete, flash, patch, or otherwise modify the original firmware binaries or existing analysis artifacts. Preserve the initial repository state and any pre-existing user changes.
-
-### 2. Evidence-Driven Reverse Engineering
-
-Treat all hardware details, addresses, compiler assumptions, protocol descriptions, and behavioral claims in this prompt as hypotheses until verified.
-
-For every significant finding, record:
-- The claim and confidence level.
-- Supporting evidence: addresses, bytes, cross-references, disassembly, call sites, strings, or test results.
+### 2. Evidence-driven analysis
+Everything in this prompt is a **hypothesis until verified**. For each significant finding record:
+- The claim and a confidence level (confirmed / probable / speculative).
+- Evidence: addresses, bytes, cross-references, disassembly, call sites, strings, or test results.
 - Alternative explanations and unresolved questions.
-- The next action needed to confirm or refute the claim.
+- The next action that would confirm or refute it.
 
-Clearly distinguish confirmed facts, probable interpretations, and speculation. Never invent function implementations or claim that a structure, protocol, or algorithm has been recovered without supporting evidence.
+Never invent implementations or claim a structure, protocol, or algorithm is recovered without evidence. Revisit earlier conclusions when new evidence contradicts them.
 
-Maintain a persistent research log so the analysis can be resumed after context loss.
+### 3. Incremental work
+Start with reconnaissance, produce a short plan, then prioritize high-value functions and dependencies. Maintain a map of analyzed and unanalyzed regions. Avoid repeating expensive analysis when evidence is already sufficient.
 
-### 3. Incremental Investigation
+**Session scope:** one session targets one subsystem or one clearly bounded question. Before ending a session, update the log and state what remains.
 
-Begin with a reconnaissance phase. Establish the binary format, image boundaries, likely load address, vector table, memory map, executable regions, strings, and differences between firmware versions.
+### 4. Functional recovery before binary equivalence
+The primary goal is a maintainable, functionally faithful C reconstruction. Treat functional correctness and byte-for-byte equivalence as separate objectives. If exact reproduction is not achievable, document the differences and their likely causes; never alter output artificially to claim a match.
 
-Produce a short investigation plan based on those findings before starting large-scale reconstruction.
+### 5. Validation
+Validate through, in order of availability: static evidence, differential analysis between images, emulation (QEMU, Renode, Unicorn, or similar, if installed), and hardware tests (only if hardware is available). State explicitly which validation method backs each claim. **Without emulation or hardware, Level 3 claims are limited to "builds" and "consistent with static evidence"; do not claim runtime-verified behavior.**
 
-Work incrementally. Prioritize high-value functions and dependencies, and maintain a map of analyzed and unanalyzed regions. Avoid repeating expensive analysis when existing evidence is sufficient.
+### 6. Git and artifacts discipline
+- Check `git status` and history before changing anything. Never assume a clean tree. Do not create an automatic initial commit.
+- Never stage unrelated user changes. Never use broad staging (`git add .`) without reviewing the files.
+- Commit coherent, verified milestones with meaningful messages. Do not commit failed attempts or disproved hypotheses unless they produced useful documentation or tooling.
+- Track source, docs, reusable scripts, build configuration, and compact reports. Ignore (via `.gitignore`) generated binaries, dumps, analysis databases, and tool workspaces.
+- Original firmware and reference data are **immutable**. Experiments and patches operate on copies; generated and comparison outputs are stored separately.
 
-Use REA and other available tools as appropriate. Do not invoke every tool merely because it exists.
-
-### 4. Functional Recovery Before Binary Equivalence
-
-The primary goal is a maintainable, functionally faithful C reconstruction of the original firmware.
-
-Do not assume that recompilation can reproduce the original binary byte-for-byte. First establish the likely compiler, toolchain version, optimization settings, linker layout, startup code, and original build configuration.
-
-Keep functional correctness and binary equivalence as separate objectives. If exact reproduction is not achievable, document the differences and their likely causes rather than modifying the output artificially to claim a successful reconstruction.
-
-### 5. Validation and Reproducibility
-
-Validate reconstructed behavior against the original firmware using static evidence, differential analysis, and hardware tests or emulation where available.
-
-Keep original binaries immutable. Store generated files and comparison outputs separately.
-
-Every significant conclusion must be independently checkable from the recorded evidence. Revisit earlier conclusions when new evidence contradicts them.
-
-### 6. Git Discipline
-
-Inspect `git status` and the existing history before making changes. Never include unrelated user changes in commits.
-
-Commit coherent, reviewable milestones after verifying the corresponding results. Do not create commits solely because an action failed or a hypothesis was disproved.
-
-Track source code, useful scripts, documentation, and reproducible configuration. Exclude large generated workspaces, temporary files, and reproducible build outputs unless there is a concrete reason to version them.
+### 7. Research log
+Maintain a concise, version-controlled log containing: current objective and success level achieved; verified layout, memory map, and entry points; functions and subsystems investigated (with addresses and evidence); findings, hypotheses, contradictions, and open questions; reproducible commands; and next recommended actions. Update it after significant findings and fold changes into the related milestone commit (no per-update commits). Put bulky generated data outside the log and reference it by path. On resumption: read the log, check Git status, verify referenced artifacts exist, then continue.
 
 ---
 
 ## Context
 
-The HG-UV98 is a Chinese dual-band APRS handheld radio (Lanch/Wuxi Venus Information Technology) with a **dual-MCU architecture**:
+The HG-UV98 is a Chinese dual-band APRS handheld (Lanch / Wuxi Venus Information Technology) with two MCUs:
 
-| Component | Main MCU (TARGET OF THIS TASK) | APRS Coprocessor |
-|-----------|-------------------------------|-------------------|
-| MCU | **GD32F103RET6** | STC8A8K64D4 |
-| Architecture | **ARM Cortex-M3 (32-bit)** | 8051 (8-bit) |
+| | Main MCU (**TARGET**) | APRS coprocessor |
+|---|---|---|
+| MCU | GD32F103RET6 | STC8A8K64D4 |
+| Architecture | ARM Cortex-M3 | 8051 |
 | Clock | 108 MHz | 22.1184 MHz |
-| Flash | 512 KB | 64 KB |
-| RAM | 64 KB | 2560 bytes XRAM |
-| Firmware | **Binary only (proprietary)** | Source available (this repo) |
-| Role | Radio FM, display, menus, RF, channels | APRS, GPS, Bluetooth, sensors |
+| Flash / RAM | 512 KB / 64 KB | 64 KB / 2560 B XRAM |
+| Firmware | Binary only | Source available (this repo) |
+| Role | FM radio, display, menus, RF, channels | APRS, GPS, Bluetooth, sensors |
 
-The source code of the **APRS coprocessor (8051)** is already available in this repository and was released by the manufacturer. We need the same for the **main ARM MCU**.
+The APRS coprocessor source is already in this repository and is useful for understanding the inter-MCU protocol.
 
----
+### Available resources
 
-## Available Resources
+**Firmware images (`firmware/`):**
+- `MAIN-MCU-HG-UV98-V1.0.1-190416.bin` (267 KB): original image from a groups.io attachment, dated 2019-04-16; believed to be the earliest public version. **Primary target.**
+- `V1.0.1_190619-KT.bin` (496 KB): community-modified image attributed to KT2KT. **Diff target.**
 
-### 1. Binary Firmware Files (in `firmware/` directory)
+**Known anomalies to investigate first (do not assume an explanation):**
+- The two images differ greatly in size (267 KB vs 496 KB), which is inconsistent with "UI text changes only." Candidate causes: padding, different layout or base offset, bootloader or data regions in one image, appended assets. Establish this during reconnaissance.
+- Dating is inconsistent: the filename says 190619 (June 2019) while the description places the modification in April 2019. Treat provenance and dates as unverified.
 
-- **`firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin`** (267 KB) — Original firmware from groups.io attachment, dated 2019-04-16. This is the **earliest publicly available version** and should be the primary target.
-- **`firmware/V1.0.1_190619-KT.bin`** (496 KB) — Modified firmware by KT2KT (April 2019). Community reports indicate UI text changes. Compare both images to establish the complete set of changes, including code, constants, data, layout, and build differences. Useful as a **diff target**.
+**Documentation:** `docs/ARCHITECTURE.md`, `FIRMWARE_INVENTORY.md`, `SOURCE_CODE_ANALYSIS.md`, `HARDWARE.md`, `FIRMWARE_VERSIONS.md`, `COMMUNITY.md`.
 
-### 2. Documentation in Repository
+**Submodules:** `repos/pwnj0hn-HG-UV98/` (original packages, CPS, manual), `repos/marrold-HG-UV98/` (community issues and reports), `repos/hg-uv98-firmware/` (8051 source).
 
-- **`docs/ARCHITECTURE.md`** — Dual-MCU system diagram, UART protocol between CPUs, shared EEPROM map
-- **`docs/FIRMWARE_INVENTORY.md`** — All known firmware versions, flash procedures, version history
-- **`docs/SOURCE_CODE_ANALYSIS.md`** — Analysis of the APRS coprocessor (useful for understanding the communication protocol)
-- **`docs/HARDWARE.md`** — Hardware specs, sensor details, telemetry formats
-- **`docs/FIRMWARE_VERSIONS.md`** — Version history with changelog details
-- **`docs/COMMUNITY.md`** — Community resources, known issues, user reports
+**External:** GigaDevice GD32 SDK (register definitions, peripheral libraries), Keil MDK / GCC ARM toolchains, ST-Link/OpenOCD (only if hardware extraction is needed), CHIRP driver `hg_uv98.py` (clone protocol reference).
 
-### 3. Submodule Repositories
+### Prior claims (hypotheses, with their source)
 
-- **`repos/pwnj0hn-HG-UV98/`** — Original firmware packages: binaries, CPS software, APRS configuration software, manual
-- **`repos/marrold-HG-UV98/`** — Community repository with issues, firmware discussions, user reports
-- **`repos/hg-uv98-firmware/`** — Source code for the APRS coprocessor (8051) — useful for understanding the UART protocol
-
-### 4. External Resources
-
-- **GigaDevice GD32 SDK**: Available at https://www.gd32mcu.com/en/download/ — Contains peripheral libraries, register definitions, and examples for GD32F103 series
-- **Keil MDK ARM / GCC ARM**: Standard toolchains for ARM Cortex-M3
-- **ST-Link/OpenOCD**: For firmware extraction from physical hardware
-- **Chirp driver source**: `hg_uv98.py` (Python) from CHIRP project — reverse-engineered driver showing the clone protocol
-
-### 5. Known Behavioral Information
-
-From changelogs and community reports, the firmware:
-
-- Implements FM radio functions: VHF 136-174MHz, UHF 400-470MHz, 128 memory channels
-- Manages color LCD display with day/night mode
-- Implements keypad/button interface (2x PF programmable + PTT)
-- Handles audio: mic input, speaker output, PL/CTCSS/DCS tones
-- Implements menu system with numbered options and sub-menus
-- Communicates with APRS coprocessor via UART4 using custom AT-command protocol ($E01, $E02, $E00, $F01, $A09, etc.)
-- Reads/writes AT24C512 EEPROM (64KB) — shared configuration storage
-- Handles the serial programming protocol through the USB-to-UART interface; determine the actual division of responsibilities between the CH340 bridge and the main MCU.
-- Implements battery voltage telemetry
-- Changed in V1.0.1_190619-KT: "Sure" → "OK" button text, improved menu descriptions
-- V1.2 versions have different hardware identification string (`P3LL` vs `P3107`)
+| Claim | Source | Status |
+|---|---|---|
+| VHF 136–174 MHz, UHF 400–470 MHz, 128 channels | Changelogs / manual | Unverified |
+| Color LCD with day/night mode | Changelogs | Unverified |
+| 2 programmable PF keys + PTT | Manual | Unverified |
+| Main MCU talks to the APRS MCU over UART4 using AT-style commands (`$E01`, `$E02`, `$E00`, `$F01`, `$A09`, …) | Repo docs / 8051 source | Verify in the ARM image; the UART number is an assumption |
+| Shared AT24C512 EEPROM (64 KB) | Repo docs | Unverified |
+| Programming uses a USB-to-UART bridge (likely CH340) | Community / hardware docs | **Unverified:** if a bridge is present, the MCU speaks only UART, not USB. Determine where the clone protocol is implemented. |
+| Battery voltage telemetry | Changelogs | Unverified |
+| KT image changes "Sure" → "OK" and menu descriptions | Community | Verify via full diff (code, constants, data, layout) |
+| V1.2 uses hardware ID string `P3LL` vs `P3107` | Changelogs | Unverified |
 
 ---
 
-## Objective and Success Criteria
+## Objectives
 
-Reverse engineer the main MCU firmware (GD32F103RET6, ARM Cortex-M3) of the HG-UV98 from the available binary images and supporting documentation.
+### Primary
+Recover the firmware's architecture and behavior: main flow and interrupt handling; radio control, frequency management, and channel storage; display and menu state machines; APRS coprocessor communication; EEPROM access and the serial programming protocol; hardware initialization and peripheral drivers. Produce documented, maintainable C with meaningful names, explicit uncertainty markers, and a reproducible build.
 
-### Primary objective
-
-Recover the firmware's architecture and behavior, including:
-- Main execution flow and interrupt handling.
-- Radio control, frequency management, and channel storage.
-- Display rendering and menu state machines.
-- Communication with the APRS coprocessor.
-- EEPROM access and USB programming protocols.
-- Hardware initialization and peripheral drivers.
-
-Produce a documented, maintainable C reconstruction with meaningful names, explicit uncertainty markers, and a reproducible build system.
-
-### Secondary objective
-
-Determine whether the original firmware can be reproduced byte-for-byte. Investigate the original toolchain, startup code, linker layout, compiler options, and binary layout. Measure the achievable match and explain remaining differences.
-
-Do not sacrifice functional correctness or evidence quality in pursuit of a byte-for-byte match.
+### Secondary
+Determine whether byte-for-byte reproduction is achievable (toolchain, startup code, linker layout, flags). Measure the achievable match and explain differences. Never sacrifice correctness or evidence quality for the match.
 
 ### Success levels
 
-1. **Architecture recovered:** memory map, entry points, major subsystems, and call relationships documented.
-2. **Behavior recovered:** important functions, data structures, and communication protocols reconstructed with supporting evidence.
-3. **Functional implementation:** reconstructed code builds and reproduces validated behaviors.
-4. **Binary equivalence:** a reproducible build matches the original binary byte-for-byte, with any image offsets, padding, or excluded regions explicitly accounted for.
+| Level | Meaning | Deliverables |
+|---|---|---|
+| 1. Architecture | Memory map, entry points, subsystems, call relationships documented | Verified memory map and load address, vector table / reset / startup analysis, subsystem list, call graph or list |
+| 2. Behavior | Key functions, data structures, and protocols reconstructed with evidence | Function signatures and descriptions with evidence, EEPROM/data structures, UART and clone protocol docs, string and menu map |
+| 3. Functional implementation | Reconstructed code builds and reproduces validated behaviors | Organized C source, build system, inferred-vs-confirmed markers |
+| 4. Binary equivalence | Reproducible build matches the original byte-for-byte | Toolchain, flags, linker script, startup code, accounting of offsets/padding/excluded regions, comparison artifacts stored separately |
 
-Report progress against these levels. Never claim a level has been achieved without demonstrating it.
-
----
-
-## Deliverables
-
-### For each success level, deliver:
-
-**Level 1 — Architecture recovered:**
-- Memory map document with verified load addresses and regions
-- Entry point analysis (vector table, reset handler, startup code)
-- Major subsystem identification (radio, display, UART, EEPROM, USB)
-- Call relationship diagrams or lists
-
-**Level 2 — Behavior recovered:**
-- Function signatures, behavioral descriptions, and supporting evidence
-- Data structures recovered from EEPROM map and behavioral analysis
-- Protocol documentation for UART bridge, USB clone, and EEPROM layouts
-- String extraction and menu structure mapping
-
-**Level 3 — Functional implementation:**
-- Complete C source code organized in a maintainable structure
-- Build system (Makefile or equivalent)
-- Reconstructed code that builds and reproduces validated behaviors
-- Explicit markers where implementation is inferred vs. confirmed
-
-**Level 4 — Binary equivalence (if achievable):**
-- Reproducible build matching original binary byte-for-byte
-- Documentation of toolchain, compiler flags, linker script, and startup code
-- Explanation of any remaining differences
-- Comparison artifacts stored separately from source code
+Report progress per level. **Never claim a level without demonstrating it.** A well-documented partial result at Level 2 is a legitimate success; if full reconstruction is not supported by the evidence, deliver the most useful verified partial result instead of fabricating missing functionality.
 
 ---
 
-## Working Process — Commits, Artifacts, and Recovery
+## Reconstructed Code Quality
 
-### Git Discipline
-
-Before any changes, inspect `git status`, recent history, branches, and submodule states. Never assume the repository is clean.
-
-Do not create an initial commit automatically. Preserve existing history and user changes. Never stage or commit unrelated modifications.
-
-Commit coherent, verified milestones using meaningful messages. A disproved hypothesis does not need a commit unless it produced useful documentation, tests, or reproducible tools.
-
-Keep original firmware binaries immutable. Store generated artifacts separately from source code.
-
-Track source code, documentation, reusable scripts, build configuration, and compact analysis reports when useful. Do not commit generated binaries, temporary dumps, large analysis databases, or tool workspaces by default. Use `.gitignore` for reproducible artifacts.
-
-Never use broad staging commands such as `git add .` without first reviewing the affected files.
-
-### Persistent Research State
-
-Maintain a concise, version-controlled research log containing:
-
-- Current objective and achieved success levels.
-- Verified binary layout, memory map, and entry points.
-- Functions and subsystems investigated, with addresses and evidence.
-- Confirmed findings, hypotheses, contradictions, and unresolved questions.
-- Tools and scripts used, including reproducible commands where practical.
-- Next recommended actions and their expected value.
-
-Update the log after significant findings and before ending a session. Keep detailed generated data outside the main log and reference it by path. Do not create a separate commit for each log update. Accumulate log changes throughout the session and include them in the same commit as the related milestone. On resumption, read the log, inspect Git status, and verify that referenced artifacts still exist before repeating analysis.
-
-### Investigation Decisions
-
-Choose the next action based on expected information gain and relevance to the primary objective.
-
-When blocked:
-1. State exactly what is unknown and what evidence is missing.
-2. Consider alternative explanations.
-3. Try a bounded, targeted investigation using available tools.
-4. Record the outcome and choose another path if the evidence does not support the current hypothesis.
-
-Do not repeatedly retry failed approaches without changing the assumptions or method.
-
-When a subsystem is sufficiently understood, document its boundaries, dependencies, confidence, and remaining gaps before moving on.
-
-### Reconstructed Code Quality
-
-Keep original addresses and function references traceable throughout reconstruction.
-
-For each reconstructed function, record its original address or range, calling relationships, supporting evidence, confidence, and implementation status.
-
-Distinguish between:
-- Directly recovered behavior.
-- Inferred behavior supported by multiple observations.
-- Provisional scaffolding or unimplemented behavior.
-
-Do not translate decompiler output mechanically into supposedly complete C source. Prefer small, verifiable implementations with explicit unresolved behavior.
-
-Do not claim that code compiles, passes tests, behaves correctly, or matches the original binary without executing the corresponding verification.
-
-### Validation and Reporting
-
-At each milestone, report:
-- What was established.
-- The evidence supporting it.
-- What remains unknown.
-- Tests or comparisons performed and their actual results.
-- The next recommended action.
-
-Keep the original firmware and reference data unchanged. Any patches or experiments must operate on separate copies.
-
-If the analysis cannot support a complete reconstruction, deliver the most useful verified partial result rather than fabricating missing functionality.
+For each reconstructed function, record: original address or range, callers/callees, supporting evidence, confidence, and status (**recovered** / **inferred** / **scaffold**). Keep original addresses traceable. Prefer small, verifiable implementations with explicit unresolved behavior over mechanical decompiler translation. Do not claim that code compiles, passes tests, or matches the binary without running the corresponding check.
 
 ---
 
-## Priority Order
+## Priority Order and Decisions
 
-1. **Reconnaissance**: Establish binary format, boundaries, vector table, memory map, and differences between versions
-2. **Level 1**: Document architecture — entry points, subsystems, call relationships
-3. **Level 2**: Recover behavior — functions, data structures, protocols, evidence
-4. **Level 3**: Implement functional C code — build system, maintainable reconstruction
-5. **Level 4**: Investigate binary equivalence — toolchain analysis, build reproduction, explain differences
+1. **Reconnaissance:** format, image boundaries, load address, vector table, memory map, executable regions, strings, and version differences (starting with the size and date anomalies).
+2. **Level 1**, 3. **Level 2**, 4. **Level 3**, 5. **Level 4.** Do not attempt Level 4 before Level 2.
 
-Do not attempt Level 4 before achieving at least Level 2. Functional understanding must precede binary reproduction.
+If layout or load address is uncertain, document the competing hypotheses and continue with analyses valid under all of them. Do not require every region to be identified before moving to the highest-value subsystem.
 
-Reconnaissance must produce a useful preliminary report before expanding into exhaustive analysis. Do not require every memory region or function to be identified before proceeding.
+Choose the next action by expected information gain. When blocked: state what is unknown and what evidence is missing, consider alternatives, try a bounded targeted investigation, record the outcome, and change method or assumptions before retrying. When a subsystem is sufficiently understood, document its boundaries, dependencies, confidence, and gaps before moving on.
 
-If the image layout or load address remains uncertain, document the competing hypotheses and continue with analyses that remain valid under those hypotheses.
-
-Once the entry point, probable memory map, major executable regions, and initial function map are sufficiently understood, proceed to the highest-value subsystem. Refine the map as new evidence becomes available.
-
-### First-session requirements
-
-The first session must produce:
-- Inspect all available REA MCP tools, schemas, and capabilities, but investigate only those relevant to the current phase. Do not execute every tool merely to demonstrate discovery.
-- Inspection of both firmware images and the available documentation.
-- A preliminary reconnaissance report.
-- A persistent research log initialized with the investigation plan.
-- A prioritized investigation plan based on initial findings.
-
-Do not begin large-scale C reconstruction during this first phase. Do not stop after producing the plan if a high-value, low-risk initial analysis can already be performed.
+At each milestone report: what was established, the supporting evidence, what remains unknown, tests actually performed with results, and the next recommended action.
 
 ---
 
-*This project aims to achieve what was done for the APRS coprocessor (8051 source was publicly released) but for the main ARM MCU — whose source was never made public. Successful reverse engineering would be a major contribution to the amateur radio community and enable full custom firmware development for this hardware platform.*
+## First-session Requirements
+
+Deliver: (1) an inspection of the relevant REA tools and local analysis tools, (2) an inspection of both images and the documentation, (3) a preliminary reconnaissance report, (4) a log initialized with the investigation plan, and (5) a prioritized plan based on the findings. Do not start large-scale C reconstruction. Do not stop after the plan if a high-value, low-risk analysis (e.g., vector table, image diff, strings) can already be done.
