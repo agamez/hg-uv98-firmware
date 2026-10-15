@@ -403,6 +403,14 @@ Render tests of the bitmap-ish tables with row- and column-major packings were n
 - **Chip-ID probe `0x0801F4CC`**: for each of two flags/chips, read **reg 0x1F**; if value & 0xFFFFF == 0x0FFF → call `0x080232E2(chip, 1)` + delay 30 (mark dead / retry path). Two chips ⇒ dual-band RF section.
 - Chip-name confirmation (register value tables / PLL math) queued — the transport is done.
 
+**1b. RF CHIP IDENTIFIED: AT1846S × 2 (Auctus/RDA1846S, one per band).** The init-cluster register map matches the OpenRTX AT1846S register table point-for-point:
+- reg 0x30 (main mode control, 29 writes): bit6 = TX enable, bit5 = RX enable, bits13:12 = channel mode — observed transitions 0x4006 (standby), 0x4046/0x7046 (TX/RX states), 0x40A6/0x70A6 (with VOX/other bits) ✓
+- reg 0x0A = PA bias voltage (0x4A × 2) ✓
+- reg 0x29/0x2A = frequency upper/lower parts; 0x2B/0x2C = reference/ADC clock kHz ✓ (writes present)
+- reg 0x1F write 0x9BA9/0x9AA9 (band-dependent) when the read returns 0x0FFF — reconfigure/soft-reset path (`0x080232E2(chip, band)`)
+- Datasheet: AT1846S = single-chip VHF/UHF transceiver with 3-wire/4-wire/I²C control — two instances on a shared 3-wire bus with per-chip CS = the dual-band design.
+- Additional observed writes (beyond the public table excerpt): 0x79 toggling 0xD932/0x9932 (6×, TX/RX-path switch?), 0x35 = 0x1CF6, 0x4E = 0x2602/0x2402 family, 0x57/0x58/0x59/0x5B, 0x96 = 0x1CF6/0x1C00, 0x99 = 0x3C00.
+
 **2. Key-input infrastructure found:**
 - GPIO helpers family: `0x0801F75E` = **pin read** (`(IDR & pin) != 0`), `0x0801F780`/`0x0801F788` = set/clear (~90 call sites), `0x0801F798`/`0x0801F678` = config (ST gpio_init shape).
 - **TIM2 ISR** (irq 28, installed at 0x08029586, handler 0x080295B4): tiny — tests flag word (0x0802816E/0x0802819C helpers), on set calls the poll work **0x080294A6**: reads **PC8** with edge detection (saved copy at 0x20005163 → "changed" byte) and **PC7** level (state byte 0x20005164/0x20005165, next to the flag bank). Likely PTT/monitor-class keys.
@@ -412,3 +420,14 @@ Render tests of the bitmap-ish tables with row- and column-major packings were n
 **3. Blit geometry (partial, from a clean streaming decode):** palette pairs per mode arg (RGB565: 0xF800 red, 0x001F blue, 0x13A2, 0x8D5E, 0x58E1; 0xBEEF sentinel); tile shapes are **column-major bit maps** (bit test `record[col] & (1<<row)`, MSB = top row): 7×5 (class-0 branch), 16×8 as two 8-col tiles (class-3 branch), 6×8-ish (class-1 branch); each 16-bit pixel emitted as hi/lo byte pairs through 0x08017A8C. The complete arg↔class↔geometry mapping still needs function-context (REA) — capstone snippets mislead on the arg slots.
 
 **Next:** decode blit per-class geometry with REA; identify both RF chips via init register sequences; trace key→UI event path through the dispatcher cluster; panel init sequence.
+
+### 2026-10-15 — Session 14b: RF = AT1846S ×2 confirmed; key→UI event path closed
+
+**1. RF chip identification COMPLETE — see 1b above.** OpenRTX's register table matches point-for-point (reg 0x30 mode bits, 0x0A PA bias, 0x29/0x2A frequency, 3-wire 24-bit bus). Two AT1846S instances = the dual-band architecture.
+
+**2. Key→UI event path CLOSED (structural):**
+- Key scanners (TIM2 work + GPIOC pollers) write the **key ID byte at 0x20005166** (state struct spans 0x20005163..0x20005166+).
+- **Key pump 0x0800F1F0(key)**: `entry = table[*(u8*)0x20005166 * 8]` — an **8-byte-entry handler table** (base via pool literal) → `0x08010D06(4, 6, entry)` → **memcpy 20-byte arg block** (`0x080198E0`, source = pool literal) → **call the master UI dispatcher `0x08010D5E`** (the 67-callee function — its role now confirmed as the key/UI dispatch hub).
+- The dispatcher's menu-action handler table (16-byte entries, `blx [table+id*16+4]`, seen at 0x0801625A/0x08016296) plugs into the same hub.
+
+**Queue refinement:** master dispatcher 0x08010D5E internals = the remaining UI unknown (its 67 callees = per-screen handlers); blit geometry (REA); panel init; key table dump (8-byte entries: handler + args per key).
