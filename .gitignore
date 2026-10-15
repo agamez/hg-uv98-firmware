@@ -34,3 +34,9 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# RE analysis artifacts (dumps, string lists, sector maps, tool workspaces)
+analysis/
+*.gzf
+ghidra-project/
+rea-ghidra-*/
