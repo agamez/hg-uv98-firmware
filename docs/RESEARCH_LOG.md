@@ -3,7 +3,7 @@
 Target: `firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin` (primary), `firmware/V1.0.1_190619-KT.bin` (diff target).
 MCU: GigaDevice GD32F103RET6, ARM Cortex-M3, 108 MHz, 512 KB flash @ `0x08000000`, 64 KB RAM @ `0x20000000`.
 
-**Current success level: 1 (Architecture) — partial.** Memory map and image structure established with static evidence; subsystem inventory preliminary; no decompiled subsystems documented yet.
+**Success level: 1 (Architecture) — substantially complete** (memory map, load address, vector layout, subsystem map with named anchors). **Level 2 (Behavior): protocol layer closed**; remaining: task list, channel-memory structures, TX case map, screen/menu semantics.
 
 Status legend: **[confirmed]** static evidence sufficient · **[probable]** strong but incomplete evidence · **[speculative]** hypothesis only.
 
@@ -55,7 +55,21 @@ REA evidence IDs (session `ses_ec03bcc16ffez5nk68G9l60uSt`): segments `ev_07df69
 | `0x08034000–0x08042B94` | Strings (menus, AT commands, version), GB2312 text, bitmap/font data (`0x0803C000+`) | confirmed |
 | missing tail | `0x08042B97–…`: startup/reset, fault handlers (190416). KT shows this region = more strings (`OK`, `MEM-CH:`, `%d.%`), tables (`I`,`D530`,`D536`,`D621`… = APRS/CTCSS?), then `0xFF` padding to `0x0807BFFF` | confirmed for KT |
 
-RAM: SP top `0x20006780` → ~26.5 KB static+heap below. Detail pending (O3).
+RAM: SP top `0x20006780` → ~26.5 KB static+heap below; task stacks/kernel above (to `0x20010000`). Detail: see session-5 RAM map.
+
+## Level-1 subsystem map (session 6; call-graph anchored)
+
+| Subsystem | Key functions (190416) | Evidence |
+|---|---|---|
+| **LCD (color TFT)** | set-window 0x080179C8, cmd-write 0x08017A6A (**0x2C = ILI9341-family RAM write**), text renderer 0x08018B60 (GB2312 cells + ASCII), area draw 0x08018D32, backlight/beep GPIO 0x08017A8C/0x08017AC0 (GPIOB/C) | confirmed (cmd 0x2C pattern; "color LCD" prior claim verified at driver level) |
+| **UI state machine** | screen-switch 0x08010530 (screen descriptors: 30 B each, array @`0x20004F94`, current copy @`0x20004FD0`, screen id @`0x200050E8`), dual-pane redraw 0x08010CD4 (VFO structs 20 B ×2 @`0x20005080`), value clamp 0x0801715C | confirmed (structure), screen semantics probable |
+| **RF control** | bit-banged serial writer 0x0802289A (PA15 clock/data, 3-byte packets, 211 calls), helpers 0x08022838/0x08022786 | confirmed (bit-bang pattern); target chip TBD (CMX865A/BK4819-class) |
+| **Inter-MCU link** | USART2 init 0x0801F810, RX ISR 0x0801F920, TX 0x0801FEAA, AT dispatcher 0x08010128, `$A01,` sender 0x08016702 | confirmed (closed in session 4) |
+| **GPS input (probable)** | USART1 init 0x0802932C (9600 8N1, RX IRQ 37, ring `0x2000449C`, sem `0x200050DC`), pump task region 0x0802942A–0x08029458 | confirmed (driver); GPS role probable |
+| **ADC** | averaged ×4 readers with mutex: 0x08025632, 0x080256CA; SPI-ish transaction helpers 0x08028268/0x0802824C/0x0802837A | confirmed (structure); channel mapping TBD |
+| **RTOS (uC/OS-II)** | OSSemCreate/Post/Pend 0x08024C78/CC6/DAC, kernel crit 0x080271E0, service region 0x08028Bxx–0x08029xxx; SysTick/PendSV **stripped** | confirmed |
+| **SPL (GD32)** | USART/GPIO/NVIC/RCC wrappers 0x08026Axx–0x08026Fxx; memcpy 0x080198E0/0x080198C0, fill 0x080199A0, memcmp 0x0801F610, sprintf 0x0801F5D0, busy-delay 0x08017AA4 | confirmed |
+| **Missing (stripped)** | reset/startup, fault handlers, all 60 IRQ trampolines, PendSV, SysTick, clone-mode handler | confirmed absent |
 
 ## Version diff (190416 vs KT) — [confirmed]
 
