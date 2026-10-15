@@ -210,4 +210,60 @@ Since we have TWO versions of the firmware:
 
 ---
 
+## Working Process — Commits & Utilities
+
+### Commit Regularly
+
+This is a **multi-step reverse engineering project** that will take many iterations. You **MUST** commit progress frequently using meaningful git commits. Do NOT wait until the end to commit. Follow this pattern:
+
+1. **Initial commit**: The current state of the repo (binaries, docs, submodules)
+2. **Every milestone**: Commit after completing a meaningful phase or section:
+   - `git commit -m "reverse-engineer: disassemble entry point and vector table"`
+   - `git commit -m "reverse-engineer: identified GigaDevice CMSIS library code"`
+   - `git commit -m "reverse-engineer: reconstructed menu system and display drivers"`
+   - `git commit -m "reverse-engineer: recovered UART bridge to APRS coprocessor"`
+   - `git commit -m "reverse-engineer: partial build succeeds, comparing output binary"`
+3. **Every error or dead end**: Commit the current state before trying a different approach:
+   - `git commit -m "reverse-engineer: attempt 1 with Keil MDK failed, switching to GCC ARM"`
+   - `git commit -m "reverse-engineer: binary compression detected, reverting to raw analysis"`
+4. **Every successful step**: Even small wins matter:
+   - `git commit -m "reverse-engineer: recovered 12 functions, identified stack pointer at 0x20010000"`
+   - `git commit -m "reverse-engineer: extracted 847 string constants from .rodata"`
+
+**Commit frequency**: At minimum every 5-10 significant actions, or whenever you reach a stable state. This protects your work and allows rolling back.
+
+### Track & Commit Utilities
+
+You will likely use multiple tools, scripts, and configuration files during the process. **Commit every utility you create or use more than once**:
+
+- **Disassembly scripts**: Any script you write to automate string extraction, section analysis, or hex comparison
+- **Build scripts**: Makefiles, shell scripts for compiling, linking, or flashing
+- **Diff/comparison tools**: Scripts for byte-by-byte binary comparison, diff analysis between firmware versions
+- **IDA/Ghidra/REBA configuration files**: Any workspace files, settings, or export scripts
+- **Reference data**: Exported function lists, string tables, constant recovery results
+- **Intermediate C code**: Even incomplete or non-compiling C files should be committed with clear commit messages
+
+**Directory structure for utilities**:
+```
+tools/
+├── disassemble.sh          # Disassembly automation script
+├── extract_strings.py      # String extraction utility
+├── bin_diff.sh             # Binary comparison script
+├── build_test/             # Test build outputs (tracked via git)
+├── ghidra_workspace/        # Ghidra project files (if used)
+└── ida_exports/            # IDA Pro exports (if used)
+```
+
+**Track utilities with explicit commits**:
+- `git add tools/` then `git commit -m "tools: add binary comparison utility for firmware validation"`
+- `git add tools/extract_strings.py` then `git commit -m "tools: string extraction script for .rodata analysis"`
+
+**Important**: Commit the actual source code files you generate (the C files, headers, assembly) as you reconstruct them — do NOT bundle everything into one final commit. A clean git history with incremental progress is critical for:
+- Rolling back to working states
+- Understanding what changed and why
+- Sharing progress with collaborators
+- Validating that intermediate results were correct
+
+---
+
 *This project aims to achieve what was done for the APRS coprocessor (8051 source was publicly released) but for the main ARM MCU — whose source was never made public. Successful reverse engineering would be a major contribution to the amateur radio community and enable full custom firmware development for this hardware platform.*
