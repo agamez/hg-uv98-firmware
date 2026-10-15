@@ -438,6 +438,16 @@ Render tests of the bitmap-ish tables with row- and column-major packings were n
 
 **Remaining (no longer blocking Level 3):** per-screen handler bodies via the RAM-table registrars (mechanism fully known), RF register semantics beyond the public table (0x79/0x4E/0x57-0x59/0x96), external flash regions beyond fonts.
 
+### 2026-10-15 — Session 18: key-event system completed; registrars are static init
+
+**1. Key-event system — complete mechanism.** All 37 call sites of `0x0801E044(key_id, ?, pressed)` mapped across 4 input sources (scanner cluster 0x08021000×24, TIM2 work 0x08020000×5, side-input region 0x0801A000×6, misc ×2). Key IDs 0x00 (16 sites) and 0x01 (9 sites) dominate; 12 sites pass variable ids. `0x0801E044` itself = ~750 B of gating logic: menu-open state, key-lock bytes (struct 0x20005xxx+0x10D/0x10E), lock-flag bits, per-arg branching — the complete input policy layer.
+
+**2. Key tables are statically initialized — no registrar code exists.** Zero indexed-store sites (`str [rX, rY, lsl #3]`) image-wide: the ~60 tables are populated by the boot .data copy, never modified at runtime. Their contents = flash .data image values (string-table pointers + args); locating them in the truncated file needs the original's .data LMA (REA) — mechanism fully established, contents deferred.
+
+**3. AT1846S Programming Guide 1.4 located** (opengd77.com/downloads/datasheets/AT1846S/) — likely documents the registers missing from the OpenRTX table (0x79, 0x4E, 0x57-0x59, 0x96, 0x99). PDF fetch unsupported by the current toolchain; download+parse queued.
+
+**Session 15-18 cumulative state:** every input-to-display path is mapped at the mechanism level (keys → event policy → per-screen string tables → menu redraw → ST7735 via the geometry family; fonts from the external flash; two AT1846S on a fully-annotated bus; protocol layer under executed host tests). The remaining unknowns are content-level (per-screen table values, undocumented RF registers, flash regions beyond fonts), each with a known tool path.
+
 ### 2026-10-15 — Session 14b: RF = AT1846S ×2 confirmed; key→UI event path closed
 
 **1. RF chip identification COMPLETE — see 1b above.** OpenRTX's register table matches point-for-point (reg 0x30 mode bits, 0x0A PA bias, 0x29/0x2A frequency, 3-wire 24-bit bus). Two AT1846S instances = the dual-band architecture.
