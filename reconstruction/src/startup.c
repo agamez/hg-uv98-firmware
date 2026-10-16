@@ -13,6 +13,7 @@
 #include "uart.h"
 
 extern uint32_t _estack, _sdata, _edata, _sidata, _sbss, _ebss;
+extern uint32_t _sitables, _stables, _etables;
 
 int  main(void);
 void Reset_Handler(void);
@@ -151,6 +152,14 @@ void Reset_Handler(void)
 
     src = &_sidata;
     for (dst = &_sdata; dst < &_edata; )
+        *dst++ = *src++;
+    /* [RECOVERED | session 41]: the original loads its tables through the
+     * armlink scatter-load (a compressed-RW-data stream -> RAM
+     * 0x20000000..0x20001730). Our tables are stored pre-decompressed in
+     * flash (.tables) and copied here — same end state, no decompressor
+     * needed in the reconstruction. */
+    src = &_sitables;
+    for (dst = &_stables; dst < &_etables; )
         *dst++ = *src++;
     for (dst = &_sbss; dst < &_ebss; )
         *dst++ = 0;

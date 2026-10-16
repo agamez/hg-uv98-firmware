@@ -3,7 +3,7 @@
 # (see docs/FIRMWARE_INVENTORY.md for all available firmwares)
 !firmware/*.hex
 !firmware/*.bin
-!firmware/*.zip
+!reconstruction/data/*.bin!firmware/*.zip
 !firmware/*.rar
 !firmware/*.exe
 !firmware/**/*.docx

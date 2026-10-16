@@ -45,11 +45,31 @@ SECTIONS
         _etext = .;
     } > FLASH
 
+    /* The original's string/asset region (file 0x3C000..0x42B97) at its
+     * linked address — every pointer in .tables resolves into this blob. */
+    .uistrings 0x08040000 : {
+        KEEP(*(.uistrings))
+    } > FLASH
+
     /* Original assets (fonts/bitmaps) start right after the 0x130-byte
      * vector table (file 0x130..0xB000 image-labels); we do not reproduce
      * them here. */
 
-    .data : AT (_etext) {
+    /* Recovered .data tables (session 39/42: the armlink compressed-RW-data
+     * streams decompressed) — the original's initialized globals at their
+     * original RAM addresses: key-action tables, menu string pointer
+     * arrays, CSS tone table, screen attributes. */
+    .tables ORIGIN(RAM) : AT(_etext) {
+        _stables = .;
+        KEEP(*(.tables))
+        . = ALIGN(4);
+        _etables = .;
+    } > RAM
+    _sitables = LOADADDR(.tables);
+
+    /* The original's globals span starts right after the tables
+     * (0x20001734 — the .bss zero-init target, session 41). */
+    .data : AT(_etables) {
         _sdata = .;
         *(.data*)
         . = ALIGN(4);
@@ -72,4 +92,5 @@ SECTIONS
     } > RAM
 
     _sidata = LOADADDR(.data);
+    _sitables = LOADADDR(.tables);
 }

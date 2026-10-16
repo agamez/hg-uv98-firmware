@@ -32,6 +32,12 @@ VOBJ = $(addprefix build/v-,$(notdir $(VSRC:.c=.o)))
 HDR = src/hwregs.h src/rtos.h src/uart.h src/protocol.h src/display.h
 
 OBJ = $(patsubst src/%.c,build/%.o,$(SRC))
+TOBJ = build/tables.o
+
+.DEFAULT_GOAL := all
+
+build/tables.o: src/tables.S data/ram_tables_recovered.bin data/uistrings_region.bin
+	$(CC) -x assembler-with-cpp -mcpu=cortex-m3 -mthumb -Isrc -c $< -o $@
 
 INC = -Isrc -Iucos2/cfg -Iucos2/ucos2 -Iucos2/port -Iucos2/cpu -Iucos2/lib \
       -Ivendor/gd32f10x/CMSIS -Ivendor/gd32f10x/CMSIS/GD/GD32F10x/Include \
@@ -78,8 +84,8 @@ build/c-cpu_core.o: ucos2/cpu/cpu_core.c | build
 build/c-cpu_a.o: ucos2/cpu/cpu_a.s | build
 	$(CC) $(CPUFLAGS) $(INC) -c $< -o $@
 
-build/hguv98.elf: $(OBJ) $(KOBJ) $(POBJ) $(COBJ) $(VOBJ) linker.ld
-	$(CC) $(LDFLAGS) $(OBJ) $(KOBJ) $(POBJ) $(COBJ) $(VOBJ) -o $@
+build/hguv98.elf: $(OBJ) $(TOBJ) $(KOBJ) $(POBJ) $(COBJ) $(VOBJ) linker.ld
+	$(CC) $(LDFLAGS) $(OBJ) $(TOBJ) $(KOBJ) $(POBJ) $(COBJ) $(VOBJ) -o $@
 
 build/hguv98.bin: build/hguv98.elf
 	$(OBJCOPY) -O binary $< $@
