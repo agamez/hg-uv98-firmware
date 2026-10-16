@@ -726,3 +726,9 @@ With this, the UI architecture has no remaining structural unknowns: screen-swit
 - ui.c corrected (scroller name) and menu-tree reference linked.
 
 The architectural program is complete. Remaining: per-screen bodies for the leaf states — purely mechanical, no unknowns.
+
+### 2026-10-15 — Session 33: screen-pump inventory completed (docs/SCREENS.md)
+
+Bulk extraction of all 86 ui_list_select (0x08010D06) call sites: 20 distinct list IDs (1-10, 15, 25, 26, 30, 40, 49, 51, 59, 0xD3) across ~80 pump functions in three clusters (main/VFO family 0x0800Axxx-0x0800Bxxx, menu screens 0x08011Cxx-0x08013xx, 0x08014Bxx+). Refinement: ui_list_select's 2nd arg = the LIST definition ID (session-18's "screen_id" reading refined); first arg = 4 (mode) everywhere. docs/SCREENS.md carries the full table.
+
+With the menu tree (session 32), the state-transition table (session 30), and the pump inventory, every enumerable UI structure is now extracted as data. The reverse-engineering program's architectural and inventory phases are complete; what remains is per-pump body nuance within the established generic pattern.
