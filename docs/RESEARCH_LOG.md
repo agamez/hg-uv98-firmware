@@ -637,3 +637,14 @@ Interpretation: states 'h'/'i' = beacon-list/detail collection windows; on compl
 **State-byte writer trace (partial):** 10 direct strb sites via the flag-bank base; 2 immediate (0x78 'x' gated on 'X'; 0x6), 8 copy from other struct bytes ([r1,#2], [r4,#9] = the frame-ready flag byte, [r0,#7] ×2, [r7,#7] ×2, [r0,#4], [r1,#8]). The state byte mirrors other fields; the origin of the 'M'/'N' values requires deeper data-flow tracking (REA) — deferred.
 
 **Correction (S-meter tables):** 0x080168DA is a **writer**, not a lookup — it printf-formats the peak timestamp (0x0801F5D0), transforms 8->4 bytes (0x0801652C/0x080164DC), and mem-copies 4 bytes (0x080198C0) INTO the per-band 30-byte table. The tables = peak-history ring buffers (boot-seeded, runtime-appended), not dB->bar calibration. The bar value itself is computed from the peak level elsewhere (open).
+
+### 2026-10-15 — Session 27: the menu redraw block decoded — corrects session 18
+
+The 20-byte argument block consumed by the menu redraw 0x08010D5E is NOT five RAM pointers (the session-18 u32 misread reinterpreted packed bytes as pointers). Actual layout, as consumed by the redraw's stack reads ([sp+0x18..0x26] after its double push):
+- word0 bytes: [0] = row base (advances +0x11 = 17 px per row via r5), [1] = column, [2] = start index
+- word1 bytes: [0] = end index, [1] = selected index (highlight pass back-indexes the table from the end by (end - selected))
+- word2 = **u32 pointer to the string table** (u32[] of string addresses) — the redraw's `ldr r2, [r0, r1, lsl #2]` — pointing into the ~60 RAM .data tables (e.g. 0x20000B8C): **the same RAM region as the per-key tables** — per-screen key-action tables (8-byte stride) and menu string tables (4-byte stride) coexist there.
+- word3 bytes: attribute/color bytes (passed as r3 + stack args to the draw helper)
+- word4: extra pointer passed through on the stack
+
+The draw helper 0x08018B60(x/y, ..., string, attr, [sp] attr): frame-ready gated (flag+8 bit0), draw-begin 0x08019840(1), GB2312-aware byte pairing (>= 0x81 pairs), matching the list renderer 0x08018E0C. Loop body: draw rows from the table between start..end at 17-px pitch, then re-draw the selected row (highlight). The 0x2000xxxx "pointer-looking" words in session 18's dumps were bytes 80/50/00/20... = geometry/attributes in the native framebuffer orientation (MADCTL 0xA8 rotation applies on glass).
