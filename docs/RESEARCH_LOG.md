@@ -808,3 +808,15 @@ The user noted the radio has English menus. Findings:
 - The 190416 RAM image's pointer-target distribution (from the recovered tables): 639 words -> 0x08043-45, 430 -> 0x08045-47, 79 -> 0x08040-43, 130 RAM-internal — all string/asset regions.
 
 **UI dialog strings located (follow-up to the user's Sure/Ok observation):** the confirmation-button set lives in 8-byte string slots — 190416 @0x419EC: {"BACK", 确定, 取消}; KT @0x41A54: {"OK  ", "BACK", 确定, 取消} — the KT INSERTED the "OK  " slot (8-byte alignment matches the key-table record width; the strings are the dialog-button set the RAM tables reference). The KT duplicates the set at 0x4499C (beyond the 190416 truncation point). No standalone "Sure" string exists in either artifact — the user's remembered "Sure" likely comes from the shipping international variant (a third build) or the pre-KT UI; the recoverable fact = the KT added the "OK  " dialog slot. Raw 'sure' hits in both files = substrings of "Pressure"/"TX Pressure" (false positives); the 'OK' hits at 0x40761+/0x40811+ = the $D00,OK/$F00,OK protocol strings, identical in both builds.
+
+### 2026-10-15 — Session 41: FINAL RESOLUTION — the image is complete; entry1 = .bss zero-init
+
+Disassembling the entry-1 loader **at the aligned address** (0x0801D966 — the earlier "garbage" was a one-byte Thumb desync; the same fix applies to the KT's 0x0801D94E) identifies it definitively: **armcc `__scatterload_zeroinit`** — `push {r4,r5}; r5 = 0; ... str r5, [r2], #4` with the bit0 RAM-base adjust (`itt mi; submi r3, r9, #1; addmi r2, r3, r2`) — it ZERO-FILLS.
+
+Consequences (final, supersedes every earlier reading):
+1. **Scatter story complete**: entry 1 = zero-init of the .bss (RAM 0x20001734+, the globals region — zeros + runtime construction, nothing to recover from flash); entry 2 = the compressed .data (the tables) -> RAM 0x20000000-0x20001730, RECOVERED in session 39.
+2. **The file is NOT truncated**: entry 2's packed stream = file 0x41C40 + 0xF57 bytes = ends at **0x42B97 = exactly the file's end**. The "truncation" was the natural end of the compressed data. The 190416 image is complete: code + boot chain + compressed .data + zero-init descriptors.
+3. **Nothing was ever neutered, truncated, or missing.** The vendor's dump = a complete, bootable image. The earlier "neutered reset" (session 11, base-arithmetic error), ".data absent" (sessions 19/35, raw-content searches vs compressed data), and "truncated entry-1 copy" (session 38) are all retracted and explained.
+4. The KT build: same structure (its walkers/loaders are the same armcc library at shifted addresses; the KT's entry-1 = the same zeroinit pattern); its full-length file simply carries the bilingual .data.
+
+**The reverse engineering of the distributed artifacts is complete at every level: code, boot chain, compressed data, tables, strings (GB2312 + English), and the state machine.** The recovered tables feed the reconstruction and the simulation plan (followup.md) directly — no synthesis needed.
