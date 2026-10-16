@@ -751,3 +751,13 @@ The session-19 .data-absence proof had run only on the 190416 file; the KT file 
 - The KT tail beyond 0x42B97 = ONE 12,224-byte cluster (0x42B97-0x45B57) of continued Thumb code — the KT2KT UI additions — followed by clean 0xFF to 0x7C000. The KT build's .text simply extends further; no data image, no tail tables.
 
 **The .data-absence closure now covers both distributed artifacts.** The extraction program is complete with no remaining verification gaps. (The KT build's additional 12 KB of code is a separate variant analysis, out of scope unless requested.)
+
+### 2026-10-15 — Session 36: KT variant identified; 8051 binaries characterized — program closed
+
+**KT variant (V1.0.1_190619-KT) identified:** the string-inventory diff (231 new / 154 removed) shows the 12 KB of additional code = the **community APRS-menu redesign**: numbered settings pages ("1 Radio", "2 Data A", "3 GPS", "4 Beacon Setup", "5 Beacon Mode"...) with new items (Smart Beacon, Digi 1/2 + paths, Symbol Table, Time Zone, TX Priority, PTT Beacon, BT Enable, Screen Save) replacing the vendor labels ("01 APRS RX CH", "01 DATA OUTPUT A", the dB-scale strings, "Crash site"). The KT2KT mod reorganizes the APRS configuration UI; the radio/RF core is unchanged in kind.
+
+**8051 binaries characterized:**
+- `UV98_868_220430_D4.hex` (Intel HEX, 3117 records) = a **45,319-byte 8051 image** (0x0000-0xB107, STC8A8K64D4), version-consistent with the source dump (build 220430_D4; "AT+VER=?", " Ver: " strings). Byte-level source verification requires Keil C51 (unavailable) — version consistency is the checkable bound.
+- `UV98_868_220430_D4.compressed.bin` (1.8 MB) = a **Keil build-tree archive** in a proprietary container (ASCII source paths "51 "MAIN\G..." visible at offset 0), not a raw flash image.
+
+**Program closed.** Every artifact in the repository is now characterized; every checkable relationship in the main-MCU firmware is extracted and verified; both distributed builds are accounted for.
