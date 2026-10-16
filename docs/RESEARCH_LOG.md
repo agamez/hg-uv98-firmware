@@ -579,3 +579,16 @@ backup/pre-continuity-rebase.
 **4. Addressing-convention refinement (important for tooling):** vector-table entry VALUES and literal-pool POINTER values are **linked addresses = file_offset + 0x08004000** (the vendor's link base), while code labels used throughout this log = file_offset + 0x08000000. When dereferencing pool pointers into the file, subtract 0x4000 from the stored value. (Verified: literal 0x0804476C → file 0x4076C = "$A00,\0\0\0$A01".)
 
 **5. Host conformance harness extended** (`test_sentence_prefix_boundaries`): locks the prefix-matching distinctions recovered in sessions 3-20 — `$A00` at 4 and 5 bytes, `$A02`/`$A08` comma-required (4 bytes without comma rejected), `$A09` 4-byte-compare/5-byte-length-gate quirk, `$B`/`$C` 2-byte match, 3-byte fragments rejected. All pass.
+
+### 2026-10-15 — Session 21: the four UI-task routers identified
+
+All four functions called from the master UI task loop (session 20) now have identified roles:
+
+- **0x0800FE58 (every pass) = protocol-sentence → UI bridge** (decoded session 20): memcmp 5-byte prefixes ($A00, from flash at linked 0x0804476C; two RAM-held prefixes from .data) → per-sentence handlers 0x08019A10 / 0x0801CE78 / ...; sub-dispatch on payload letters 'g'/'h'/'j' at [0x200050E8].
+- **0x08010302 (every pass) = sentence-letter progress driver.** Routes on the current sentence letter 'h'/'i'/'j' (same state byte family as the bridge); for 'h' increments a u16 progress counter at [0x20005094-struct+0x135] against a 0x29 (41) bound — a per-sentence-type multi-step sequence (41 items for 'h').
+- **0x08015DCC (every pass) = measurement poll + meter reset.** Calls quantizer 0x080242FC (0xFF = no reading → exit); on a valid reading zeroes meter state ([+0x103]=0, [+0x25]=0, [+0x124]=0), seeds [+0xDF]=10 (full-scale bars), class [+0x128]=3; toggles the UI-refresh flag bits (+8 bits 2-3, +0xB bit3 — the same bits key_event gates on) and calls redraw 0x080202B8.
+- **0x0800ED24 (every 17th pass) = blinking mode-indicator driver.** Compares the mode letter against 'M' (0x4D) / 'N' (0x4E); toggles flag bit6 of the flag byte; draws the 2-char erasure string "  " (pool literal, drawn via 0x08018B60(0x40, row, col, 3, "  ", 4)) at a counter-derived row ([+0x129]*16 + 0x32 or + 0x3A per phase); the restore path calls 0x0800BC48(0xFF).
+
+**S-meter quantizer 0x080242FC:** gated by RX-active flag (bit0 of the flag byte → returns 0xFF when inactive); raw value from reader 0x080241A6; classifies into 10 levels (0 → 10; ranges bounded at 2/4/6/7 → descending bar counts). 0x080241A6 = the raw ADC/AT1846S-RSSI read (reg 0x1A/0x1B per the Programming Guide) — not yet byte-decoded.
+
+Open follow-ups: byte-level decode of 0x080241A6; the 'h'/'i'/'j' sentence families' correspondence to the 8051 UARTX.C sentence set; 0x0800ED24's 'M'/'N' mode-letter source.
