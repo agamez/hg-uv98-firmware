@@ -798,3 +798,11 @@ The decompressor (session 38) was implemented in Python and run over entry 2's s
 Artifacts: `analysis/ram_tables_recovered.bin` (the decompressed RAM image), `docs/UI_STRINGS.md`.
 
 **Final status of the .data question:** the tables were never absent — they are **armlink-compressed in-file**. Recovered: the full RAM 0x20000000-0x20001730 table region. Partially recoverable: entry 1's copy region (RAM 0x20001734+, 14,920 bytes) — its source stream is cut by the file truncation at 0x42B97 (~13% present). The synth recommendation in followup.md is superseded: load the recovered tables directly.
+
+### 2026-10-15 — Session 40: English UI confirmed — KT build is bilingual; KT scatter table located
+
+The user noted the radio has English menus. Findings:
+- **190416 = Chinese-only settings UI**: its string region carries GB2312 menus plus the English APRS asset strings (Symbol/Station/Beacon — the already-known asset tables); GB2312 语言 at file 0x3FC53, no ASCII 'Language'.
+- **KT (190619) = bilingual**: ASCII 'Screen Save' (0x3EDB7), 'Power Save' (0x3EDC7), 'Freq Step' (0x3EDD7), 'Language' (0x3FED3) alongside GB2312 语言 (0x3FD7B). The KT = the international UI variant.
+- **KT scatter table located**: walker 0x080428F4 (file 0x3E8F4), table 0x08042988-0x080429AA, 2+ descriptors; entry 1 = loader 0x0801D94F (≠ the 190416 decompressor 0x0801D846) with params {0x1D24, 0x20001734, ...} — a plain-copy-style loader whose semantics need the same REA pass (next session: decompile 0x0801D94F + 0x0801D846's KT twin, decompress the KT streams -> the complete KT RAM image including the English pointer tables and the full globals region).
+- The 190416 RAM image's pointer-target distribution (from the recovered tables): 639 words -> 0x08043-45, 430 -> 0x08045-47, 79 -> 0x08040-43, 130 RAM-internal — all string/asset regions.
