@@ -635,3 +635,5 @@ RSSI UI consumer = the function containing 0x0801C464 (display updater region 0x
 Interpretation: states 'h'/'i' = beacon-list/detail collection windows; on completion the ARM issues the next $Bxx/$Cxx request to the 8051. Matches the protocol command table ($Bxx = beacon list read, $Cxx = beacon detail read — UARTX.C ground truth, session 3).
 
 **State-byte writer trace (partial):** 10 direct strb sites via the flag-bank base; 2 immediate (0x78 'x' gated on 'X'; 0x6), 8 copy from other struct bytes ([r1,#2], [r4,#9] = the frame-ready flag byte, [r0,#7] ×2, [r7,#7] ×2, [r0,#4], [r1,#8]). The state byte mirrors other fields; the origin of the 'M'/'N' values requires deeper data-flow tracking (REA) — deferred.
+
+**Correction (S-meter tables):** 0x080168DA is a **writer**, not a lookup — it printf-formats the peak timestamp (0x0801F5D0), transforms 8->4 bytes (0x0801652C/0x080164DC), and mem-copies 4 bytes (0x080198C0) INTO the per-band 30-byte table. The tables = peak-history ring buffers (boot-seeded, runtime-appended), not dB->bar calibration. The bar value itself is computed from the peak level elsewhere (open).
