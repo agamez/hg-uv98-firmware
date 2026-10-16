@@ -787,3 +787,14 @@ The earlier content searches (pointer runs, u32 670, CSS runs) failed because **
 **Consequence: the key tables, string tables, CSS table, and screen attributes are RECOVERABLE** by implementing the decompressor (its full algorithm is in the decompiled body) and running it over the descriptor streams. The synthesis recommendation in followup.md is superseded: first decompress the real tables; synthesize only what remains truncated.
 
 **Open follow-ups:** implement the decompressor in C/Python; resolve entry 1's loader (0x0801D967) body; decompress both streams; verify the output against the known table addresses (key tables 0x20000060+, CSS 0x200016D0) — the decompressed RAM image will finally reveal the menu strings, key bindings, and tone table.
+
+### 2026-10-15 — Session 39: THE TABLES ARE RECOVERED — decompressed, verified, decoded
+
+The decompressor (session 38) was implemented in Python and run over entry 2's stream (file 0x41C40, 3,927 packed bytes): **5,937 bytes -> RAM 0x20000000-0x20001730** — the complete table region. Verification:
+- **CSS table @0x200016D0**: real values in the setter's encoding — includes 17442000, exactly one of the CSS-setter's sentinel constants (session 25).
+- **Key tables @0x20000060+**: 8-byte records as mapped — {RAM sub-table + count} and {flash string-pointer pairs}; 1,148 words point into the string region; the inter-table pointers reproduce the linked chain (session 34).
+- **The strings are GB2312 Chinese UI text**: "01 屏保时间" (screen-save time), "02 省电模式" (power-save), "03 步进频率" (freq step), "01.本机设置" (local settings), "02.站点类型" (station type), "03.GPS 设置", "12 TX_DCS"... — **docs/UI_STRINGS.md** carries the decoded inventory.
+
+Artifacts: `analysis/ram_tables_recovered.bin` (the decompressed RAM image), `docs/UI_STRINGS.md`.
+
+**Final status of the .data question:** the tables were never absent — they are **armlink-compressed in-file**. Recovered: the full RAM 0x20000000-0x20001730 table region. Partially recoverable: entry 1's copy region (RAM 0x20001734+, 14,920 bytes) — its source stream is cut by the file truncation at 0x42B97 (~13% present). The synth recommendation in followup.md is superseded: load the recovered tables directly.
