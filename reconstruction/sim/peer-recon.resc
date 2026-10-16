@@ -1,0 +1,33 @@
+# peer-recon — the reconstruction with the identical 8051 peer injection
+# (the other half of the CK2 comparison; same stimulus as peer-8051.resc).
+
+using sysbus
+mach create "hguv98-recon"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+showAnalyzer sysbus.usart2
+
+echo "=== boot 10 ms ==="
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+
+echo "=== run to 2 s (mirror the original's injection schedule) ==="
+emulation RunFor "00:00:01.990"
+
+echo "=== inject the 8051 settings frame (534 B, identical content) ==="
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); assert len(frame) == 534, 'frame must be 534 bytes'; [u.WriteChar(ord(c)) for c in frame]; mc_echo('frame injected: 534 bytes')"
+
+echo "=== run 3 s more ==="
+emulation RunFor "00:00:03.000"
+echo "=== OSCtxSwCtr / OSIdleCtr / PC:"
+sysbus ReadDoubleWord 0x200020BC
+sysbus ReadDoubleWord 0x20001FE0
+sysbus.cpu PC
+echo "=== fault registers (must stay 0):"
+sysbus ReadDoubleWord 0xE000ED28
+sysbus ReadDoubleWord 0xE000ED2C
+quit

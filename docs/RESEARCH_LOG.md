@@ -1229,3 +1229,50 @@ test_protocol.c) — the same stimulus feeds both images for the differential
 comparison. Then CK3 (AT1846S bus trace) and the settings-EEPROM content
 (the synthesized I2C EEPROM byte content — the $A-settings semantics supply
 the defaults).
+
+### 2026-10-16 — Session 48: the 8051 peer v1 — settings handshake works on the original; first CK2 differential data point
+
+**Protocol decoded from the peer's own source (UARTX.C, the 8051 project):**
+- The boot handshake: the main CPU sends `$A00\r\n`; the 8051 answers
+  `$A00,<14-byte CPU id>,<512B settings>\r\n` = **534 = 0x216 bytes**
+  (UART4_TX_EEROM; the id from READ_CPU_ID, the settings from its EEPROM
+  buffer). This explains the 0x216 frame length the recovered dispatcher
+  checks.
+- The write direction: `$A01,` + 512 = **519 bytes** (UART4_RX_EEROM — the
+  534-vs-519 asymmetry is real, both confirmed in the 8051 source).
+- Byte-exact peer response used by the harness: `$A00,` + '0'x14 + ',' +
+  0x00*512 + CRLF (neutral defaults; must be IDENTICAL for both images —
+  documented as the CK2 stimulus).
+
+**Injection mechanism:** `usart2.WriteChar(ord(c))` from monitor Python
+(the STM32_UART receiveFifo + baud pacing deliver in virtual time, order
+preserved). IronPython 2 traps: `bytes` IS `str` (bytes(512) = "512"!) —
+use chr()/ord(); multi-line `python` commands do not tokenize in .resc
+files; a literal `$` in the script collides with Renode variables.
+
+**Original + peer (peer-8051.resc):** the $A00 fires at ~0.8 s virtual; the
+injected 534-byte frame is consumed and the system goes from the handshake
+wait to full multitasking: **OSCtxSwCtr 3010 -> 90111** in the next 3 s,
+OSTime advancing, zero faults. No further USART2 TX in the window (the
+pump's next traffic is event-driven — status/telemetry frames).
+
+**CK2 differential v0 (the first classified finding):** the reconstruction
+under the IDENTICAL stimulus (peer-recon.resc) runs clean (11157 switches,
+idle counter ~19.9M, zero faults) but **never sends `$A00`** — the boot-time
+protocol pump is not in the reconstruction's task set: the original's $A00
+sender lives in the UI-dispatch cluster (0x0800C05E.. callers of the command
+dispatcher 0x08010128 — all indirect/vtable calls, no static chain).
+Classification: MECHANISM gap (reconstruction-side scaffold incompleteness),
+not data. The fix = reconstruct the pump's boot behavior (send $A00 at init,
+consume the $A00 response into the settings RAM region) — the recovered
+protocol.c already has protocol_send_cmd(CMD_A00_READ) and the frame
+reception; only the task-level wiring is missing.
+
+**Artifacts:** reconstruction/sim/peer-8051.resc (original + peer),
+reconstruction/sim/peer-recon.resc (reconstruction + peer). CK1 stays green;
+the canonical runs unchanged.
+
+**Next:** (a) reconstruct the pump wiring so the reconstruction also emits
+$A00 at boot (making the CK2 vectors comparable), (b) then run the byte-exact
+USART2 trace diff (both directions) for the parity matrix, (c) CK3's
+AT1846S bus trace once the display/RF init paths stabilize.

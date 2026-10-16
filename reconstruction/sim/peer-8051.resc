@@ -1,0 +1,48 @@
+# peer-8051 — the 8051-link peer, v1 (session 48).
+#
+# Protocol (from UV98_868_220430_D4/MAIN/UARTX.C — the peer's own source):
+#   main CPU sends  "$A00\r\n"            (read settings)
+#   8051 responds   "$A00,<14B id>,<512B settings>\r\n"  = 534 = 0x216 bytes
+#   (the reverse direction "$A01,"+512 = 519 B writes settings into the
+#   8051's EEPROM — not needed for the boot handshake)
+#
+# Harness-side model: the response frame is injected through the STM32_UART
+# model's WriteChar (its receiveFifo + baud-rate pacing deliver it in
+# virtual time, byte order preserved). Content: neutral defaults (ID
+# "00000000000000", settings 0x00) — IDENTICAL for both images; document in
+# every equivalence report.
+#
+# This run: original image. The reconstruction run reuses the same injection
+# block (see peer-recon.resc).
+
+using sysbus
+mach create "hguv98-orig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+showAnalyzer sysbus.usart2
+
+echo "=== boot 10 ms ==="
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+
+echo "=== run to 2 s (the \$A00 handshake fires at ~0.8 s) ==="
+emulation RunFor "00:00:01.990"
+
+echo "=== inject the 8051 settings frame (534 B) ==="
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); assert len(frame) == 534, 'frame must be 534 bytes'; [u.WriteChar(ord(c)) for c in frame]; mc_echo('frame injected: 534 bytes')"
+
+echo "=== run 3 s more (the protocol pump consumes the settings) ==="
+emulation RunFor "00:00:03.000"
+echo "=== OSCtxSwCtr / OSTime / PC:"
+sysbus ReadDoubleWord 0x200050EC
+sysbus ReadDoubleWord 0x2000511C
+sysbus.cpu PC
+echo "=== fault registers (must stay 0):"
+sysbus ReadDoubleWord 0xE000ED28
+sysbus ReadDoubleWord 0xE000ED2C
+quit
