@@ -10,7 +10,13 @@
                                        /* ---------------------- MISCELLANEOUS ----------------------- */
 #define OS_APP_HOOKS_EN           0u
 #define OS_ARG_CHK_EN             0u
-#define OS_CPU_HOOKS_EN           0u   /* hooks wired via vector table / port file     */
+#define OS_CPU_HOOKS_EN           1u   /* [session 44 fix] was 0: OSInitHookBegin
+                                           initializes OS_CPU_ExceptStkBase, which
+                                           OSStartHighRdy loads into MSP — with the
+                                           hook disabled MSP stayed 0 and the first
+                                           exception bus-faulted (Renode CK1
+                                           evidence). The hook functions live in
+                                           src/os_hooks.c. */
 
 #define OS_DEBUG_EN               0u
 

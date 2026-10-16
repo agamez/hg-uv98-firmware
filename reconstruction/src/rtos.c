@@ -78,7 +78,11 @@ void time_dly_hmsm(uint8_t h, uint8_t m, uint8_t s, uint8_t ms)
 void rtos_start(void)
 {
     /* The port's OSStartHighRdy sets PendSV to the lowest priority and
-     * performs the first context switch; SCB->VTOR was set by main(). */
+     * performs the first context switch; SCB->VTOR was set by main().
+     * (The tick is configured in main() via board_setup_tick BEFORE
+     * OSStart — the port's OSStartHighRdy loads MSP from
+     * OS_CPU_ExceptStkBase, initialized by OSInitHookBegin inside
+     * OSInit, so OSInit must precede task creation too.) */
     OSStart();
 }
 

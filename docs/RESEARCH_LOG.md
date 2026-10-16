@@ -912,3 +912,62 @@ All three corrections applied to `reconstruction/src/rf.{c,h}`,
 the §7 equivalence boundary rewritten: table-driven content now matches
 byte-for-byte; only the SPI font glyphs, analog ADC/RSSI values, and
 timing remain non-matchable). Build green, host tests pass.
+
+### 2026-10-16 — Session 44: Renode CK1 — the OS now boots (three reconstruction fixes); tick delivery blocked
+
+Setup: Renode 1.17.0 installed (portable, self-contained) at
+`~/tools/renode_1.17.0-portable`; platform = the stock
+`platforms/cpus/stm32f103.repl` (≈GD32F103: same RCC/GPIO/USART2/AFIO/EXTI
+addresses; it pre-tags RCC_CR = 0x0A020083 — HSERDY/PLLRDY set — and models
+usart2 at 0x40004400). Harness scripts in `reconstruction/sim/`.
+
+**Boot path solved (evidence-driven):**
+1. SystemInit spun forever polling RCC_CFGR SCLK_STS after selecting PLL
+   (capstone + the spin site 0x08005AD6). Fix: harness Tag RCC_CFGR
+   (0x40021004-7) = 0x8 — switch "done". The platform's own RCC_CR tag
+   covers the oscillator-ready reads.
+2. The Cortex-M3 fetches MSP/PC from 0x00000000 (VTOR reset default); the
+   distributed app = linked at 0x08004000 behind the non-distributed
+   bootloader. Fix: the harness writes the vector handoff (MSP 0x20006800,
+   Reset 0x08004165) at 0x0 — the app sets VTOR itself in main.
+3. **`OSInit()` was missing from the reconstruction's main()** — the kernel
+   pools stayed zero and `OSInitHookBegin` never ran. Evidence chain: with
+   the boot reaching OSStartHighRdy, the port does
+   `ldr r1, [OS_CPU_ExceptStkBase]; msr MSP, r1` — the pointer was 0 (BSS),
+   so MSP = 0; the first exception stack-faulted
+   (CFSR = BFSR.PRECISERR, HFSR.FORCED) into Default_Handler. Fix:
+   `OS_CPU_HOOKS_EN` 0 → 1 (restores OSInitHookBegin, which also inits
+   OS_CPU_ExceptStkBase) + the `OSInit()` call + removing the now-duplicate
+   hook stubs from `src/os_hooks.c` (the vendored port's bodies win;
+   OSTaskSwHook/OSTimeTickHook stay — this port variant doesn't define
+   them). Note: the Makefile has no header dependency tracking — `rm
+   build/k-*.o build/p-*.o` (or the whole build dir) after touching os_cfg.h.
+
+**State reached:** Reset_Handler (tables copy) → SystemInit → main (VTOR =
+0x08004000, tick armed 108 MHz/1000 Hz) → OSInit → 7 tasks → OSStart →
+OSStartHighRdy → first context switch — no faults (CFSR/HFSR = 0, PRIMASK =
+0), OSTaskSwHook ×3, OS_Sched ×2, ui_task entered. SysTick verified armed
+by register read (CTRL = 0x7, LOAD = 108000).
+
+**CK1 blocker (open):** periodic interrupts ARE taken (interrupted PC
+always 0x08005B0C = the tail of OS_CPU_SR_Restore — the idle task's
+critical-section exit; delivery at PRIMASK unmask = normal for the Micrium
+port), but OS_CPU_SysTickHandler (0x08005A88, address verified current)
+never executes — 0 hook hits, as do OSTimeTick/OSIntEnter/OSIntExit. The
+heartbeat (0x20004802) stays 0. At interrupt-begin `self.IRQ` = 2;
+`LogCpuInterrupts` labels the exception "Fast Interrupt (FIQ)". Ruled out:
+vector[2] misroute (patching 0x08004008 → SysTickHandler changed nothing),
+faults, PRIMASK, VTOR (0x08004000 at 1/5/50 ms; Renode independently
+guessed 0x08004000), stale hook addresses (an OS_Sched hook fires), SysTick
+misconfiguration (register-verified). Renode source facts (nvic.cs /
+cortexm.cs / arm.cs fetched): SysTick = a LimitTimer at `systickFrequency`
+(72 MHz) → SetPendingIRQ(SystemException.SysTick = 15); the delivered
+exception logs as tlib EXCP_FIQ (ExceptionDescriptions[5]); the meaning of
+self.IRQ = 2 = unresolved. GDB software breakpoints never fired even with
+the CPU spinning at the breakpoint address (hbreak untried). Next
+diagnostics, cheapest first: (1) read ICSR 0xE000ED04 at the pause —
+VECTACTIVE (bits 5:0) / VECTPENDING (11:6) = hardware truth on what is
+active/pending; (2) hook Default_Handler (0x08004131); (3) disarm the tick
+(board_setup_tick) and check whether the periodic interrupts stop — source
+isolation; (4) only then tlib-internals archaeology. The full handoff =
+`followup.md` §1.

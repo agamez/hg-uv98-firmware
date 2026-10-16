@@ -11,6 +11,7 @@
  */
 #include "hwregs.h"
 #include "rtos.h"
+#include "ucos_ii.h"   /* OSInit — [session 44 fix] the kernel init was omitted */
 #include "uart.h"
 #include "protocol.h"
 #include "display.h"
@@ -152,6 +153,15 @@ int main(void)
      * OSStartHighRdy (os_cpu_a.S).                                        */
 
     hw_init();
+
+    /* [session 44 fix | RECOVERED correction] The original's main calls
+     * OSInit() before task creation (standard Micrium flow; OSStart at
+     * 0x08027392 is preceded by kernel init). The reconstruction omitted
+     * it: the kernel pools stayed zero and OSInitHookBegin — which
+     * initializes OS_CPU_ExceptStkBase, loaded into MSP by
+     * OSStartHighRdy — never ran, so the first exception bus-faulted
+     * (Renode CK1 evidence: BFSR.PRECISERR, HFSR.FORCED). */
+    OSInit();
 
     /* Main/UI task, prio 3, 1 KB stack [0x0802915A]. */
     (void)ui_key_last;

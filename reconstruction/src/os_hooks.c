@@ -8,14 +8,15 @@
 #include "ucos_ii.h"
 #include "cpu_core.h"
 
-void OSTaskCreateHook(OS_TCB *ptcb)  { (void)ptcb; }
-void OSTaskDelHook(OS_TCB *ptcb)     { (void)ptcb; }
-void OSTaskReturnHook(OS_TCB *ptcb)  { (void)ptcb; }
-void OSTaskIdleHook(void)            { }
-void OSTaskStatHook(void)            { }
-void OSTaskSwHook(void)              { }
-void OSTCBInitHook(OS_TCB *ptcb)     { (void)ptcb; }
-void OSTimeTickHook(void)            { }
+/* [session 44] OSTaskCreateHook/DelHook/IdleHook/ReturnHook/StatHook/
+ * TCBInitHook moved to the vendored port (ucos2/port/os_cpu_c.c) —
+ * OS_CPU_HOOKS_EN was flipped to 1 to restore OSInitHookBegin (the
+ * OS_CPU_ExceptStkBase init that OSStartHighRdy loads into MSP), which
+ * made the port's hook definitions authoritative; the stubs here were
+ * duplicates. OSTaskSwHook/OSTimeTickHook stay: this port variant does
+ * not define them. */
+void OSTaskSwHook(void)               { }
+void OSTimeTickHook(void)             { }
 
 /* CPU_TS_TmrRd is referenced unconditionally by cpu_core.c's interrupt-
  * disable measurement helpers even when CPU_CFG_INT_DIS_MEAS_EN is

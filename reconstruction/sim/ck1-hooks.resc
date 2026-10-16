@@ -1,0 +1,17 @@
+# CK1-diag3 — hooks on the real (current) symbol addresses + heartbeat.
+using sysbus
+mach create "hguv98"
+machine LoadPlatformDescription @platforms/cpus/stm32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+cpu AddHook 0x08005A88 "self.Log(LogLevel.Info, 'HOOK: SysTickHandler')"
+cpu AddHook 0x08004DD8 "self.Log(LogLevel.Info, 'HOOK: OSTaskSwHook')"
+cpu AddHook 0x0800513C "self.Log(LogLevel.Info, 'HOOK: ui_task entry')"
+emulation RunFor "00:00:00.100"
+echo "=== heartbeat read:"
+sysbus ReadWord 0x20004802
+echo "=== PC:"
+sysbus.cpu PC
+quit

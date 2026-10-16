@@ -1,0 +1,41 @@
+# CK1 — boot the HG-UV98 reconstruction to the UI task loop.
+#
+# The distributed app is linked at 0x08004000 behind a bootloader that is
+# NOT part of the reconstruction; at reset a Cortex-M3 fetches MSP/PC from
+# 0x00000000. We mirror the bootloader's handoff: place the vector entries
+# at 0x0 (MSP 0x20006800, Reset 0x08004165) — the app itself sets VTOR to
+# 0x08004000 in main(), so exceptions route correctly once the RTOS starts.
+
+using sysbus
+mach create "hguv98"
+machine LoadPlatformDescription @platforms/cpus/stm32f103.repl
+
+# bootloader-equivalent vector handoff
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+
+# Minimal RCC: SystemInit selects PLL (writes SCS=0b10) then polls
+# SCLK_STS (CFGR bits 3:2). No wait — the switch is "done" immediately.
+# (run 1 evidence: infinite spin on CFGR reads returning 0)
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+
+# protocol UART output (USART2) to the console
+showAnalyzer sysbus.usart2
+
+echo "=== run 50 ms ==="
+emulation RunFor "00:00:00.050"
+echo "=== heartbeat (0x2000469C+0x166) read 1:"
+sysbus ReadWord 0x20004802
+echo "=== PC:"
+sysbus.cpu PC
+emulation RunFor "00:00:00.200"
+echo "=== heartbeat read 2 (must be > read 1):"
+sysbus ReadWord 0x20004802
+echo "=== PC:"
+sysbus.cpu PC
+echo "=== fault registers (must stay 0):"
+sysbus ReadDoubleWord 0xE000ED28
+sysbus ReadDoubleWord 0xE000ED2C
+quit
