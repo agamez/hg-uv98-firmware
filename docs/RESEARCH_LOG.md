@@ -1307,3 +1307,40 @@ through the live machines) + the settings-consumption comparison on the RAM
 side (the original copies the 512 B into its settings region; the
 reconstruction's handler fills rxBuf — the consumers differ by design until
 the UI settings-load is reconstructed).
+
+**Session 48, part 3 — CK3 groundwork: the RF-path labels FAIL dynamic
+validation (new open question).** Hooking the annotated RF primitives
+(rf_send_byte 0x08022712, rf_write 0x0802289A, rf_read 0x0802292E,
+rf_cs_select 0x08022838) during a 5 s original run:
+- rf_write fired 2x, rf_read 3x, rf_cs_select 1x (deduped line), rf_send_byte
+  0x — the AT1846S traffic is TINY (no bulk register-file init; the radio's
+  RF config is event-driven).
+- The two rf_write events came WITH the settings-apply window (right after
+  the peer's settings frame!) — the causal chain settings -> RF config is
+  confirmed — but the args (r0=0x1D, r1=0x6A, r2=0x12, r3=0x14, via a tail
+  chain through 0x0801D840 with a stale LR=0x0801CD2F) do NOT decode as
+  (chip, reg, value) under the recovered ABI.
+- The rf_read events show (r0=0, r1=3, r2=0x23/'#' and 0x52/'R') — character-
+  like values, not (chip=0, reg=0x1F) as the RSSI-poll interpretation predicts.
+- CONCLUSION: the rf.c label annotations (session 18-19) and the dynamic hook
+  evidence CONFLICT. Either the labels are mis-assigned (the "RF primitives"
+  are string/protocol helpers) or the RF entry points differ from the
+  annotations. The bl_graph confirms callers exist in BOTH the 0x08016xxx
+  cluster (S-meter/RF-config region) AND 0x0801D73C/0x0801D832/0x0801DA1E
+  (the loader/decompressor neighborhood) — an unusual spread that supports
+  the mis-assignment suspicion.
+- TOOLING UNLOCK (the round's key enabler): hooks CAN reach
+  `emulationManager.CurrentEmulation.Machines[0].SystemBus` — full memory
+  read/write inside hooks (the InterruptPythonEngine shares the monitor
+  globals). Combined with the block-start hook rule (session 47), this gives
+  complete in-simulation instrumentation. ALSO: stale-address traps — every
+  rebuild shifts the reconstruction's symbols (OS_Sched 0x08005438 ->
+  0x08005450 cost a debug round); ALWAYS re-derive with nm.
+
+**CK3 status:** not started in earnest — the prerequisite is the RF-path
+label re-validation (REA pass over 0x08022712/0x08022838/0x0802289A/0x0802292E
+and their callers) OR a ground-truth GPIOA pin-level capture (the
+STM32F1 GPIO model's ODR-drive logging) to identify the true bit-bang
+primitives dynamically. The reconstruction's rf.c transport remains unwired
+(dead code — no callers), so the original's (chip, reg, value) sequence,
+once captured correctly, doubles as the wiring spec.
