@@ -60,6 +60,11 @@ static void dispatcher_task(void *arg)
 {
     (void)arg;
     protocol_send_cmd(0);            /* CMD_A00_READ — boot settings fetch */
+    /* [session 49] The original applies its power-on default RF channel
+     * ~3.1 s virtual after boot (plain-boot trace, no peer). The event
+     * ORDER is what CK3 compares; the wall-clock gap is a §7(c) timing
+     * boundary (the original's task/delay chain is not reconstructed). */
+    at1846s_boot_default_apply();
     for (;;) {
         time_dly(5);
     }

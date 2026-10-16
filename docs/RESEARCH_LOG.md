@@ -1451,3 +1451,43 @@ byte-identical to the original's (100/100 events).**
   0x08027109..0x080274D7 and 0x0802789F..0x080278E5 (Renode space) + the
   tone wrapper 0x0801A91A. That flow = the app-level settings->RF config
   chain; wiring it is the next increment.
+
+**Session 49, part 3 — CK3 FULL PARITY: 292/292 RF bus events byte-identical.**
+- Decompiled the whole reconfig-flow driver family (Renode space):
+  * FUN_08027156 = band-config + frequency + mode dispatch: the 3-sentinel
+    check (0x8643) -> 96-entry table scan (0x8543) -> fallthrough (0x8763)
+    -> the soft-float frequency pipeline -> regs 0x29/0x2A -> mode dispatch
+    on param_2 (0 = FUN_08027020 TX writer, 1 = FUN_08027092 RX writer).
+    CONFIRMS rf.c's at1846s_set_band_config/set_frequency structure exactly.
+  * FUN_08027110/FUN_08027020/FUN_08027092 = the 0x30 mode writers; the
+    band argument selects the 0x40xx (band 1) vs 0x70xx (band 0) filter
+    bits: standby {0x4006|0x7006}, TX pair {0x4046|0x7046}, RX pair
+    {0x40A6|0x70A6 + delay(0x32)}.
+  * FUN_080272E2 = GPIO 0x1F reconfig under a killed-irq window
+    (0x9BA9/0x9AA9 by band); FUN_080272A4 = the plain variant (0x9EA9/0x9AA9).
+  * FUN_080276D4 = CTCSS config: 0x58=0x8005 then, for CSS off, the boot
+    defaults 0x4A=0x157C, 0x4D=0x0000, 0x3A=0x40C9, 0x5B=0x1213; the on
+    branch scans a 50-entry tone table (DAT_08028014).
+  * FUN_08027474 = detect/filter path: 0x58=0x840D, 0x4E=0x2002, 0x59=0x0A8D.
+  * The tone wrapper FUN_0801A91A at boot writes 0x48=0x1E3C, 0x49=0x0284.
+- The 0x8543-at-zero-frequency paradox RESOLVED: the 96-entry sub-band
+  table's entries 24..95 are zero-init, so the boot state (frequency 0)
+  MATCHES a zero entry -> 0x8543, and the frequency pipeline yields
+  0x29/0x2A = 0x0000. rf.c's full-96 scan was already faithful.
+- Wired at1846s_boot_default_apply() into the dispatcher boot path: phases
+  X/Y/Z/W/V reproducing events 101-290 (chip1 poke 0x7002, GPIO maps, chip0
+  bank window + tone pair, three apply passes with CTCSS-off/filter-detect
+  variants, chip1 re-init, ending TX mode + 0x9EA9 GPIO). The register
+  primitives = decompile-recovered; the call ORDER = [DATA-DERIVED] from
+  the trace (the original's orchestrating task chain is not yet
+  reconstructed) — labeled in rf.c and to be restated in the CK5 report.
+- Two rf_read status polls placed by timestamp correlation: (cs=1, reg
+  0x30) after the 0x7002 poke + GPIO write; (cs=0, reg 0x0D) after the
+  first RX-mode pair.
+- After two iteration fixes (the mode writers emit their own leading
+  standby — remove explicit ones; event 290's GPIO variant takes band=1):
+  **RESULT: 292/292 bus events (290 writes + 2 reads) byte-identical,
+  same order, original vs reconstruction.** Traces:
+  analysis/traces/ck3_rf_{orig,recon_full}.txt. CK3 CLOSED at the
+  bus-event level; pin-level (ODR) parity and the settings-driven
+  (non-default) channel path remain open extensions.

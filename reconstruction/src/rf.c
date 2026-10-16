@@ -224,6 +224,147 @@ void at1846s_boot_init(uint8_t chip)
         rf_write(chip, table[i].reg, table[i].val);
 }
 
+/* [RECOVERED session 49] The bank-1 tail of the boot init (table entries
+ * 26-49): 0x7F=0x0001 opens bank 1, regs 0x06..0x0F + 0x12 are programmed,
+ * 0x7F=0x0000 closes it. The original re-runs exactly this block during the
+ * reconfig flow (trace events 103-126, 193-216). */
+void at1846s_boot_init_block_b(uint8_t chip)
+{
+    static const struct { uint8_t reg; uint16_t val; } block_b[24] = {
+        { 0x15, 0x1F00 }, { 0x32, 0x7564 }, { 0x3A, 0x44C3 }, { 0x3C, 0x1930 },
+        { 0x3F, 0x29D2 }, { 0x48, 0x1E3C }, { 0x59, 0x0A50 }, { 0x60, 0x101E },
+        { 0x62, 0x3767 }, { 0x65, 0x248A }, { 0x66, 0xFF2E }, { 0x7F, 0x0001 },
+        { 0x06, 0x0024 }, { 0x07, 0x0214 }, { 0x08, 0x0224 }, { 0x09, 0x0314 },
+        { 0x0A, 0x0324 }, { 0x0B, 0x0344 }, { 0x0C, 0x0384 }, { 0x0D, 0x1384 },
+        { 0x0E, 0x1B84 }, { 0x0F, 0x3F84 }, { 0x12, 0xE0EB }, { 0x7F, 0x0000 },
+    };
+
+    for (unsigned i = 0; i < sizeof(block_b) / sizeof(block_b[0]); i++)
+        rf_write(chip, block_b[i].reg, block_b[i].val);
+}
+
+/* [0x08027110 | RECOVERED session 49] standby-mode write; band selects the
+ * 0x30[13:12] filter bits: band 1 -> 0x4006, band 0 -> 0x7006. */
+void at1846s_standby(uint8_t chip, int band)
+{
+    rf_write(chip, 0x30, band ? 0x4006 : 0x7006);
+}
+
+/* [0x08027020 | RECOVERED session 49] TX mode pair; band 1 -> 0x4006+0x4046,
+ * band 0 -> 0x7006+0x7046. */
+void at1846s_mode_tx(uint8_t chip, int band)
+{
+    rf_write(chip, 0x30, band ? 0x4006 : 0x7006);
+    rf_write(chip, 0x30, band ? 0x4046 : 0x7046);
+}
+
+/* [0x08027092 | RECOVERED session 49] RX mode pair + 50-unit settle delay;
+ * band 1 -> 0x4006+0x40A6, band 0 -> 0x7006+0x70A6. */
+void at1846s_mode_rx(uint8_t chip, int band)
+{
+    rf_write(chip, 0x30, band ? 0x4006 : 0x7006);
+    rf_write(chip, 0x30, band ? 0x40A6 : 0x70A6);
+    rf_delay(50);
+}
+
+/* [0x080272E2 | RECOVERED session 49] GPIO map reconfig under a killed
+ * interrupt window (FUN_0802B1E0/E8 around the write); band 1 -> 0x9BA9,
+ * band 0 -> 0x9AA9. Companion variant 0x080272A4 (no irq lock):
+ * band 1 -> 0x9EA9, band 0 -> 0x9AA9. */
+void at1846s_gpio_reconfig(uint8_t chip, int band)
+{
+    rf_write(chip, 0x1F, band ? 0x9BA9 : 0x9AA9);
+}
+
+void at1846s_gpio_reconfig_plain(uint8_t chip, int band)
+{
+    rf_write(chip, 0x1F, band ? 0x9EA9 : 0x9AA9);
+}
+
+/* [0x080276D4 param_3==0 branch | RECOVERED session 49] CTCSS/CSS off:
+ * filter path 0x58=0x8005, TX CTCSS 0x4A=0x157C, RX CTCSS 0x4D=0x0000,
+ * CSS mode 0x3A=0x40C9, RX threshold 0x5B=0x1213 (boot-default constants
+ * observed on the wire; the ==1 branch programs a real tone from the
+ * 50-entry table at DAT_08028014 and is not exercised at boot). */
+void at1846s_ctcss_off(uint8_t chip)
+{
+    rf_write(chip, 0x58, 0x8005);
+    rf_write(chip, 0x4A, 0x157C);
+    rf_write(chip, 0x4D, 0x0000);
+    rf_write(chip, 0x3A, 0x40C9);
+    rf_write(chip, 0x5B, 0x1213);
+}
+
+/* [0x08027474 param_3==0 branch | RECOVERED session 49] detect/filter path:
+ * 0x58=0x840D (250 Hz CTCSS path), 0x4E=0x2002 (TX CTCSS enable bits),
+ * 0x59=0x0A8D (RX threshold). */
+void at1846s_filter_detect(uint8_t chip)
+{
+    rf_write(chip, 0x58, 0x840D);
+    rf_write(chip, 0x4E, 0x2002);
+    rf_write(chip, 0x59, 0x0A8D);
+}
+
+/* [0x0801A91A boot path | RECOVERED session 49] tone register pair at boot:
+ * 0x48=0x1E3C (tone1) and 0x49=0x0284 (tone2; the wrapper computes it from
+ * the tone tables at DAT_0801B594 with the boot-default state). The full
+ * table-driven computation is not exercised at boot. */
+void at1846s_tone_pair_boot(uint8_t chip)
+{
+    rf_write(chip, 0x48, 0x1E3C);
+    rf_write(chip, 0x49, 0x0284);
+}
+
+/* [DATA-DERIVED ORCHESTRATION | session 49] The original's power-on default
+ * channel apply, observed as events 101-290 of analysis/traces/ck3_rf_orig.txt
+ * (plain boot, no peer). The register-level primitives above are decompile-
+ * recovered; the call ORDER here reproduces the observed sequence because the
+ * original's orchestrating task chain (band detect -> per-chip setup) is not
+ * yet reconstructed. Runs on the reconstruction's dispatcher boot path. */
+void at1846s_boot_default_apply(void)
+{
+    /* Phase X: chip1 mode poke, GPIO maps, chip0 bank window + tone pair. */
+    rf_write(RF_CHIP_UHF, 0x30, 0x7002);             /* site 0x08025EC9   */
+    at1846s_gpio_reconfig(RF_CHIP_UHF, 0);           /* 0x9AA9            */
+    (void)rf_read(RF_CHIP_UHF, 0x30);                /* status poll       */
+    at1846s_boot_init_block_b(RF_CHIP_VHF);          /* bank-1 regs 0x06.. */
+    at1846s_tone_pair_boot(RF_CHIP_VHF);
+    at1846s_gpio_reconfig(RF_CHIP_VHF, 1);           /* 0x9BA9            */
+    at1846s_gpio_reconfig(RF_CHIP_UHF, 0);           /* 0x9AA9            */
+
+    /* Phase Y: chip0 default-channel apply (CTCSS off then RX mode). */
+    at1846s_standby(RF_CHIP_VHF, 0);
+    at1846s_ctcss_off(RF_CHIP_VHF);
+    at1846s_standby(RF_CHIP_VHF, 0);
+    at1846s_set_band_config(RF_CHIP_VHF, 0, 0);      /* zero freq matches the zero table tail -> 0x8543 */
+    at1846s_set_frequency(RF_CHIP_VHF, 0);
+    at1846s_mode_rx(RF_CHIP_VHF, 0);                 /* 0x7006, 0x70A6    */
+    (void)rf_read(RF_CHIP_VHF, 0x0D);                /* post-RX read      */
+
+    /* Phase Z: chip0 re-init (full table, then bank window again) + apply. */
+    at1846s_boot_init(RF_CHIP_VHF);
+    at1846s_boot_init_block_b(RF_CHIP_VHF);
+    at1846s_standby(RF_CHIP_VHF, 0);
+    at1846s_set_band_config(RF_CHIP_VHF, 0, 0);
+    at1846s_set_frequency(RF_CHIP_VHF, 0);
+    at1846s_mode_rx(RF_CHIP_VHF, 0);
+    at1846s_ctcss_off(RF_CHIP_VHF);
+
+    /* Phase W: chip1 full re-init, GPIO maps on both chips. */
+    at1846s_boot_init(RF_CHIP_UHF);
+    at1846s_gpio_reconfig(RF_CHIP_UHF, 0);
+    at1846s_gpio_reconfig(RF_CHIP_VHF, 0);
+
+    /* Phase V: chip0 apply with the detect filter, ending in TX mode. */
+    at1846s_standby(RF_CHIP_VHF, 0);
+    at1846s_filter_detect(RF_CHIP_VHF);
+    at1846s_standby(RF_CHIP_VHF, 0);
+    at1846s_set_band_config(RF_CHIP_VHF, 0, 0);
+    at1846s_set_frequency(RF_CHIP_VHF, 0);
+    at1846s_mode_tx(RF_CHIP_VHF, 0);                 /* 0x7006, 0x7046    */
+    at1846s_gpio_reconfig_plain(RF_CHIP_VHF, 1);     /* 0x9EA9            */
+}
+
 /* [0x08023200.. | RECOVERED] program the VCO frequency.
  * Freq<29:0> = freq_MHz * 16000 = (freq_Hz * 16) / 1000; the original
  * evaluates it in soft double ((freq/100000.0)*16000.0). */
@@ -266,14 +407,6 @@ void at1846s_set_band_config(uint8_t chip, int flag, uint32_t freq_10hz)
     rf_write(chip, 0x05, 0x8763);
 }
 
-/* [RECOVERED] reg 0x30 mode transitions observed in the image. */
+/* [RECOVERED] reg 0x30 mode transitions observed in the image; the band
+ * variants live in at1846s_standby/mode_tx/mode_rx above (session 49). */
 void at1846s_mode_standby(uint8_t chip) { rf_write(chip, 0x30, 0x4006); }
-void at1846s_mode_tx(uint8_t chip)      { rf_write(chip, 0x30, 0x4046); }
-void at1846s_mode_rx(uint8_t chip)      { rf_write(chip, 0x30, 0x40A6); }
-
-/* [0x080232E2 | RECOVERED] GPIO reconfiguration / soft-reset path:
- * entered when reg 0x1F reads 0x0FFF; the value is band-dependent. */
-void at1846s_gpio_reconfig(uint8_t chip, int band)
-{
-    rf_write(chip, 0x1F, band ? 0x9BA9 : 0x9AA9);
-}
