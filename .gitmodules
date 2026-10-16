@@ -4,6 +4,3 @@
 [submodule "repos/marrold-HG-UV98"]
 	path = repos/marrold-HG-UV98
 	url = https://github.com/marrold/HG-UV98.git
-[submodule "repos/hg-uv98-firmware"]
-	path = repos/hg-uv98-firmware
-	url = https://github.com/agamez/hg-uv98-firmware.git
