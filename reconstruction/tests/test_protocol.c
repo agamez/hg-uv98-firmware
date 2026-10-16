@@ -123,12 +123,62 @@ static void test_unknown_ignored(void)
     CHECK((proto_flags & FLAG_FRAME_READY) == 0);
 }
 
+/* Session 20: the UI-side sentence router (0x0800FE58) memcmps exactly
+ * 5-byte prefixes ($A00, ...) while the RX-ISR chain matches $A00/$A09
+ * at 4 bytes and $A01,/,$A02,/,$A08, at 5 — lock that distinction. */
+static void test_sentence_prefix_boundaries(void)
+{
+    puts("test_sentence_prefix_boundaries:");
+
+    /* $A00 accepted at exactly 4 bytes (ISR-chain check) ... */
+    proto_flags = 0;
+    protocol_frame_received((const uint8_t *)"$A00", 4);
+    CHECK((proto_flags & FLAG_FRAME_READY) != 0);
+    /* ... and with the comma-prefixed 5-byte form seen in the UI router */
+    proto_flags = 0;
+    protocol_frame_received((const uint8_t *)"$A00,x", 6);
+    CHECK((proto_flags & FLAG_FRAME_READY) != 0);
+    /* 3-byte fragment never matches */
+    proto_flags = 0;
+    protocol_frame_received((const uint8_t *)"$A0", 3);
+    CHECK((proto_flags & FLAG_FRAME_READY) == 0);
+
+    /* $A02/$A08 require the comma: 4 bytes without it must NOT match */
+    proto_flags = 0;
+    protocol_frame_received((const uint8_t *)"$A02", 4);
+    CHECK((proto_flags & FLAG_FRAME_READY) == 0);
+    proto_flags = 0;
+    protocol_frame_received((const uint8_t *)"$A08", 4);
+    CHECK((proto_flags & FLAG_FRAME_READY) == 0);
+    proto_flags = 0;
+    protocol_frame_received((const uint8_t *)"$A02,x", 6);
+    CHECK((proto_flags & FLAG_FRAME_READY) != 0);
+
+    /* $A09: compares a 4-byte prefix but gates on len >= 5 (the full
+     * sentence is "$A09\r\n") — 4 bytes alone must NOT trip it */
+    proto_flags = 0;
+    protocol_frame_received((const uint8_t *)"$A09", 4);
+    CHECK((proto_flags & FLAG_FRAME_READY) == 0);
+    proto_flags = 0;
+    protocol_frame_received((const uint8_t *)"$A09\r", 5);
+    CHECK((proto_flags & FLAG_FRAME_READY) != 0);
+
+    /* $B/$C match at 2 bytes */
+    proto_flags = 0;
+    protocol_frame_received((const uint8_t *)"$B", 2);
+    CHECK((proto_flags & FLAG_FRAME_READY) != 0);
+    proto_flags = 0;
+    protocol_frame_received((const uint8_t *)"$C", 2);
+    CHECK((proto_flags & FLAG_FRAME_READY) != 0);
+}
+
 int main(void)
 {
     test_send_cmd();
     test_settings_upload();
     test_telemetry_and_reads();
     test_unknown_ignored();
+    test_sentence_prefix_boundaries();
     if (failures) {
         printf("== %d FAILURE(S) ==\n", failures);
         return 1;
