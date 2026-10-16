@@ -1,10 +1,11 @@
 # followup.md — Getting the HG-UV98 reconstruction RUNNING: simulation & differential validation
 
 You are continuing a completed reverse-engineering project. The analysis phase is
-**finished** (34+ sessions, REA/Ghidra-validated, everything extractable extracted).
-Your mission is different: **make it run** — emulate the firmware, and validate the
-C reconstruction against the original binary by differential comparison. Read this
-file fully before writing any code.
+**finished** (44 sessions, REA/Ghidra-validated, everything extractable extracted —
+including the compressed `.data`, recovered and embedded in the build). Your mission
+is different: **make it run** — emulate the firmware, and validate the
+C reconstruction against the original binary by differential comparison.
+**Start at §1 (the session-44 handoff).**
 
 ---
 
