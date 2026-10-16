@@ -710,3 +710,9 @@ This completes the UI architecture: screen-switch function, screen inventory, me
 Complete chain: key_event -> per-screen pump -> ui_list_select (selection move + redraw) -> [activate] -> binary-search dispatcher -> screen init -> ui_state_set -> the per-state routers render.
 
 With this, the UI architecture has no remaining structural unknowns: screen-switch function, screen inventory (~141 states + RF states), menu dispatcher shape, per-state logic sites, key-action tables, string tables, redraw block layout, font chain, and display transport are all mapped. Remaining work is per-screen body detail (mechanical REA/capstone expansion, no architectural unknowns).
+
+### 2026-10-15 — Session 31: REA batch 2 — scroller + numeric S-meter
+
+- **0x0801715C = list-window scroller (corrects the "screen init" reading):** (list, new_end, selection) -> if selection > window end: window.start = min(new_end, selection), window.end = selection; else start unchanged; then 0x0801B074(list, 1). This is the menu scrolling mechanism.
+- **S-meter display is NUMERIC:** the renderer family at 0x0801EA04 (canonical entry; my 0x0801EB36 selector resolved into it) writes digit characters (+'0' bias) into a 20-byte field, formats "%2d-"-style above 0x32 (50 dB), draws at (0x27, 0x85) via 0x0801CC0C, and copies an 8-byte placeholder (DAT_0801F728) when no reading. The BCD history rings feed the peak timestamp, the numeric dB shows the live/peak level.
+- Ghidra failed to resolve 0x08014D06 (ui_list_select) and the protocol-handler in-body selector — capstone decodes stand.
