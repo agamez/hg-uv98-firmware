@@ -563,3 +563,17 @@ the self-referential repos/hg-uv98-firmware submodule was dropped (the dump now 
 the tree root, UV98_868_220430_D4/), and the README was rewritten in English with the
 current structure. The pre-rebase history is pinned locally in
 backup/pre-continuity-rebase.
+
+### 2026-10-15 — Session 20: input system closed; master UI task loop + protocol-sentence router recovered
+
+**1. Key-event system fully closed.** All 13 non-scanner key_event (0x0801E044) sites decoded:
+- **PTT synthesizer 0x08019F70**: gated like key_event itself (menu bit2, lock bytes +0x10D/+0x10E, lock flags); reads PTT state via 0x0801B28E(state byte) and on transition emits key_event(0/1) press/release pairs — or key_event([r6+0x40]) when a programmable key is configured.
+- **Software-scanned key loop 0x08020530**: `for i: state = 0x0801B28E(state_table[i]); key_event(i, state, 0)` — the extended keypad is software-polled through per-key state bytes (same 0x0801B28E debounced-pin reader as PTT).
+- **Programmable-key dispatchers** 0x0802021C, 0x0801C54E, 0x0801D41E: all emit key_event([struct+0x40], ...) — the currently-programmed key ID lives at struct+0x40; 0x0801D41E also writes per-key state into the key-lock byte +0x10D consumed by the key_event gate.
+- Physical key → ID mapping for programmable keys = RAM config (.data image absent — closed in session 19). Architecture complete: direct GPIOC scanner (IDs 0/1 + repeat), software-polled extended keys (loop indices), PTT synth, and user-programmable IDs.
+
+**2. Master UI task loop recovered — 0x08029178 (priority 3, created by main 0x08029120 via OSTaskCreateExt 0x080249A4 + OSTaskNameSet 0x08024A6C, then OSStart 0x08027392).** Body: hw_init 0x080290D0 → task creators 0x080175A8 (returns −1 → task exits) and 0x08017738 → loop: OSTimeDly-like wait 0x0801FF4C(30); heartbeat [0x2000469C+0x166]++ (u16); UI work skipped while suspend byte [0x2000469C+0x119] != 0; then **0x0800FE58, 0x08010302, 0x08015DCC every pass; 0x0800ED24 every 17th pass** (counter reset at 0x11). The "dispatcher cluster" = the task-loop's three fast routers + one slow housekeeping routine.
+
+**3. 0x0800FE58 = protocol-sentence → UI bridge.** memcmp (0x0801F610) of a 5-byte token against **"$A00,"** (flash literal at linked 0x0804476C) and two RAM-held prefixes (0x20004E68, .data — absent), then per-sentence handlers (0x08019A10, 0x0801CE78, ...) with sub-dispatch on payload bytes ('j'/'g'/'h' at [0x200050E8]). Consistent with the reconstructed protocol.c command set.
+
+**4. Addressing-convention refinement (important for tooling):** vector-table entry VALUES and literal-pool POINTER values are **linked addresses = file_offset + 0x08004000** (the vendor's link base), while code labels used throughout this log = file_offset + 0x08000000. When dereferencing pool pointers into the file, subtract 0x4000 from the stored value. (Verified: literal 0x0804476C → file 0x4076C = "$A00,\0\0\0$A01".)
