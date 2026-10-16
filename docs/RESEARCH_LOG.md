@@ -652,3 +652,25 @@ The draw helper 0x08018B60(x/y, ..., string, attr, [sp] attr): frame-ready gated
 **S-meter bar pipeline (final link):** after the ring write, 0x080198C0 shifts table[0]->table[1] (4-byte entries), snapshots the 30-byte table to the stack, and pops the three most recent entries as args to 0x08016B36 / 0x080167AA / 0x0801A296 — the bars render from the recent-peak history (3-entry graph), then peak state ([r4+0x12D]/[r4+0x40]) clears. Full chain: reg 0x1B[15:8] RSSI dB -> peak-hold -> every-5th-pass ring write + shift + snapshot -> 3-entry history render.
 
 **Reg 0x1C reads (2 sites):** each follows a GPIO pin check (read helper 0x0801F75E) in the scanner-cluster region — consistent with polling the AT1846S GPIO3 code_flag pin then reading the received CSS code (INFERRED; 0x1C is not in the Programming Guide's documented read-only set — register-table version difference).
+
+### 2026-10-15 — Session 28: queue finished — BCD rings, reg 0x1C, 'M'/'N' origin, state fingerprints
+
+**1. History-transform helpers identified.** 0x0801652C = BCD packer (nibble shifts over the formatted digit string); 0x080164DC = its pair. The S-meter ring entries = **BCD-encoded peak timestamps** (the "%02d"-formatted clock, packed 2 digits/byte).
+
+**2. Reg 0x1C confirmed (was INFERRED).** OpenRTX reads 0x1C for the **CTCSS2 compare flag** (bit 8) in rxCtcssDetected() — the original's two 0x1C reads after GPIO code-flag pin polls = the received-CSS detection path.
+
+**3. 'M'/'N' origin closed.** **0x08010530 = ui_state_set(state)** (guarded write to 0x200050E8). The 'M'/'N' transitions at 0x08011DC8/0x08011DE8: memcpy a **9-byte screen block** into the screen buffer, reset sub-counter +0x129, then ui_state_set('M'/'N') — the memory-mode screen-entry sequences.
+
+**4. Per-state functional fingerprints (bulk pass over all 60 compare sites):**
+- **0x00** idle: mixed UI/protocol work (draw_str, protocol handlers, rf_write, key_event)
+- **0x67 'g'**: memcmp + smeter_ring + rf_write + key_state = **the RX/RF-active state** (S-meter ring writes happen in 'g')
+- **0x68 'h' / 0x69 'i'**: memcmp + uart_tx = the beacon-data windows (session 26)
+- **0x2F '/'**: list_select + menu_redraw = **a menu-navigation state**
+- **0x78 'x'**: delay + list_select + menu_redraw ×2 = the refined menu state ('X' → 'x')
+- **0x4D 'M'**: draw_str = the memory-mode blinker state
+- **0x36 '6'**: memcpy ×3 = a data-transfer state
+- **0x02 / 0x04 / 0x47**: small buffer states (memcpy2/memset)
+- **0x45 'E' / 0x58 'X'**: pure-logic states (no known calls nearby)
+- 0x3F/0x40/0x50/0x7B/0x86: memcmp/memset/draw_str singletons
+
+With this, the state machine's structure (ui_state_set + printable-char enum), the input system, the S-meter chain, the beacon windows, and the menu block layout are all closed. Remaining truly-open: per-state bodies beyond the fingerprints (REA decompile per state), the stripped tail-table commands, and the .data image contents (absent from the artifact).
