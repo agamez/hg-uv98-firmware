@@ -820,3 +820,15 @@ Consequences (final, supersedes every earlier reading):
 4. The KT build: same structure (its walkers/loaders are the same armcc library at shifted addresses; the KT's entry-1 = the same zeroinit pattern); its full-length file simply carries the bilingual .data.
 
 **The reverse engineering of the distributed artifacts is complete at every level: code, boot chain, compressed data, tables, strings (GB2312 + English), and the state machine.** The recovered tables feed the reconstruction and the simulation plan (followup.md) directly — no synthesis needed.
+
+### 2026-10-15 — Session 42: KT tables decompressed — the bilingual menu recovered as data
+
+With the correct descriptor reading (the KT's decompressor entry @file 0x3E99C: {stream 0x3318 -> file 0x41CB4, flags 0x1EC0 -> 3,936 packed bytes, dst 0x20000000}), the KT's full RAM table image decompressed: **5,937 bytes at 0x20000000-0x20001730 — the identical layout to the 190416 build**.
+
+- **1,150 string references, 951 English UI strings** (analysis/kt_english_strings.txt): the main menu ("1 Radio", "2 Location", "3 GPS", "4 Beacon Setup", "5 Beacon Mode", "6 Digipeater", "7 Bluetooth", "8 APRS Advanced", "9 About", "10 Odometer", "11 WX Unit") and the Radio submenu ("1 Screen Save" ... "18 Language", "19 Voice Assist") — the menu tree as RAM data, matching docs/MENU_TREE.md.
+- The flash string pools: Chinese and English menus sit in adjacent regions; the language selection = which pointer set the RAM tables expose.
+- Also fixed a long-standing helper bug (the string-dereference base) that had masked these strings in earlier spot checks.
+
+**Every table in both builds is now recovered as data.** The reconstruction and the followup.md simulation can load the real bilingual menus — Chinese from the 190416 tables, Chinese + English from the KT tables — with zero synthesis.
+
+(The recovered table images are deliverables, not scratch — copied to `reconstruction/data/`: `ram_tables_recovered.bin` (190416, RAM 0x20000000-0x20001730), `kt_ram_tables_recovered.bin` (KT, same span, bilingual content), `kt_english_strings.txt` (951 English UI strings with their RAM addresses).)
