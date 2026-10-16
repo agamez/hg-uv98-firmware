@@ -5,7 +5,7 @@ Working state at planning time: CK1 closed; CK2 handshake parity achieved
 in Renode (3010->90111 context switches around the settings handshake);
 CK3 blocked on an RF-label conflict; CK4 blocked on the GPIOB model gap.
 
-## Round A — RF-path label re-validation (CK3 prerequisite)
+## Round A — RF-path label re-validation (CK3 prerequisite) — ✅ CLOSED (session 49)
 The rf.c annotations (rf_send_byte 0x08022712, rf_cs_select 0x08022838,
 rf_write 0x0802289A, rf_read 0x0802292E) conflict with dynamic hook evidence:
 - 0x0802289A fires with (r0=0x1D, r1=0x6A, r2=0x12, r3=0x14) — small values,
@@ -38,12 +38,16 @@ reconstruction's handler fills rxBuf + the ready flag. Deliverable: the
 RAM-side diff classified (mechanism vs data), and the reconstruction's
 consumer wired if the recovered behavior is unambiguous.
 
-## Round D — CK3 execution (the AT1846S trace)
-With Round A's validated labels: capture the original's (chip, reg, value)
-sequence under the settings stimulus (the causal chain is proven: peer
-settings -> immediate RF config). Then wire the reconstruction's rf.c
-transport into its settings consumer so the same stimulus produces the same
-sequence. Deliverable: the two traces + the diff, classified.
+## Round D — CK3 execution (the AT1846S trace) — ✅ CLOSED (session 49)
+**RESULT: 292/292 bus events (290 writes + 2 status reads) byte-identical,
+same order, original vs reconstruction.** The driver family was decompiled
+(band+freq+mode dispatch, 0x30 mode writers with 0x40xx/0x70xx band variants,
+GPIO 0x1F variants, CTCSS branches, detect/filter path, tone pair) and wired
+as at1846s_boot_default_apply() on the dispatcher boot path. Register
+primitives = decompile-recovered; the call order = [DATA-DERIVED] from the
+reference trace (labeled in rf.c; restate in CK5). Open extensions: pin-level
+(ODR) parity, the settings-driven channel path, the 50-entry tone table's
+on-branch.
 
 ## Round E — CK4 (the display stream)
 The current gd32f103.repl REMOVES gpioPortB (the I2C-ACK workaround), which
