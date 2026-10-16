@@ -7,7 +7,13 @@ extern void irq_install(uint32_t irq, void (*handler)(void));  /* startup.c */
 
 /* ---- USART2: APRS coprocessor / BT-app link (RECOVERED) ------------------ */
 
-static uint8_t  u2_ring[64];          /* original reassembles frames directly */
+static uint8_t  u2_ring[536];         /* [session 49 fix] was 64: the 534-B
+                                       * settings frame overflowed the ring, the
+                                       * CRLF tail never stored, the terminator
+                                       * check never fired and the index wedged
+                                       * at 64 dropping EVERY later frame. The
+                                       * original's ISR buffer (DAT_08023EE0)
+                                       * holds the full 0x216 frame. */
 static volatile uint32_t u2_idx;
 
 void usart2_init(void)
@@ -28,10 +34,16 @@ void usart2_init(void)
     irq_install(IRQ_USART2, USART2_IRQHandler);
 
     USART_BRR(USART2_BASE) = 0x2580;                  /* 9600 baud at 72/108 MHz per SPL */
-    USART_CR1(USART2_BASE) = USART_CR1_TE | USART_CR1_RE | USART_CR1_RXNEIE;
+    /* [session 49 fix] CR1 written ONCE as a 32-bit access. The previous
+     * two-step init (plain write, then "|= UE" read-modify-write) lost
+     * RE/TE/RXNEIE: the Renode STM32_UART model registers Word(4B) and
+     * Byte(1B) translations only, and the RMW's 16-bit read returned
+     * garbage (0x4000101-class) which was then written back with UE set,
+     * leaving the receiver interrupt permanently disabled and the RX path
+     * dead (the ISR re-take starvation diagnostics, session 49 log). */
+    REG32(USART2_BASE + 0x0C) = USART_CR1_TE | USART_CR1_RE | USART_CR1_RXNEIE | USART_CR1_UE;
     USART_CR2(USART2_BASE) = 0;
     USART_CR3(USART2_BASE) = 0;
-    USART_CR1(USART2_BASE) |= USART_CR1_UE;
 
     u2_idx = 0;
     NVIC_ISER1 = (1u << (IRQ_USART2 - 32u));
@@ -48,27 +60,35 @@ void usart2_send(const uint8_t *buf, uint32_t len)
 }
 
 /* [0x0801F920 | RECOVERED]: RXNE ISR; accumulate into ring; on '\r\n'
- * require buf[0]=='$' and post the frame to the protocol layer. */
+ * require buf[0]=='$' and post the frame to the protocol layer.
+ * [session 49 fix]: drains the whole receive FIFO per entry. The original's
+ * ISR runs one byte per entry, but the model's level-held IRQ is re-taken
+ * per byte only for the original binary (Renode evidence: the original's
+ * ISR entered 534x, the reconstruction's stopped after 83 with RXNE still
+ * set and the queue non-empty). Draining per entry is behaviorally
+ * identical — the ring and the frame boundary logic are unchanged. */
 void USART2_IRQHandler(void)
 {
-    uint8_t b;
+    for (;;) {
+        uint8_t b;
 
-    if (!(USART_SR(USART2_BASE) & USART_SR_RXNE))
-        return;                                       /* original: GetITStatus gate */
+        if (!(USART_SR(USART2_BASE) & USART_SR_RXNE))
+            return;                                   /* original: GetITStatus gate */
 
-    b = (uint8_t)USART_DR(USART2_BASE);
-    if (u2_idx < sizeof(u2_ring))
-        u2_ring[u2_idx++] = b;
+        b = (uint8_t)USART_DR(USART2_BASE);
+        if (u2_idx < sizeof(u2_ring))
+            u2_ring[u2_idx++] = b;
 
-    if (u2_idx >= 3 &&
-        u2_ring[u2_idx - 2] == '\r' && u2_ring[u2_idx - 1] == '\n') {
-        if (u2_ring[0] == '$') {
-            protocol_frame_received(u2_ring, u2_idx);
+        if (u2_idx >= 3 &&
+            u2_ring[u2_idx - 2] == '\r' && u2_ring[u2_idx - 1] == '\n') {
+            if (u2_ring[0] == '$') {
+                protocol_frame_received(u2_ring, u2_idx);
+            }
+            /* non-'$' frames: original clears the ready flag and resets
+             * (app-text commands are documented as unreachable in the June
+             * build behind the '$' gate — research log session 3). */
+            u2_idx = 0;
         }
-        /* non-'$' frames: original clears the ready flag and resets
-         * (app-text commands are documented as unreachable in the June
-         * build behind the '$' gate — research log session 3). */
-        u2_idx = 0;
     }
 }
 

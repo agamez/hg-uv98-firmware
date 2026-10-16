@@ -1519,3 +1519,49 @@ original's display stream captured (187k events); the recon gap quantified.**
   reconstruction (0x080284F2/0x080285B6 serial functions + the controller
   init + the font streaming path), then a structural diff of the two
   streams. The capture infrastructure and the original reference = DONE.
+
+**Session 49, part 5 — Round B/C: the CK2-broadening unblocked a REAL
+reconstruction bug cluster (the RX path); two bugs fixed, one parked.**
+- BUG 1 FIXED: u2_ring was 64 bytes — the 534-byte settings frame overflowed
+  it, the CRLF tail never stored, the frame boundary never fired, and the
+  ring index wedged at 64 dropping EVERY subsequent frame. The
+  session-48 CK2 parity matrix's "RX settings frame | 534 B consumed"
+  reconstruction row was NEVER actually verified — retracted; only the TX
+  parity was real. Ring = 536 now.
+- BUG 2 FIXED: the usart2_init wrote CR1 in two steps (plain write, then
+  "|= UE" read-modify-write). The Renode STM32_UART model registers
+  Word(4B)/Byte(1B) translations only; the RMW's 16-bit read returned
+  garbage (0x4000101-class) which was written back with UE set, leaving
+  RE/TE/RXNEIE clear (final CR1 = 0x4002101) — the receiver interrupt was
+  permanently disabled. CR1 is now written once as a 32-bit access
+  (verified 0x202C after boot).
+- BUG 3 PARKED (open issue R1): with the ring and CR1 fixed, the
+  reconstruction's USART2 ISR still starves. Evidence: the original's ISR
+  is entered 534 times for an instant 534-byte injection (RXNE set on every
+  entry; the model's level-held IRQ is re-taken per byte), while the
+  reconstruction's ISR is entered only 27-83 times (varies with the
+  injection pacing: 27 paced/8-byte chunks, 44 per-2-byte chunks, 83
+  instant), then never again; OSCtxSwCtr freezes; the PC is last seen in
+  OS_CPU_PendSVHandler. The ISR never reaches protocol_frame_received
+  (no frame boundary within the first 27-83 bytes). Diagnostics collected:
+  nvic-level logs (only 4-5 "External IRQ 54" raises for the recon vs
+  continuous for the original), ISR entry counters, CR1/SR/ISER/ISPR dumps.
+  Next-round candidates: (a) diff the vendored port's PendSV/nesting path
+  against the original's exception flow under a pre-empted ISR; (b) probe
+  the model's IRQ re-raise semantics (cf. renode issue #690's idle-line
+  token race in the same model); (c) a custom Python UART with explicit
+  per-byte IRQ edges as the harness-side workaround. The CK2 broadening
+  ($A01/$B/$C stimuli, the pattern-payload diff) resumes after R1.
+- ROUND C partial result (the original side, unaffected by R1): the
+  pattern-payload run (settings[i] = i & 0xFF) shows the original stores
+  the RAW 534-byte frame at TWO buffers (0x20003AD0 and 0x20003BD0 —
+  matching the decompiled $A00 branch's two memcpy targets DAT_08023EEC/
+  DAT_08023EF0) AND parses a sparse typed-field structure at
+  0x20004E40..0x20004F80 (a 6-byte '000000' callsign field, a 4x0x38
+  field, scattered config bytes — the parser copies only the fields it
+  consumes). The reconstruction's consumption = the raw rxBuf copy only;
+  the typed-field parser is not reconstructed. First extraction of the
+  boot init table had byte-swapped 21/50 entries (the hook logs' unpadded
+  hex concatenation "0A1" = bytes 00,A1 = 0xA100, NOT 0x00A1) — the SENDN
+  wire captures ([reg, val_hi, val_lo]) were the ground truth; corrected
+  in session 49 part 2.

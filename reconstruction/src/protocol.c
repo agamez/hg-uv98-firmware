@@ -58,6 +58,11 @@ static volatile uint8_t proto_flags;
 #define FLAG_FRAME_READY 0x01
 
 static char    rxBuf[536];      /* largest confirmed frame: 0x216 = 534 B  */
+static char    rxBuf2[536];     /* [session 49 decompile 0x08023920]: the $A00
+                                 * branch mem_copies the frame to TWO buffers
+                                 * (DAT_08023EEC and DAT_08023EF0 — the two
+                                 * raw copies observed at 0x20003AD0/0x20003BD0
+                                 * in the pattern-payload run)               */
 static uint32_t rxLen;
 
 void protocol_frame_received(const uint8_t *frame, uint32_t len)
@@ -88,8 +93,14 @@ void protocol_frame_received(const uint8_t *frame, uint32_t len)
         proto_flags |= FLAG_FRAME_READY;
         return;
     }
-    if (len >= 4 && mem_cmp(frame, "$A00", 4) == 0) {
+    /* [session 49 decompile 0x08023920]: the $A00 branch requires the 5-byte
+     * prefix "$A00," AND length == 0x216, then copies the frame to BOTH
+     * buffers and clears a UI-refresh flag bit. */
+    if (len >= 5 && mem_cmp(frame, "$A00,", 5) == 0) {
+        if (len != 0x216)        /* settings response length gate          */
+            return;              /* original clears the ready flag         */
         mem_copy(rxBuf, frame, len);
+        mem_copy(rxBuf2, frame, len);
         rxLen = len;
         proto_flags |= FLAG_FRAME_READY;
         return;
