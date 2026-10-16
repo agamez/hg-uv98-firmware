@@ -1,0 +1,15 @@
+using sysbus
+mach create "hguv98-orig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus Tag <0x40010C08, 0x40010C0B> "GPIOB_IDR" 0x00000000
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x0802846A "self.Log(LogLevel.Info, 'CFGOUT lr=0x{0:X}', self.GetRegister(14).RawValue)"
+echo "=== 0-10 ms ==="
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+echo "=== run to 0.2 s ==="
+emulation RunFor "00:00:00.190"
+quit

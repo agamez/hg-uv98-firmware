@@ -1,0 +1,42 @@
+using sysbus
+mach create "hguv98-orig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus Tag <0x40010C08, 0x40010C0B> "GPIOB_IDR" 0x00000000
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+echo "=== 0-10 ms ==="
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+echo "=== run to 1.0 s ==="
+emulation RunFor "00:00:00.990"
+echo "=== PC / SP:"
+sysbus.cpu PC
+sysbus.cpu SP
+echo "=== stack words (24):"
+sysbus ReadWord 0x200022DC
+sysbus ReadWord 0x200022E0
+sysbus ReadWord 0x200022E4
+sysbus ReadWord 0x200022E8
+sysbus ReadWord 0x200022EC
+sysbus ReadWord 0x200022F0
+sysbus ReadWord 0x200022F4
+sysbus ReadWord 0x200022F8
+sysbus ReadWord 0x200022FC
+sysbus ReadWord 0x20002300
+sysbus ReadWord 0x20002304
+sysbus ReadWord 0x20002308
+sysbus ReadWord 0x2000230C
+sysbus ReadWord 0x20002310
+sysbus ReadWord 0x20002314
+sysbus ReadWord 0x20002318
+sysbus ReadWord 0x2000231C
+sysbus ReadWord 0x20002320
+sysbus ReadWord 0x20002324
+sysbus ReadWord 0x20002328
+sysbus ReadWord 0x2000232C
+sysbus ReadWord 0x20002330
+sysbus ReadWord 0x20002334
+sysbus ReadWord 0x20002338
+quit

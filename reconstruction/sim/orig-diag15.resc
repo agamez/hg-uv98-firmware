@@ -1,0 +1,25 @@
+using sysbus
+mach create "hguv98-orig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08023678 "self.Log(LogLevel.Info, 'GPIOCFG port=0x{0:X} lr=0x{1:X} r1=0x{2:X}', self.GetRegister(0).RawValue, self.GetRegister(14).RawValue, self.GetRegister(1).RawValue)"
+echo "=== 0-10 ms ==="
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+echo "=== run to 1.2 s ==="
+emulation RunFor "00:00:01.190"
+echo "=== descriptor A (0x200022D4):"
+sysbus ReadDoubleWord 0x200022D4
+echo "=== descriptor B (0x200022DC):"
+sysbus ReadDoubleWord 0x200022DC
+echo "=== stack context around (0x200022C8..0x200022F0):"
+sysbus ReadDoubleWord 0x200022C8
+sysbus ReadDoubleWord 0x200022CC
+sysbus ReadDoubleWord 0x200022D0
+sysbus ReadDoubleWord 0x200022D8
+sysbus ReadDoubleWord 0x200022E0
+sysbus ReadDoubleWord 0x200022E4
+quit

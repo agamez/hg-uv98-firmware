@@ -1119,3 +1119,77 @@ gap to solve for the display/keypad init (§4 item 2/5).
 **CK status:** CK1 CLOSED (session 45). CK2 blocked on the original's boot
 completing — the GPIO retry loop is the blocker. The reconstruction side of
 CK2 (USART2 conformance vectors) is already green (make test-host).
+
+### 2026-10-16 — Session 47: the original's stall decoded — a software-I²C EEPROM master waits for an ACK no slave gives
+
+**1. HARNESS FIX (works): the armlink scatter base r9.** The decompressed
+tables' flash pointers lost their 0x0804 prefix (session 46) because the
+decompressor's `add r5, r9` (label 0x0801D85A; descriptor flag bit31) adds
+r9 — the armcc scatter base — and Renode's reset leaves r9 = 0. Fix: hook
+the walker entry (0x08042900 — a translation-block start, where hooks fire)
+and `SetRegister(9, RegisterValue.Create(0x08040000, 32))` (IronPython needs
+the RegisterValue type, not an int). Result: table word 0x20000000 =
+0x08043B20 ✓ — the firmware's own fixup code now runs correctly. This is
+equivalent to (and more surgical than) the followup-§4-sanctioned preload of
+`ram_tables_recovered.bin`.
+
+**2. THE STALL FULLY DECODED — it is a software-I²C master with no slave.**
+The driver cluster (labels 0x08023660-0x080287E0, reached only via indirect
+calls/vtables — no static callers in bl_graph):
+- GPIO primitives (label: function): 0x08023678 config writer (CRL/CRH
+  nibble build + BSRR/BRR pull-direction for configs 0x28/0x48), 0x08023780
+  BSRR set, 0x08023788 BRR clear, 0x08023790 ODR write, 0x0802375E pin read
+  (IDR & mask), 0x080284E4 countdown delay.
+- THE BUS: DATA = **PB9**, CLOCK = **PA11** (NEW wiring — absent from the
+  followup table and from earlier log sessions). Write transaction: START
+  (0x080284F2) → send byte 0xA0 (classic I²C EEPROM WRITE opcode; 8 bits
+  MSB-first, per-bit DATA set/clear + CLK pulse, delay(10) units) → wait
+  RAM flag 0x2000515C == 1 → send addr-hi, addr-lo, data bytes, each
+  followed by a flag wait.
+- THE ACK: after the 8 data bits the send primitive configures PB9 as
+  input-floating, pulses the 9th clock (PA11 high, delay(10)), samples PB9
+  (0x0802375E) and writes the flag: bit==0 (ACK, slave pulls low) → flag=1;
+  bit==1 → flag=0. NAK → the caller redoes the WHOLE transaction (the
+  23k-call config-writer storm = these retries; the flag at 0x2000515C stays
+  0 forever in emulation).
+- The peer is an I²C-style EEPROM-class slave. NOT the 8051 (its AT24C512
+  hangs off the 8051's own P2.4/P2.5; the 8051 link is UART-only — verified
+  in UV98_868_220430_D4/MAIN/IO.H + AT24C512.c). Identity TBD (a settings
+  EEPROM on the main CPU's bus is the prime candidate).
+- TIM2 red herring closed: DIER=0x2 (CC1IE) with CCR1=0xFFFF > ARR=0x7D —
+  the CC1 interrupt CANNOT fire even on silicon; SR.UIF sets but UIE=0 →
+  no TIM2 IRQ ever. ISER=0x10000000 (IRQ28) with an empty ISPR is consistent.
+  The flag setter is NOT an ISR.
+
+**3. FAILED WORKAROUNDS (documented so nobody retries them):**
+- Tag GPIOB IDR (0x40010C08-0B) = 0: the tag shadows MONITOR reads (readback
+  0) but the stall persists — the ACK sample still behaves as NAK. Tagging
+  the whole GPIOB range (0x40010C00-0x40010FFF) also fails. Root suspicion:
+  the model's Connections state for PB9 retains the MCU's last ODR drive
+  through the output→input reconfig, and the tag/CPU interaction does not
+  produce the needed read-0 at the sample instant.
+- Wiring CaptureCompareInterrupt -> nvic@28 for timer2 (correct per real F1
+  semantics — KEPT in gd32f103.repl — but irrelevant: CC1 never matches).
+
+**4. THE PROPER FIX (next session, well-scoped): a Python I²C-slave
+peripheral** wired `-> gpioPortB@9` (DATA) with its clock input fed from a
+PA11 tap: count clock edges, capture 8 data bits, drive DATA low during the
+9th-clock ACK window (the model IGNORES external signals on output pins, so
+contention is free), maintain an EEPROM array (write transactions at 0xA0;
+read transactions at 0xA1 drive DATA per the byte — erased = 0xFF vs 0x00
+semantics to be validated against the boot's expectations). This is the same
+class of work as the followup-§4 synthesized font flash — harness-side only.
+
+**5. TOOLING LESSON (critical): Renode CPU hooks fire ONLY at
+translation-block starts** (branch targets/BL targets/exception entries).
+Mid-block hooks (e.g. 0x08028484 — the bl INTO the config writer) never fire
+even though the instruction provably executes (LR evidence at the callee's
+own hook). This explains the session-46 "0 hits" contradictions. When a hook
+doesn't fire, check whether the address is a branch target; hook the block
+start or the callee instead.
+
+**CK status:** CK1 CLOSED. CK2: the original's boot still stops at the I²C
+ACK wait (deterministic, OSTime=0x68F4 identical across runs); the tables are
+now correct (r9 fix); the remaining gap = the missing I²C slave, same
+category as the followup-§4 synthesized peripherals. The reconstruction side
+of CK2 remains green (make test-host).

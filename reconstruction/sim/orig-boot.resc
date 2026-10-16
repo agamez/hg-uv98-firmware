@@ -1,18 +1,25 @@
-# orig-boot — run the ORIGINAL firmware binary unmodified (session 45).
+# orig-boot — run the ORIGINAL firmware binary unmodified (canonical run).
 #
-# Session 38/41 retraction applies: the image is NOT neutered. The reset
-# handler (label 0x08044690 = file 0x40690) is `nop.w; nop.w; bl 0x080429D4`
-# -> boot stub -> init walker -> __scatterload_zeroinit + compressed-RW-data
-# decompressor -> main (0x08029120). followup.md §5's "minimal patch" is
-# unnecessary; this runner executes the vendor bytes as-is.
+# Sessions 46-47 state:
+#   * NO reset patch needed (session 38/41 retraction stands; the boot chain
+#     is intact) — the vendor bytes execute as-is via LoadBinary @0x08004000.
+#   * Harness workaround 1 (session 45): SYST_CVR=0 written at t=10 ms —
+#     Renode's descending SysTick LimitTimer with CURRENT=0 first fires at
+#     0xFFFFFF/fclk; silicon wraps in ~1 tick. Restate in equivalence reports.
+#   * Harness workaround 2 (session 47): r9 := 0x08040000 at the init-walker
+#     entry — the armlink compressed-RW-data loader adds r9 (the scatter
+#     base) to RAM-base-relative table pointers; Renode's reset leaves r9=0,
+#     so every table pointer lost its 0x0804 prefix and the boot's
+#     table-driven init executed through broken pointers. With r9 set, the
+#     firmware's own fixup code produces correct tables (0x20000000 =
+#     0x08043B20).
+#   * KNOWN REMAINING STALL (session 47): the prio-3 task's software-I²C
+#     EEPROM master (DATA=PB9, CLK=PA11) waits for a per-byte ACK that no
+#     slave model gives; the next harness item is a Python I²C-slave
+#     peripheral (see session-47 log entry for the full protocol decode).
 #
-# Harness-side notes (same as ck1.resc):
-#   * RCC_CFGR tag satisfies the vendor SystemInit SCLK_STS poll.
-#   * SYST_CVR=0 written at t=10 ms — the Renode SysTick model quirk
-#     (descending LimitTimer with CURRENT=0 first fires at 0xFFFFFF/fclk;
-#     silicon wraps in ~1 tick). Must be restated in equivalence reports.
-#   * The original's OSCtxSwCtr lives at RAM 0x200050EC (literal pool
-#     0x08027B34, read out of the original's OSIntExit @0x0802731A).
+# The original's OSCtxSwCtr = RAM 0x200050EC, OSTime = 0x2000511C (literal
+# pools 0x08027B34/0x08027B44 read out of OSIntExit/OSTimeTick).
 
 using sysbus
 mach create "hguv98-orig"
@@ -26,6 +33,9 @@ sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
 
 sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
 
+# the armlink scatter base (session 47)
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+
 # protocol UART output (USART2 = the 8051 link) to the console
 showAnalyzer sysbus.usart2
 
@@ -34,15 +44,19 @@ emulation RunFor "00:00:00.010"
 
 sysbus WriteDoubleWord 0xE000E018 0x00000000
 
-echo "=== run 100 ms — OS tick @1 kHz ==="
+echo "=== run 100 ms — OS tick ==="
 emulation RunFor "00:00:00.100"
 echo "=== OSCtxSwCtr (0x200050EC):"
 sysbus ReadDoubleWord 0x200050EC
+echo "=== OSTime (0x2000511C):"
+sysbus ReadDoubleWord 0x2000511C
 
-echo "=== run 100 ms more ==="
-emulation RunFor "00:00:00.100"
-echo "=== OSCtxSwCtr again (must grow ~100):"
+echo "=== run 900 ms more ==="
+emulation RunFor "00:00:00.900"
+echo "=== OSCtxSwCtr:"
 sysbus ReadDoubleWord 0x200050EC
+echo "=== OSTime:"
+sysbus ReadDoubleWord 0x2000511C
 echo "=== fault registers (must stay 0):"
 sysbus ReadDoubleWord 0xE000ED28
 sysbus ReadDoubleWord 0xE000ED2C
