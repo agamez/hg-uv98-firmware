@@ -110,34 +110,48 @@ void rf_cs_select(int mode)
     GPIOA_ODR = (uint16_t)(GPIOA_ODR & (uint16_t)~clr);
 }
 
-/* [0x08022712 | RECOVERED] shift one byte MSB-first; CLK idles low and
- * toggles once per bit; DATA changes while CLK low. */
+/* [0x08022712 | RECOVERED | session 49 Ghidra pin-exact re-derivation]
+ * shift one byte MSB-first; per bit: CLK LOW -> (delay 10) -> DATA by bit
+ * -> (delay 10) -> CLK HIGH -> (delay 4). CLK idles HIGH between bits of a
+ * byte and the wrapper drives it LOW again after the frame. */
 static void rf_send_byte(uint8_t b)
 {
     for (int i = 7; i >= 0; i--) {
+        GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_CLK);
+        rf_delay(10);
         if ((b >> i) & 1u)
             GPIOA_ODR = (uint16_t)(GPIOA_ODR | RF_DATA);
         else
             GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_DATA);
+        b = (uint8_t)(b << 1);
+        rf_delay(10);
         GPIOA_ODR = (uint16_t)(GPIOA_ODR | RF_CLK);
-        rf_delay(10);
-        GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_CLK);
-        rf_delay(10);
+        rf_delay(4);
     }
 }
 
-/* [0x0802289A | RECOVERED] 24-bit write frame: R/W=0 + 7-bit address,
- * then 16-bit data high byte first. */
+/* [0x0802289A | RECOVERED | session 49 Ghidra pin-exact re-derivation]
+ * 24-bit write frame: CLK low -> delay 8 -> select chip -> delay 10 ->
+ * send [R/W=0 + addr7, data_hi, data_lo] -> delay 8 -> trailing both-CS
+ * select -> CLK low, DATA low (bus idle). */
 void rf_write(uint8_t chip, uint8_t reg, uint16_t val)
 {
-    rf_cs_select(chip);
+    uint8_t frame[3];
+
+    frame[0] = (uint8_t)(reg & 0x7Fu);      /* R/W = 0 */
+    frame[1] = (uint8_t)(val >> 8);
+    frame[2] = (uint8_t)(val & 0xFFu);
     GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_CLK);
     rf_delay(8);
-    rf_send_byte((uint8_t)(reg & 0x7Fu));   /* R/W = 0 */
-    rf_send_byte((uint8_t)(val >> 8));
-    rf_send_byte((uint8_t)(val & 0xFFu));
+    rf_cs_select(chip);
+    rf_delay(10);
+    for (int i = 0; i < 3; i++)
+        rf_send_byte(frame[i]);
     rf_delay(8);
     rf_cs_select(2);                        /* trailing pattern: both CS */
+    GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_CLK);
+    GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_DATA);
+    rf_delay(8);
 }
 
 /* [0x0802292E | RECOVERED] read frame: send reg|0x80 (R/W=1), turn the

@@ -1365,3 +1365,55 @@ With the emulationManager-in-hook memory access:
   = IDENTICAL RF write/read sequences from both images (the original's
   captured sequence = the reference; the reconstruction's settings consumer
   + rf.c = the implementation to match).
+
+**Session 49 — CK3 Round A: the RF-label "conflict" RESOLVED (an address-space
+bug, not a mislabel); reference AT1846S bus trace captured.**
+- ROOT CAUSE of session 48's label conflict: the hook census placed hooks at
+  rf.c's IMAGE LABELS (file+0x08000000 convention) directly as Renode hook
+  addresses, but Renode loads the image at 0x08004000, so Renode hook
+  address = label + 0x4000 = file + 0x08004000 — exactly the conversion rf.c
+  line 8 has documented all along ("physical flash = label + 0x4000"). The
+  census hooks therefore fired inside UNRELATED functions at file 0x1Exxx
+  (UI/status code), producing the incoherent args. RETRACTION of session 48
+  parts 3-4's interpretations: there is no pop-dispatch/resumption-point
+  structure, 0x0801CD20 is not an RF helper, and 0x08022712 is not a delay
+  loop — all were artifacts of hooking wrong addresses. The rf.c function
+  boundaries were CORRECT.
+- Method: REA/Ghidra 12.1.4 on the raw binary opened with entry 0x08004000
+  (REA address space == Renode address space == file+0x08004000; REA addr =
+  log-label + 0x4000). Decompiles validate rf.c completely:
+  * FUN_0802689A (rf_write): CLK low -> delay 8 -> cs_select(chip) ->
+    delay 10 -> send 3 bytes [reg, data_hi, data_lo] -> delay 8 ->
+    cs_select(both) -> CLK low + DATA low -> delay 8. Frame buffer is a
+    local copy of {u8 reg; u8 pad; u16 val} — wire order MSB-first.
+  * FUN_08026838 (rf_cs_select): mode 1 = CS1(PA12) set + CS0(PA8) clear;
+    mode 0 = CS0 set + CS1 clear; other = both set. Matches rf.c.
+  * FUN_08026786 (send-N loop) and FUN_08026712 (rf_send_byte): per bit
+    CLK LOW -> delay 10 -> DATA by bit -> delay 10 -> CLK HIGH -> delay 4.
+    rf.c updated to this pin-exact order (was CLK-high-then-low per bit).
+  * FUN_080267AA = the RF-bus GPIO init (PA9/PA15/PA8/PA12 -> output mode 3
+    via the gpio_init helper 0x08023678), called from hw_init.
+- Corrected hooks (Renode space): rf_write 0x0802689A, sendN 0x08026786,
+  send_byte 0x08026712, rf_read 0x0802692E. Capture script
+  /tmp/opencode/orig-rfOK.resc, plain 5 s boot, NO peer needed.
+- **CK3 REFERENCE TRACE captured: analysis/traces/ck3_rf_orig.txt.**
+  290 rf_write (104 with cs=1, 186 with cs=0), 2 rf_read (cs=1 reg 0x30;
+  cs=0 reg 0x0D), 872 send_byte events (290x3 write bytes + 2x1 read
+  address bytes — cross-check EXACT). The stimulus is a plain boot: the
+  whole sequence is boot-time RF init + default state, fully deterministic
+  under the platform workarounds (SPI2 font-flash returns 0xFF).
+- Sequence decode (buf = {reg, pad, val_lo, val_le-hi}; wire = [reg, hi, lo]):
+  head = classic AT1846S init on cs=1: 0x30=0x0001 (soft reset), 0x30=0x0004,
+  0x04=0x0FD0 (clk_mode), 0x0A=0x7EA0, 0x13=0x00A1, 0x1F=0x9AA9, 0x31, 0x33,
+  0x34, 0x41..0x63 block, then 0x30=0xA440/0xA640/0x0640 mode staging; the
+  cs=0 chip gets the mirrored block (186 writes). Tail: 0x05=0x8543 (the
+  band-table MATCH value — so band config runs with a real default
+  frequency even though reg 0x29/0x2A are programmed 0x0000), 0x30=0x0670 /
+  0x4670, 0x1F=0x9A9A / 0x9A9E. No consecutive duplicate (reg,val) pairs.
+- CS semantics observed: mode 1 selects the first-configured chip, mode 0
+  the second — rf.c's chip naming (0/1) is consistent with the decompile
+  (mode -> PA12/PA8 complementary drive).
+- Next (Round D): wire the reconstruction's rf.c into a boot driver
+  reproducing this sequence; the static init table is directly recovered;
+  the computed tail (band config value 0x8543, mode staging) needs the
+  driver logic; then byte-diff the two traces.
