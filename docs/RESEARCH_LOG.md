@@ -648,3 +648,7 @@ The 20-byte argument block consumed by the menu redraw 0x08010D5E is NOT five RA
 - word4: extra pointer passed through on the stack
 
 The draw helper 0x08018B60(x/y, ..., string, attr, [sp] attr): frame-ready gated (flag+8 bit0), draw-begin 0x08019840(1), GB2312-aware byte pairing (>= 0x81 pairs), matching the list renderer 0x08018E0C. Loop body: draw rows from the table between start..end at 17-px pitch, then re-draw the selected row (highlight). The 0x2000xxxx "pointer-looking" words in session 18's dumps were bytes 80/50/00/20... = geometry/attributes in the native framebuffer orientation (MADCTL 0xA8 rotation applies on glass).
+
+**S-meter bar pipeline (final link):** after the ring write, 0x080198C0 shifts table[0]->table[1] (4-byte entries), snapshots the 30-byte table to the stack, and pops the three most recent entries as args to 0x08016B36 / 0x080167AA / 0x0801A296 — the bars render from the recent-peak history (3-entry graph), then peak state ([r4+0x12D]/[r4+0x40]) clears. Full chain: reg 0x1B[15:8] RSSI dB -> peak-hold -> every-5th-pass ring write + shift + snapshot -> 3-entry history render.
+
+**Reg 0x1C reads (2 sites):** each follows a GPIO pin check (read helper 0x0801F75E) in the scanner-cluster region — consistent with polling the AT1846S GPIO3 code_flag pin then reading the received CSS code (INFERRED; 0x1C is not in the Programming Guide's documented read-only set — register-table version difference).
