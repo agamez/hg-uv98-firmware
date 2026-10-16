@@ -1276,3 +1276,34 @@ the canonical runs unchanged.
 $A00 at boot (making the CK2 vectors comparable), (b) then run the byte-exact
 USART2 trace diff (both directions) for the parity matrix, (c) CK3's
 AT1846S bus trace once the display/RF init paths stabilize.
+
+**Session 48, part 2 — CK2 handshake parity: byte-identical USART2 traces.**
+The reconstruction's dispatcher task now performs the boot settings fetch
+(`protocol_send_cmd(0)` wired into the prio-11 task — the recovered
+behavior; the original's $A00 observed at 0.8 s virtual comes from the same
+command dispatcher 0x08010128 reached through the UI-pump cluster). Under
+the IDENTICAL peer stimulus both images now produce:
+
+    TX: 24 41 30 30 0d 0a   ("$A00\r\n")   — BYTE-IDENTICAL
+    RX: the injected 534-byte settings frame (same content by construction;
+        both consumed it fault-free)
+
+Traces: `analysis/traces/ck2_handshake_{orig,recon}.txt` (Renode
+`CreateFileBackend` byte streams). Timing differs (TX at 0.8 s virtual on
+the original — its boot runs the display/EEPROM init before the pump fires —
+vs 0.13 ms on the reconstruction): the sec7(c) timing boundary, documented.
+
+**CK2 parity matrix v1:**
+| stream            | original         | reconstruction   | verdict      |
+|-------------------|------------------|------------------|--------------|
+| TX $A00 handshake | 6 B, byte-exact  | 6 B, byte-exact  | PARITY       |
+| RX settings frame | 534 B consumed   | 534 B consumed   | PARITY       |
+| TX timing         | 0.8 s virtual    | 0.13 ms virtual  | sec7(c) diff |
+| post-handshake TX | none in 3 s      | none in 3 s      | PARITY       |
+
+The remaining CK2 work = broader stimulus coverage (key events, $A01 writes,
+$B/$C reads — the conformance-vector set from tests/test_protocol.c driven
+through the live machines) + the settings-consumption comparison on the RAM
+side (the original copies the 512 B into its settings region; the
+reconstruction's handler fills rxBuf — the consumers differ by design until
+the UI settings-load is reconstructed).

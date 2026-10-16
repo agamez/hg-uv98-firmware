@@ -50,11 +50,15 @@ static void periodic_task(void *arg)
 }
 
 /* prio 11 [0x08014DEA | RECOVERED]: trampoline into the master UI
- * dispatcher (FUN_08010D5E, 67 callees). The dispatcher's event source
- * and case table are not yet mapped; body SCAFFOLD. */
+ * dispatcher (FUN_08010D5E, 67 callees). The dispatcher's boot path
+ * requests the settings through the command dispatcher (0x08010128): the
+ * original's "$A00" is observed on USART2 at ~0.8 s virtual in Renode
+ * (session 48) and the 8051 answers with the 534-byte settings frame.
+ * The remaining dispatcher body is SCAFFOLD. */
 static void dispatcher_task(void *arg)
 {
     (void)arg;
+    protocol_send_cmd(0);            /* CMD_A00_READ — boot settings fetch */
     for (;;) {
         time_dly(5);
     }
