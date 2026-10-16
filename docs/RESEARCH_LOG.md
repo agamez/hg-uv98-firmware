@@ -1344,3 +1344,24 @@ STM32F1 GPIO model's ODR-drive logging) to identify the true bit-bang
 primitives dynamically. The reconstruction's rf.c transport remains unwired
 (dead code — no callers), so the original's (chip, reg, value) sequence,
 once captured correctly, doubles as the wiring spec.
+
+**Session 48, part 4 — the settings->RF causal chain captured; CK3 scoped.**
+With the emulationManager-in-hook memory access:
+- The two rf_write events fire INSIDE the $A00 settings-frame processing
+  (the hook's stack dump contains the injected settings bytes: '0'x14 ID,
+  0x20004E68 pointers). CAUSAL CHAIN CONFIRMED: peer settings frame ->
+  the main parses it -> RF configuration writes. The radio applies the
+  received settings to the AT1846S immediately.
+- The captured call: r0=0x1D(29), r1=0x6A(106), r2=0x12(18), r3=0x14(20)
+  via a tail chain through 0x0801D840 (a return-0xFF leaf!) with a stale
+  LR (0x0801CD2F) — the caller at 0x0801CD2A calls 0x0801D840 which
+  branches into the 0x0802289A region. The rf_read events: (r0=0, r1=3,
+  r2=0x23/'#', 0x52/'R').
+- The args do NOT decode under the recovered rf_write(chip, reg, val) ABI —
+  combined with part 3's conflicts, the RF-path labels need the REA
+  re-validation BEFORE the trace can be interpreted. The reconstruction's
+  rf.c transport stays unwired until then (its dead code = no callers).
+- CK3's shape once validated: stimulus = the same settings frame; expected
+  = IDENTICAL RF write/read sequences from both images (the original's
+  captured sequence = the reference; the reconstruction's settings consumer
+  + rf.c = the implementation to match).
