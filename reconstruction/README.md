@@ -46,6 +46,7 @@ than a guess.
 | `src/uart.c` | RECOVERED | USART2 init 0x0801F810, RX ISR 0x0801F920, TX 0x0801FEAA; USART1 init 0x0802932C, RX ISR 0x080292F8 |
 | `src/protocol.c` | RECOVERED set / reordered dispatcher | command set cross-verified (ARM image + 8051 UARTX.C + vendor xlsx); original table lives in the stripped tail |
 | `src/display.c` | RECOVERED primitives / SCAFFOLD transport | cmd 0x2C ILI9341-family write, GB2312 16 px cells, ASCII 8 px; panel bus wiring open |
+| `src/rf.c` | RECOVERED transport + register semantics | AT1846S ×2 on a bit-banged 3-wire bus (PA15/PA9, CS0 PA8/CS1 PA12), 24-bit frames; register map cross-verified vs OpenRTX + AT1846S Programming Guide 1.4; frequency/CSS setters recovered |
 | `src/main.c` | RECOVERED structure / SCAFFOLD bodies | main 0x08029120, hw_init 0x080290D0→0x08029080, task table |
 
 ## Build

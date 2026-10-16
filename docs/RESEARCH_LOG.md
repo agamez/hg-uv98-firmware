@@ -532,3 +532,23 @@ The internal record tables = a scale-family of bitmaps (small numbers → big fr
 **3. Key-handler tables inventory — ~60 RAM tables** at 0x20000060..0x2000165C (a ~5.6 KB screen-state region below the app globals), one per screen (0x2000079C = 8 pumps = the main/VFO screen; 0x200008A4 = 7 pumps). Each pump shape: `entry = table[key_id*8]` → `0x08010D06(4, screen_id, entry)` → 20-byte arg block → menu redraw. Writers are the per-screen init code (individual tracing deferred — the map is complete).
 
 **4. Internal asset region (file 0x130–0xA130, ~40 KB):** an unreferenced 0xFF-background bitmap blob (icons/logos, distinct-byte and printable signatures per 2 KB block logged) — no absolute code references; likely an orphaned/legacy asset payload. Real code starts at file ~0xA130. External SPI flash holds all text fonts; the internal asset tables (classes 1-9) sit AFTER the stripped zone (labels 0x0803C7A8-0x08042410).
+
+### 2026-10-15 — Session 19: RF semantics closed via external ground truth; frequency formula recovered; .data image proven absent
+
+**1. AT1846S Programming Guide 1.4 downloaded and parsed** (opengd77.com, 8 pp.; pdftotext). Adds to the register map:
+- **0x7F = bank select**: registers > 0x7F are reached by first writing 0x0001 to 0x7F then the low address (guide §1 note; "writing 85H register address is 0x001F"). The observed 0x7F=0 write = bank-0 select.
+- **0x1F GPIO** field table (2 bits/pin: hi-z/func/low/high) — our 0x9BA9/0x9AA9 decode confirmed (sq-out GPIO6, CSS GPIO3/GPIO0).
+- **0x58 filter** field table — observed 0x840D = 250 Hz CTCSS path config.
+- **0x1A/0x1B read-only** = RSSI dB / noise dB — the RSSI display source.
+- **0x30 bit map**: [14] xtal_mode, [13] filter_band_sel, [12] band_mode, [6] tx_on, [5] rx_on, [2] pdn_reg; xtal pair = 0x04[0] + 0x30[14] (12.8/13/25.6/26 MHz).
+- **Frequency formula (guide §1)**: Freq<29:0> = Freq_MHz × 16000 across 0x29 (high) / 0x2A (low); default 409.75 MHz.
+
+**2. Frequency-setter recovered from the image and confirmed twice.** `0x08023200..(chip, freq)` computes `value = (u32)((double)freq / 100000.0 * 16000.0)` in **soft float** (no FPU): constants 100000.0 and 16000.0 in the literal pool at 0x08023EEC/0x08023EF0, helpers 0x0802510C/0x08025798 (soft double div/mul), 0x08027C68 = double→u32. High 14 bits → reg 0x29, low 16 → reg 0x2A. Matches the guide formula and OpenRTX's `setFrequency` ((freq×16)/1000) exactly.
+
+**3. OpenRTX cross-check fills the "undocumented" list** (platform/drivers/baseband/AT1846S.h): **0x79[15:12] = tone-output enable** (with 0x35 = tone-1 freq, 0.1 Hz/LSB; 0x3A = tone mode bits); **0x4E[10:9] = CTCSS TX enable**; **0x4A = CTCSS1 TX freq, 0x4B = CDCSS TX, 0x4D = CTCSS2 RX freq, 0x5B = RX threshold**. All previously-open registers now documented; remaining truly-open: none material.
+
+**4. CSS/mode setter `0x08023156(chip, css, flag)` mechanism recovered.** Compares `css` against three observed sentinels — **45500000, 17442000, 17062500** (45500000 = exactly 45.5 MHz; sentinel semantics open) — then scans a **96-entry u32 tone table in RAM at 0x200016D0** (base held as a literal pointer). Match → reg 0x05 = 0x8543; special match → 0x8643; scan exhausted → 0x8763. Reg 0x05 = CSS/bandwidth config (layout INFERRED).
+
+**5. The RAM tables' flash .data image is NOT in the distributed file — closed with evidence.** Three independent searches across all 0x42B97 bytes: (a) no consecutive flash-pointer runs ≥ 4 (wide and narrow ranges), (b) no runs ≥ 20 of CSS-range values, (c) **zero occurrences of u32 670** (the first standard CTCSS code, 67.0 Hz in 0.1 Hz units) anywhere. The ~60 key tables and the 96-entry CSS table are boot-time .data copies whose initialization image must live in flash the distribution omits (the wiped zone 0x08029B60–0x0802EE02 is a candidate location). Table contents are unrecoverable from this artifact; the mechanism (static init, RAM-resident) stands.
+
+**6. `reconstruction/src/rf.c` + `rf.h` created [RECOVERED]:** full bit-bang transport (rf_cs_select 0x08022838, rf_send_byte 0x08022712, rf_write 0x0802289A, rf_read 0x0802292E with reg|0x80 + turnaround), at1846s_set_frequency (formula above), at1846s_set_css (mechanism + sentinels; table-driven half scaffolded with the absence rationale), mode transitions (0x4006/0x4046/0x40A6/0x70xx), GPIO reconfig 0x080232E2. Complete annotated register map in the header. Builds clean; functions gc-pruned until referenced (expected). README subsystem table updated.
