@@ -80,9 +80,9 @@
  */
 #include <stdint.h>
 
+#include "hwregs.h"
 #include "rf.h"
 
-#define GPIOA_BASE      0x40010800u
 #define GPIOA_ODR       (*(volatile uint16_t *)(GPIOA_BASE + 0x0Cu))
 
 #define RF_CLK          0x8000u                 /* PA15 */
@@ -175,6 +175,53 @@ uint32_t rf_read(uint8_t chip, uint8_t reg)
     }
     rf_cs_select(2);
     return v;
+}
+
+/* [0x080267AA | RECOVERED session 49 via Ghidra] RF-bus GPIO init: PA9
+ * (DATA), PA15 (CLK), PA8 (CS0), PA12 (CS1) -> output push-pull 50 MHz
+ * (gpio_init {pin, mode 3, cnf 0x10} helper 0x08023678), then both CS
+ * lines driven HIGH (BSRR) = bus deselected (CS active low). */
+void rf_bus_gpio_init(void)
+{
+    uint32_t crl = GPIO_CRL(GPIOA_BASE);
+    uint32_t crh = GPIO_CRH(GPIOA_BASE);
+
+    crl = (crl & ~(0xFu << 0))  | (0x3u << 0);   /* PA8  CS0  */
+    crl = (crl & ~(0xFu << 4))  | (0x3u << 4);   /* PA9  DATA */
+    crh = (crh & ~(0xFu << 16)) | (0x3u << 16);  /* PA12 CS1  */
+    crh = (crh & ~(0xFu << 28)) | (0x3u << 28);  /* PA15 CLK  */
+    GPIO_CRL(GPIOA_BASE) = crl;
+    GPIO_CRH(GPIOA_BASE) = crh;
+
+    GPIOA_ODR = (uint16_t)(GPIOA_ODR | RF_CS0 | RF_CS1);
+}
+
+/* [boot init | RECOVERED session 49: the original's unrolled init block
+ * (call sites 0x08026A39..0x08026C35 and 0x08026E59..0x0802701F, Renode
+ * space) captured via the rf_write entry hook; the IDENTICAL 50-write
+ * sequence is applied to chip 1 then chip 0 at boot (events 1-100 of
+ * analysis/traces/ck3_rf_orig.txt). Includes the bank-1 window
+ * (0x7F = 0x0010 -> regs 0x06..0x0F -> 0x7F = 0x0000).] */
+void at1846s_boot_init(uint8_t chip)
+{
+    static const struct { uint8_t reg; uint16_t val; } table[50] = {
+        { 0x30, 0x0001 }, { 0x30, 0x0004 }, { 0x04, 0x0FD0 }, { 0x0A, 0x7EA0 },
+        { 0x13, 0xA100 }, { 0x1F, 0x9AA9 }, { 0x31, 0x0031 }, { 0x33, 0x44A5 },
+        { 0x34, 0x2B87 }, { 0x41, 0x4C20 }, { 0x42, 0x1010 }, { 0x43, 0x0069 },
+        { 0x44, 0x07FF }, { 0x47, 0x7F2F }, { 0x4F, 0x2C62 }, { 0x53, 0x0094 },
+        { 0x54, 0x2A18 }, { 0x55, 0x0081 }, { 0x56, 0x0B02 }, { 0x57, 0x1C00 },
+        { 0x58, 0x8005 }, { 0x5A, 0x0EDD }, { 0x63, 0x16AD }, { 0x30, 0x40A4 },
+        { 0x30, 0x40A6 }, { 0x30, 0x4006 }, { 0x15, 0x1F00 }, { 0x32, 0x7564 },
+        { 0x3A, 0x44C3 }, { 0x3C, 0x1930 }, { 0x3F, 0x29D2 }, { 0x48, 0x1E3C },
+        { 0x59, 0x0A50 }, { 0x60, 0x101E }, { 0x62, 0x3767 }, { 0x65, 0x248A },
+        { 0x66, 0xFF2E }, { 0x7F, 0x0001 }, { 0x06, 0x0024 }, { 0x07, 0x0214 },
+        { 0x08, 0x0224 }, { 0x09, 0x0314 }, { 0x0A, 0x0324 }, { 0x0B, 0x0344 },
+        { 0x0C, 0x0384 }, { 0x0D, 0x1384 }, { 0x0E, 0x1B84 }, { 0x0F, 0x3F84 },
+        { 0x12, 0xE0EB }, { 0x7F, 0x0000 },
+    };
+
+    for (unsigned i = 0; i < sizeof(table) / sizeof(table[0]); i++)
+        rf_write(chip, table[i].reg, table[i].val);
 }
 
 /* [0x08023200.. | RECOVERED] program the VCO frequency.

@@ -1417,3 +1417,37 @@ bug, not a mislabel); reference AT1846S bus trace captured.**
   reproducing this sequence; the static init table is directly recovered;
   the computed tail (band config value 0x8543, mode staging) needs the
   driver logic; then byte-diff the two traces.
+
+**Session 49, part 2 — CK3 INIT PARITY: the reconstruction's boot RF burst is
+byte-identical to the original's (100/100 events).**
+- Wired the reconstruction: rf.c gained rf_bus_gpio_init() (0x080267AA
+  decompile: PA9/PA15/PA8/PA12 output push-pull, CS idle high) and
+  at1846s_boot_init(chip) — the 50-register init table — and main.c's
+  hw_init() now calls rf_bus_gpio_init() + at1846s_boot_init(chip1) +
+  at1846s_boot_init(chip0) at the recovered RF-chip-init call site.
+- TABLE CORRECTION (the round's second byte-order lesson): the first table
+  extraction mis-decoded the hook logs' unpadded hex concatenations
+  ("0A1" = bytes 00,A1 = 0xA100, NOT 0x00A1; "10" = 0x0001). The SENDN wire
+  captures ([reg, val_hi, val_lo]) are the ground truth: buf =
+  {u8 reg; u8 pad; u16 val little-endian}. 21 of 50 entries were byte-
+  swapped in the first extraction; all corrected and cross-validated
+  (0x30=0x4006 matches the known standby mode; 0x7F=0x0001 = bank 1 per
+  the register map; 0x48=0x1E3C matches the tone wrapper's constant).
+- VERDICT (python triple-diff, /tmp/opencode/recon_rf2.log vs
+  orig_rfOK.log): events 1-100 — (cs, reg, val) identical, ZERO
+  mismatches. Traces: analysis/traces/ck3_rf_{orig,recon_boot}.txt.
+- Init-table structure notes: 26 entries (0x30 reset/clken, 0x04 clk_mode,
+  0x0A PA bias, 0x1F GPIO map, 0x31..0x63 analog block, 0x30 mode staging
+  A440->A640->4006) + 24 entries behind the bank-1 window (0x7F=0x0001 ->
+  regs 0x06..0x0F RX-path config, 0x12, 0x7F=0x0000 back to bank 0). The
+  two chips receive the IDENTICAL table (mirror check TRUE) — the cs mode
+  is the only difference.
+- REMAINING for full CK3: the t~3.1 s reconfig burst (178 events: the init
+  table RE-RUNS on both chips, then 78 dynamic config writes + 2 rf_read
+  (cs=1 reg 0x30 status, cs=0 reg 0x0D)) and the 12-event tail. The
+  dynamic writes observed: 0x1F=0x9A9A, 0x30=0x0670/0x4670, 0x58=0x0D84,
+  0x4E=0x0220, 0x59=0x08DA, 0x05=0x8543 (band-table match), 0x29/0x2A=
+  0x0000 (frequency regs, zero VFO state). Call-site LRs cluster in
+  0x08027109..0x080274D7 and 0x0802789F..0x080278E5 (Renode space) + the
+  tone wrapper 0x0801A91A. That flow = the app-level settings->RF config
+  chain; wiring it is the next increment.

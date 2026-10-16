@@ -15,6 +15,7 @@
 #include "uart.h"
 #include "protocol.h"
 #include "display.h"
+#include "rf.h"
 
 /* ---- tasks ---------------------------------------------------------------- */
 
@@ -135,7 +136,13 @@ static void hw_init(void)
     usart1_init();        /* GPS input  [0x0802932C RECOVERED]             */
     usart2_init();        /* APRS/BT link [0x0801F810 RECOVERED]           */
     display_init();       /* SCAFFOLD                                      */
-    /* RF chip init [0x080227AA | RECOVERED call site; transport SCAFFOLD]  */
+    /* RF chip init [0x080227AA call site RECOVERED]: bus GPIO config
+     * (0x080267AA, session 49 decompile) then the 50-register AT1846S
+     * init table applied to chip 1 then chip 0 (session 49 trace,
+     * analysis/traces/ck3_rf_orig.txt events 1-100). */
+    rf_bus_gpio_init();
+    at1846s_boot_init(RF_CHIP_UHF);   /* cs mode 1 = first-configured chip */
+    at1846s_boot_init(RF_CHIP_VHF);   /* cs mode 0 = second chip           */
 }
 
 /* ---- main -------------------------------------------------------------------
