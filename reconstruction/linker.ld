@@ -30,6 +30,10 @@ MEMORY
  * 0x20001F74..0x2000449C (session 7-8 task table). */
 _estack = ORIGIN(RAM) + 26K;   /* 0x20006800, matches original 0x20006780 top */
 
+ENTRY(Reset_Handler)   /* the vector table's Reset word (0x08004165) — harnesses
+                          that start at the ELF entry must land here, not on
+                          the first byte after .isr_vector */
+
 SECTIONS
 {
     .isr_vector ORIGIN(FLASH) : {
