@@ -1491,3 +1491,31 @@ byte-identical to the original's (100/100 events).**
   analysis/traces/ck3_rf_{orig,recon_full}.txt. CK3 CLOSED at the
   bus-event level; pin-level (ODR) parity and the settings-driven
   (non-default) channel path remain open extensions.
+
+**Session 49, part 4 — CK4 Round E: the GPIOB Python model lands; the
+original's display stream captured (187k events); the recon gap quantified.**
+- New platform piece: reconstruction/sim/pb_displaybus.py, a PythonPeripheral
+  at 0x40010C00 (gpioPortB restored in gd32f103.repl). Faithful register
+  GPIOB (CRL/CRH/ODR state, BSRR/BRR atomics) with IDR pinned to 0 — the
+  session-47 software-I2C ACK workaround stays in force through the model
+  (the original still boots: OSCtxSwCtr 0x160C4 in 5 s vs 0x15BE7 without
+  the port — same class). Every ODR/BSRR/BRR/CRL/CRH write logs to
+  /tmp/opencode/pb_stream.log.
+- TOOLING NOTE: IronPython 2 rejects non-ASCII scripts (an em-dash in my
+  first header aborted the platform load with CompilePythonCode); keep the
+  Python peripheral scripts ASCII-only.
+- ORIGINAL's stream (analysis/traces/ck4_display_orig.txt.gz, 187758 bus
+  events in 5 s): BSRR/BRR 0x0200 = PB9 = the software-I2C DATA (settings
+  EEPROM transactions; 7913 sets / 14188 resets); CRH flips
+  0x44444434<->0xbbb44434 = PB9's nibble toggling output(3)<->input(4) =
+  the I2C direction switch for the 9th-clock ACK sample; CRH 0xbbb44434 =
+  PB13/14/15 open-drain outputs (display serial control); the ODR bulk =
+  0x02be (50749x) / 0x02ef (50499x) / 0x02ff (27940x) = the display
+  bit-stream on PB0-7 with PB9 idle-high (~50k two-state cycles). CRL is
+  written once at display init.
+- RECONSTRUCTION's stream: EMPTY — display.c is a SCAFFOLD with no GPIOB
+  accesses (the PythonPeripheral initializes lazily on first access; its
+  IsInit never fired). CK4's remaining work = the display driver
+  reconstruction (0x080284F2/0x080285B6 serial functions + the controller
+  init + the font streaming path), then a structural diff of the two
+  streams. The capture infrastructure and the original reference = DONE.

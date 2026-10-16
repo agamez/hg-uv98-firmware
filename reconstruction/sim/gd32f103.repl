@@ -56,7 +56,13 @@ nvicInput40: Miscellaneous.CombinedInput @ none
 
 gpioPortA: GPIOPort.STM32F1GPIOPort @ sysbus <0x40010800, +0x400>
 
-
+// GPIOB substitute (session 49): the display bus (PB0 WR, PB8-15 data) as an
+// observable Python model; IDR pinned to 0 keeps the session-47 software-I2C
+// ACK workaround in force. See pb_displaybus.py for the rationale.
+gpioPortB: Python.PythonPeripheral @ sysbus <0x40010C00, +0x1C>
+    size: 0x1C
+    initable: true
+    filename: "/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/pb_displaybus.py"
 
 gpioPortC: GPIOPort.STM32F1GPIOPort @ sysbus <0x40011000, +0x400>
 

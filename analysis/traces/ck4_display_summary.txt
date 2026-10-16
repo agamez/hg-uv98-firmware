@@ -1,0 +1,57 @@
+# CK4 structural summary: original's GPIOB stream, 5 s plain boot (session 49)
+# Model: reconstruction/sim/pb_displaybus.py (IDR=0 keeps the I2C-ACK workaround)
+# Full stream: ck4_display_orig.txt.gz (187758 lines)
+#
+# Event census:
+#   14188 BRR
+#    7913 BSRR
+#    4902 CRH
+#       1 CRL
+#  160753 ODR
+#
+# Decode:
+# - BSRR/BRR 0x0200 = PB9, the software-I2C DATA line (settings EEPROM); the CRH
+#   0x44444434<->0xbbb44434 flips toggle PB9's nibble between output(3) and
+#   input(4) = the I2C direction switch for ACK sampling.
+# - CRH 0xbbb44434: PB13/14/15 = 0xB = output 50MHz open-drain (display serial
+#   control), PB9 stays 0x3 between I2C phases.
+# - ODR bulk: 0x02be (50749x) / 0x02ef (50499x) / 0x02ff (27940x) = the display
+#   bit-stream on PB0-7 with PB9 held high; ~50k two-state cycles.
+# - CRL written once (0x33333333-class low-byte config at display init).
+#
+# Reconstruction side: EMPTY stream - display.c is a SCAFFOLD with no GPIOB
+# accesses (the Python peripheral's init never even fired = lazy init on first
+# access). CK4's remaining work = the display driver reconstruction.
+#
+# First 30 bus events:
+# # seq CRL CRH ODR BSRR BRR  (values after the write)
+# 1 CRH 44444434
+# 2 BSRR 00000200 0200
+# 3 CRH 44444434
+# 4 BRR 0200 0000
+# 5 BRR 0200 0000
+# 6 BSRR 00000200 0200
+# 7 BSRR 00000200 0200
+# 8 BRR 0200 0000
+# 9 BRR 0200 0000
+# 10 BRR 0200 0000
+# 11 BRR 0200 0000
+# 12 BRR 0200 0000
+# 13 BRR 0200 0000
+# 14 BRR 0200 0000
+# 15 BRR 0200 0000
+# 16 BRR 0200 0000
+# 17 BRR 0200 0000
+# 18 BRR 0200 0000
+# 19 BRR 0200 0000
+# 20 BRR 0200 0000
+# 21 BRR 0200 0000
+# 22 BRR 0200 0000
+# 23 BRR 0200 0000
+# 24 BRR 0200 0000
+# 25 BRR 0200 0000
+# 26 BRR 0200 0000
+# 27 BSRR 00000200 0200
+# 28 BRR 0200 0000
+# 29 BRR 0200 0000
+# 30 BRR 0200 0000
