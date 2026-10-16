@@ -552,3 +552,14 @@ The internal record tables = a scale-family of bitmaps (small numbers → big fr
 **5. The RAM tables' flash .data image is NOT in the distributed file — closed with evidence.** Three independent searches across all 0x42B97 bytes: (a) no consecutive flash-pointer runs ≥ 4 (wide and narrow ranges), (b) no runs ≥ 20 of CSS-range values, (c) **zero occurrences of u32 670** (the first standard CTCSS code, 67.0 Hz in 0.1 Hz units) anywhere. The ~60 key tables and the 96-entry CSS table are boot-time .data copies whose initialization image must live in flash the distribution omits (the wiped zone 0x08029B60–0x0802EE02 is a candidate location). Table contents are unrecoverable from this artifact; the mechanism (static init, RAM-resident) stands.
 
 **6. `reconstruction/src/rf.c` + `rf.h` created [RECOVERED]:** full bit-bang transport (rf_cs_select 0x08022838, rf_send_byte 0x08022712, rf_write 0x0802289A, rf_read 0x0802292E with reg|0x80 + turnaround), at1846s_set_frequency (formula above), at1846s_set_css (mechanism + sentinels; table-driven half scaffolded with the absence rationale), mode transitions (0x4006/0x4046/0x40A6/0x70xx), GPIO reconfig 0x080232E2. Complete annotated register map in the header. Builds clean; functions gc-pruned until referenced (expected). README subsystem table updated.
+
+### 2026-10-15 — Repo housekeeping: history merged with the firmware-archive upstream
+
+The working repo was rebased onto agamez/hg-uv98-firmware main (4ad457c) so the public
+history reads: firmware archiving → RE sessions. All session commits were replayed
+(subjects and author dates preserved; **SHAs changed** — older entries citing commit SHAs
+are superseded), prompt.md's standing edits were squashed into its last prompt commit,
+the self-referential repos/hg-uv98-firmware submodule was dropped (the dump now sits at
+the tree root, UV98_868_220430_D4/), and the README was rewritten in English with the
+current structure. The pre-rebase history is pinned locally in
+backup/pre-continuity-rebase.

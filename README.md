@@ -1,129 +1,152 @@
 # HG-UV98 - Comprehensive Reference Repository
 
-Repositorio integral de documentación, código fuente y recursos comunitarios para el radio handheld **Lanch HG-UV98 APRS**.
+A comprehensive repository of documentation, source code, and community resources for the **Lanch HG-UV98 APRS** handheld radio.
 
-## ⚠️ Arquitectura de Doble Procesador
+## ⚠️ Dual-Processor Architecture
 
-El HG-UV98 utiliza **dos microcontroladores independientes** comunicándose vía UART:
+The HG-UV98 uses **two independent microcontrollers** communicating over UART:
 
-| Procesador | MCU | Arquitectura | Función | Firmware |
-|-----------|-----|--------------|---------|----------|
-| **Main MCU** | GD32F103RET6 | ARM Cortex-M3 (32-bit, 108 MHz) | Radio FM, display, menús, RF, canales | ❌ Binario solo (privado) |
-| **APRS Coprocessor** | STC8A8K64D4 | 8051 (8-bit, 22.1184 MHz) | APRS, GPS, Bluetooth, sensores | ✅ **Código fuente disponible** |
+| Processor | MCU | Architecture | Role | Firmware |
+|-----------|-----|--------------|------|----------|
+| **Main MCU** | GD32F103RET6 | ARM Cortex-M3 (32-bit, 108 MHz) | FM radio, display, menus, RF, channels | ❌ No source → 🛠️ RE in [`reconstruction/`](reconstruction/README.md) |
+| **APRS Coprocessor** | STC8A8K64D4 | 8051 (8-bit, 22.1184 MHz) | APRS, GPS, Bluetooth, sensors | ✅ **Source available** |
 
-El código fuente en este repositorio es del **coprocesador APRS (8051)**, NO del procesador principal de radio (ARM).
+The **original** source code in this repository is for the **APRS coprocessor (8051)**; only a binary exists for the main processor (ARM), whose documented reconstruction is underway in [`reconstruction/`](reconstruction/README.md).
 
-## Estructura del Repositorio
+## Repository Structure
 
 ```
 HG-UV98/
-├── README.md                          # Este archivo
-├── .gitignore
-├── docs/                              # Documentación
-│   ├── ARCHITECTURE.md                # Arquitectura dual de CPUs + diagrama
-│   ├── FIRMWARE_VERSIONS.md           # Historial de versiones de firmware (ambos CPUs)
-│   ├── SOURCE_CODE_ANALYSIS.md        # Análisis del código fuente del coprocesor APRS
-│   ├── SOURCE_INDEX.md                # Índice completo de los 73 archivos fuente
-│   ├── HARDWARE.md                    # Referencia de hardware y sensores
-│   └── COMMUNITY.md                   # Recursos y comunidad
-├── src/firmware-source/               # Código fuente del coprocesor APRS
-│   └── UV98_868_220430_D4/
-│       ├── MAIN/   (37 archivos .C/.H)    # Firmware principal del coprocesor
-│       └── SENSOR/ (6 archivos .C/.H)     # Drivers de sensores (BMP280, BMP085, DS18B20)
-└── repos/                             # Repositorios clonados (referencia)
-    ├── pwnj0hn-HG-UV98/               # Binarios + software + manual del radio
-    ├── marrold-HG-UV98/               # Repo principal de la comunidad
-    └── hg-uv98-firmware/              # Proyecto Keil (referencia, no incluido en commit)
+├── README.md                          # This file
+├── LICENSE                            # Provisional BSD-3-Clause
+├── UV98_868_220430_D4/                # Original coprocessor firmware dump, as provided
+│   ├── MAIN/   (37 .C/.H files)       #   coprocessor main firmware
+│   ├── SENSOR/ (6 .C/.H files)        #   sensor drivers (BMP280, BMP085, DS18B20)
+│   └── OBJ/, *.uvproj, *.doc/xlsx     #   build output and vendor documentation
+├── src/firmware-source/               # Working copy (C/H sources only) referenced by the docs
+├── firmware/                          # Official binaries for both CPUs + flashing instructions
+├── docs/                              # Documentation
+│   ├── ARCHITECTURE.md                # Dual-CPU architecture + diagram
+│   ├── FIRMWARE_VERSIONS.md           # Firmware version history (both CPUs)
+│   ├── FIRMWARE_INVENTORY.md          # Inventory of binaries and artifacts
+│   ├── SOURCE_CODE_ANALYSIS.md        # Coprocessor source code analysis
+│   ├── SOURCE_INDEX.md                # Index of all 73 source files
+│   ├── HARDWARE.md                    # Hardware and sensor reference
+│   ├── COMMUNITY.md                   # Community resources
+│   └── RESEARCH_LOG.md                # Main-MCU reverse-engineering log (sessions 1-19)
+├── reconstruction/                    # Documented C reconstruction of the Main-MCU firmware
+│   ├── src/                           #   recovered modules (protocol, display, font, rf, uart, ...)
+│   ├── ucos2/, vendor/                #   vendored uC/OS-II kernel + GD32F10x SPL
+│   ├── tests/                         #   host protocol-conformance tests
+│   └── README.md                      #   status, provenance, and licenses
+├── tools/                             # Analysis tooling (recon_map.py)
+└── repos/                             # Community reference submodules
+    ├── marrold-HG-UV98/
+    └── pwnj0hn-HG-UV98/
 ```
 
-## Código Fuente del Coprocesor APRS
+## APRS Coprocessor Source Code
 
-| Especificación | Valor |
-|----------------|-------|
+| Specification | Value |
+|---------------|-------|
 | **MCU** | STC8A8K64D4 (8051/MCS-51 compatible) |
-| **Clock** | 22.1184 MHz (preciso para baud rates UART) |
+| **Clock** | 22.1184 MHz (precise for UART baud rates) |
 | **IDE** | Keil µVision (C51) |
-| **Tamaño firmware** | ~8KB ("8K CPU") |
-| **Archivos C/H** | 73 archivos |
-| **Líneas de código** | ~7,500+ líneas de C |
-| **Total repositorio** | ~17,000 líneas (incluyendo docs) |
+| **Firmware size** | ~8KB ("8K CPU") |
+| **C/H files** | 73 files |
+| **Lines of code** | ~7,500+ lines of C |
+| **Total repository** | ~17,000 lines (including docs) |
 
-### Módulos del firmware
-- APRS RF codec (1200 baud FDMDO via CMX865A/FX604)
+### Firmware modules
+- APRS RF codec (1200 baud FSK via CMX865A/FX604)
 - GPS NMEA parsing (GPRMC, GPGGA - GPS, BeiDou, GLONASS)
 - Bluetooth KISS TNC mode
-- Smart beacon (intervalo adaptativo basado en movimiento)
+- Smart beacon (movement-based adaptive interval)
 - Mic-E encoding
 - Digipeater forwarding
 - Weather sensors (BMP280/BMP085, DS18B20)
 - Navigation (distance, bearing, azimuth)
 - Odometer/mileage tracking
-- AT command interface (communicates with Main MCU)
+- AT command interface (communicates with the Main MCU)
 
-## Firmware (Ambos CPUs)
+## Firmware (Both CPUs)
 
-### Versiones de Firmware del Coprocesor APRS
+### APRS Coprocessor Firmware Versions
 
-| Versión | Fecha | Descripción |
-|---------|-------|-------------|
+| Version | Date | Notes |
+|---------|------|-------|
 | 2018-02-11 | APRS_51G3_4K_20180211A | GPS sync, Bluetooth |
 | 2018-04-08 | APRS_51G3_4K_20180408 | Curve interface |
 | 2018-09-22 | APRS_8K_20180922_D | Bluetooth 512 bytes to host |
 | 2020-09-23 | APRS Sep 23rd 2020 | ✅ Grid square fix |
 | 2022-04-30 | UV98_868_220430_S4 | ✅ GPS coordinates fix |
 
-### Firmware del Main MCU (ARM)
+### Main MCU (ARM) Firmware Versions
 
-| Versión | Fecha | Descripción |
-|---------|-------|-------------|
-| V1.0.1_190416 | 2019-04 | Firmware original |
+| Version | Date | Notes |
+|---------|------|-------|
+| V1.0.1_190416 | 2019-04 | Original firmware |
 | V1.0.1_190619-KT | 2019-06 | KT2KT modified (UI improvements) |
 
-**⚠️ Importante:** Ambos firmwares deben ser compatibles. Flashar solo uno sin el otro puede dejar el radio inutilizable.
+**⚠️ Important:** Both firmwares must be compatible. Flashing only one of them may leave the radio unusable.
+
+## 🛠️ Main MCU (ARM) Reverse Engineering
+
+The Main-MCU firmware is distributed as a binary only. This repository carries a documented, buildable C reconstruction of it, verified against static evidence (level 3 of 4):
+
+- **Recovered architecture**: uC/OS-II kernel, 7 tasks, 60-IRQ dispatch, the UART protocol spoken with the APRS coprocessor (verified by executed host conformance tests), ST7735 display stack, two AT1846S transceivers (frequency formula and register map cross-checked against the AT1846S Programming Guide 1.4 and OpenRTX), CJK/ASCII font chain in external SPI flash.
+- **Vendored code**: uC/OS-II V2.93.01 (Apache-2.0) and the GigaDevice GD32F10x SPL V2.2.1.
+- **Status and provenance**: [`reconstruction/README.md`](reconstruction/README.md)
+- **Full research log with addresses and evidence**: [`docs/RESEARCH_LOG.md`](docs/RESEARCH_LOG.md)
+
+Without an emulator or bench hardware, claims are limited to "builds and is consistent with the static evidence"; the protocol layer passes the executed conformance tests.
 
 ## Hardware
 
-| Especificación | Valor |
-|----------------|-------|
+| Specification | Value |
+|---------------|-------|
 | **VHF** | 136-174 MHz, 5W High/1W Low |
 | **UHF** | 400-470 MHz, 4W High/1W Low |
 | **APRS** | 1200 baud (hardware TNC) |
 | **GPS** | GPS, BeiDou, GLONASS |
 | **Bluetooth** | KISS TNC mode, pair code: 1234 |
-| **Batería** | 7.4V 2500mAh Li-Po (USB Micro o USB-C en variantes recientes) |
-| **Canales** | 128 |
-| **Sensores** | BMP280/BMP085, DS18B20 |
-| **Display** | Color LCD con modo día/noche |
-| **Antena** | SMA-J (center pin) |
+| **Battery** | 7.4V 2500mAh Li-Po (USB Micro or USB-C in recent variants) |
+| **Channels** | 128 |
+| **Sensors** | BMP280/BMP085, DS18B20 |
+| **Display** | Color LCD with day/night mode |
+| **Antenna** | SMA-J (center pin) |
 
-## Documentación Profunda
+## In-Depth Documentation
 
-| Tema | Archivo | Descripción |
-|------|---------|-------------|
-| Arquitectura dual de CPUs | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Diagrama de bloques, protocolo UART, memoria compartida |
-| Inventario de firmware | [`docs/FIRMWARE_INVENTORY.md`](docs/FIRMWARE_INVENTORY.md) | Todos los firmwares disponibles (bin, hex, exe) con links y status |
-| Análisis del código fuente | [`docs/SOURCE_CODE_ANALYSIS.md`](docs/SOURCE_CODE_ANALYSIS.md) | Funciones, variables, protocolos, estructura de archivos |
-| Índice de fuentes | [`docs/SOURCE_INDEX.md`](docs/SOURCE_INDEX.md) | Lista completa de los 73 archivos fuente con descripción |
-| Versiones de firmware | [`docs/FIRMWARE_VERSIONS.md`](docs/FIRMWARE_VERSIONS.md) | Historial completo para ambos CPUs, instrucciones de flash |
-| Hardware y sensores | [`docs/HARDWARE.md`](docs/HARDWARE.md) | Especificaciones técnicas, pinout, formato de telemetría |
-| Comunidad y recursos | [`docs/COMMUNITY.md`](docs/COMMUNITY.md) | Grupos.io, GitHub, blog, contribuidores, herramientas |
+| Topic | File | Description |
+|-------|------|-------------|
+| Dual-CPU architecture | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Block diagram, UART protocol, shared memory |
+| Firmware inventory | [`docs/FIRMWARE_INVENTORY.md`](docs/FIRMWARE_INVENTORY.md) | All available firmwares (bin, hex, exe) with links and status |
+| Source code analysis | [`docs/SOURCE_CODE_ANALYSIS.md`](docs/SOURCE_CODE_ANALYSIS.md) | Functions, variables, protocols, file structure |
+| Source index | [`docs/SOURCE_INDEX.md`](docs/SOURCE_INDEX.md) | Complete list of the 73 source files with descriptions |
+| Firmware versions | [`docs/FIRMWARE_VERSIONS.md`](docs/FIRMWARE_VERSIONS.md) | Full history for both CPUs, flashing instructions |
+| Hardware and sensors | [`docs/HARDWARE.md`](docs/HARDWARE.md) | Technical specifications, pinout, telemetry format |
+| Community and resources | [`docs/COMMUNITY.md`](docs/COMMUNITY.md) | Groups.io, GitHub, blog, contributors, tools |
+| Reverse-engineering log | [`docs/RESEARCH_LOG.md`](docs/RESEARCH_LOG.md) | Sessions 1-19: addresses, evidence, corrections for the Main MCU |
 
-## Recursos Comunitarios
+## Community Resources
 
-- **Grupos.io:** https://groups.io/g/HG-UV98-users (132+ miembros)
-- **GitHub Principal:** https://github.com/marrold/HG-UV98
+- **Groups.io:** https://groups.io/g/HG-UV98-users (132+ members)
+- **Main GitHub:** https://github.com/marrold/HG-UV98
 - **Reseller:** https://www.venus-itech.com/product/hg-uv98-handheld-with-aprs/
-- **Reviews HVDN:** https://hvdnnotebook.blogspot.com/search/label/HG-UV98
+- **HVDN Reviews:** https://hvdnnotebook.blogspot.com/search/label/HG-UV98
 
-## Licencias
+## Licenses
 
-El código fuente del coprocesor APRS fue proporcionado por Wuxi Venus Information Technology Co., Ltd con permiso para modificar y distribuir. La licencia original no está adjunta explícitamente, pero se ha utilizado BSD-3c provisionalmente.
+The APRS coprocessor source code was provided by Wuxi Venus Information Technology Co., Ltd with permission to modify and distribute. The original license is not attached explicitly, but BSD-3-Clause has been used provisionally.
 
-## Contribuir
+The Main-MCU reconstruction vendors uC/OS-II V2.93.01 (Apache-2.0) and the GigaDevice GD32F10x SPL V2.2.1 (SLA-GD0001, redistribution permitted for execution on GD devices); details in [`reconstruction/README.md`](reconstruction/README.md).
 
-Este repositorio es un esfuerzo comunitario para preservar y documentar la información del HG-UV98. Contribuciones son bienvenidas:
-- Correcciones de documentación
-- Análisis de código fuente (especialmente del Main MCU si se consigue)
-- Troubleshooting y workarounds
-- Traducciones
-- Análisis de ingeniería inversa del firmware ARM (GD32F103)
+## Contributing
+
+This repository is a community effort to preserve and document HG-UV98 information. Contributions are welcome:
+- Documentation corrections
+- Source code analysis (especially of the Main MCU if it ever surfaces)
+- Troubleshooting and workarounds
+- Translations
+- Reverse engineering of the ARM firmware (GD32F103) — continue the work in [`reconstruction/`](reconstruction/README.md), see [`docs/RESEARCH_LOG.md`](docs/RESEARCH_LOG.md)
