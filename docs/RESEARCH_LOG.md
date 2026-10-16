@@ -627,3 +627,9 @@ Open follow-ups: byte-level thresholds of the battery classification tree; the '
 RSSI UI consumer = the function containing 0x0801C464 (display updater region 0x0801C4xx).
 
 **RSSI consumer (0x0801C4xx updater) — mechanism complete.** New dB value → peak-hold compare against [r4+0x40] (update stores the peak timestamp [r4+0x3B] into [r4+0x12D]); a pass counter (+0x3F, ≥4 → reset) fires the display update every 5th pass; the bar value = 0x080168DA(peak_ts, r7 + band*0x1E) — a lookup into **per-band 30-byte RAM tables at 0x20004F94** (boot .data copy; flash image absent — contents closed like the key tables). Mechanism: RSSI dB (reg 0x1B[15:8]) → peak-hold with timestamp decay → per-band calibration table → bar display.
+
+### 2026-10-15 — Session 26: the 'h'/'i' states identified — beacon-data windows
+
+0x08010302's state-'h' and state-'i' branches are structurally identical: a u16 pass counter (struct+0x135) runs to **0x29 (41)**; at completion each clears a **50-byte RAM buffer at 0x2000335C**, clears the frame-ready flag (0x20005094+9 bit0), resets the counter, formats a 6-byte frame from a printf template — **"$B%02d\r\n"** for 'h', **"$C%02d\r\n"** for 'i' (flash literals at linked 0x08043B08/0x08043B14), embedding [struct+0x129] (the beacon index) — and transmits it via the UART TX helper 0x0801FEAA.
+
+Interpretation: states 'h'/'i' = beacon-list/detail collection windows; on completion the ARM issues the next $Bxx/$Cxx request to the 8051. Matches the protocol command table ($Bxx = beacon list read, $Cxx = beacon detail read — UARTX.C ground truth, session 3).
