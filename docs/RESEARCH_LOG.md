@@ -608,3 +608,11 @@ Open follow-ups: byte-level thresholds of the battery classification tree; the '
 **2. Variable-register rf_read sites**: exactly two (0x0801700A: reg from [sp,#0x48]; 0x0801C464: reg from [r5,#4]) — generic service reads taking the register from a command field; not RSSI polling. Combined with session 22's immediate-site scan: the ARM never reads AT1846S RSSI regs 0x1A/0x1B anywhere in the scanned surface.
 
 **3. `reconstruction/src/ui.c` + `ui.h` added [RECOVERED/SCAFFOLD]:** master UI task 0x08029178 (loop, heartbeat, suspend, the four named routers), key_event policy gate (order per disassembly), key_state_test (full body), battery chain (thresholds 0xCB5/0x6D7, levels {15,12,1,0}, bars mapping), and the UI state enum constants. Builds clean; gc-pruned until referenced. Harness still green.
+
+### 2026-10-15 — Session 24: state-byte writers; list renderer decoded
+
+**1. Writers of the UI state byte 0x200050E8 (= flag_bank+0x54).** Direct immediate stores are rare: one site writes **0x78 ('x')** at 0x08018C4E (inside a list-iterating function, gated on the current state == 'X' — a state-refinement transition), one writes 0x6 (0x080189F6); the remaining transitions copy values from registers (table/protocol-driven). The state machine is therefore driven by computed transitions, not a central table.
+
+**2. 0x08018E0C = the list-row renderer.** Args (r0-r3 + stack); gated on the frame-ready flag (flag byte+8 bit0); calls 0x08019840(1) (draw begin); iterates rows with a **0x14 (20) bound**; text iteration is **GB2312-aware** — bytes >= 0x81 pair as double-byte CJK characters. This is the row/selection painter behind the menu redraw (0x08010D5E) family.
+
+**3. Input-chain byte closes** (with session 23): 0x0801B28E = `state >= 0x40`; timestamps at +0x5A/+0x62 stride 4; the two variable-reg rf_read sites are generic service reads.
