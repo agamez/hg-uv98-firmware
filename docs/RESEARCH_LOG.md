@@ -704,3 +704,9 @@ Capstone scan of all ~150 bl ui_state_set (0x08010530) sites with the value each
 Interpretation: the printable-char "state enum" = the SCREEN ID SPACE (states 1..0x8D ≈ 141 screen states + the RF states 'g'/'h'/'i'/'j' + 0 = off/idle). ui_state_set = the screen-switch function. The session-22 compared set (18 values) = the states with active per-pass logic in the UI task's routers; the rest are leaf screens served by the generic path (the 85 screen pumps map onto these states). REA's caller list for ui_state_set (5 sites) is incomplete vs the capstone scan — Ghidra call-coverage limitation, noted.
 
 This completes the UI architecture: screen-switch function, screen inventory, menu dispatcher, per-state logic sites, and the routers. Open remainder: per-screen bodies for the ~141 leaf states (mechanical REA work, no architectural unknowns).
+
+**Integration closed (end-to-end UI chain):** ui_list_select (0x08010D06) is a leaf — pure selection bookkeeping (moves the highlight, no calls). The state transition happens on ACTIVATION: the menu dispatcher (0x08011190+) is a **binary-search tree over the selection index** (cmp/beq chains), each item handler performing a byte-copy setup, a per-screen init call 0x0801715C(4, 0x1E — the 30-byte screen block), then ui_state_set(screen state).
+
+Complete chain: key_event -> per-screen pump -> ui_list_select (selection move + redraw) -> [activate] -> binary-search dispatcher -> screen init -> ui_state_set -> the per-state routers render.
+
+With this, the UI architecture has no remaining structural unknowns: screen-switch function, screen inventory (~141 states + RF states), menu dispatcher shape, per-state logic sites, key-action tables, string tables, redraw block layout, font chain, and display transport are all mapped. Remaining work is per-screen body detail (mechanical REA/capstone expansion, no architectural unknowns).
