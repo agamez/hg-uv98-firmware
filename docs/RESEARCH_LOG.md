@@ -732,3 +732,13 @@ The architectural program is complete. Remaining: per-screen bodies for the leaf
 Bulk extraction of all 86 ui_list_select (0x08010D06) call sites: 20 distinct list IDs (1-10, 15, 25, 26, 30, 40, 49, 51, 59, 0xD3) across ~80 pump functions in three clusters (main/VFO family 0x0800Axxx-0x0800Bxxx, menu screens 0x08011Cxx-0x08013xx, 0x08014Bxx+). Refinement: ui_list_select's 2nd arg = the LIST definition ID (session-18's "screen_id" reading refined); first arg = 4 (mode) everywhere. docs/SCREENS.md carries the full table.
 
 With the menu tree (session 32), the state-transition table (session 30), and the pump inventory, every enumerable UI structure is now extracted as data. The reverse-engineering program's architectural and inventory phases are complete; what remains is per-pump body nuance within the established generic pattern.
+
+### 2026-10-15 — Session 34: pump argument sets — the screen LINKED CHAIN (final structural finding)
+
+Per-pump RAM-argument extraction (83 pumps, 79 distinct sets, analysis/pump_args.json):
+- Every pump references 0x20005166 (key ID byte) + 0x20005080 (the 20-byte redraw block struct — RAM .data, contents absent).
+- The pump's FIRST argument = its own key-action table (8-byte stride); the 5th argument = **the NEXT screen's table** — the tables form a linked chain (0x200015C4 -> 0x200015E4 -> 0x20001604 -> 0x2000165C ... visible across consecutive pumps).
+- Per-screen attribute-byte sequences at 0x20003A9C..0x20003AC4 and 0x20004E68..0x20004E8F (one byte-pair per screen, in screen order).
+- Correction: the "20-byte blocks" read at pool literals in session 18 were the pumps' five independent pointer literals; the actual block struct = RAM 0x20005080 (.data contents absent — consistent with session 19's closure).
+
+The screen system = a linked table chain walked by the dispatcher. With this, every structurally-extractable relationship in the UI is mapped: state machine, menu tree, pump inventory, and the screen linkage chain. The extraction program is complete.
