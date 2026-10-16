@@ -616,3 +616,12 @@ Open follow-ups: byte-level thresholds of the battery classification tree; the '
 **2. 0x08018E0C = the list-row renderer.** Args (r0-r3 + stack); gated on the frame-ready flag (flag byte+8 bit0); calls 0x08019840(1) (draw begin); iterates rows with a **0x14 (20) bound**; text iteration is **GB2312-aware** — bytes >= 0x81 pair as double-byte CJK characters. This is the row/selection painter behind the menu redraw (0x08010D5E) family.
 
 **3. Input-chain byte closes** (with session 23): 0x0801B28E = `state >= 0x40`; timestamps at +0x5A/+0x62 stride 4; the two variable-reg rf_read sites are generic service reads.
+
+### 2026-10-15 — Session 25: CORRECTION — the RSSI/S-meter read exists; rf_read argument order
+
+**Retraction of the session 22/23 "no SPI-polled S-meter" claims — scan artifact.** The rf_read signature is `rf_read(chip, reg)` with **r0 = chip, r1 = register**; the session-22 scan classified by r0 and missed every register. Corrected immediate-read set across all 13 sites:
+- **0x1B ×1** at 0x0801C464 — `rf_read(ubfx([r5+4],3,1) /*chip*/, 0x1B)`, result narrowed `uxth; lsrs #8` = **bits 15:8 = rssi_db** (Programming Guide: 0x1B[15:8] = received RF signal strength, 1 dB/LSB). **This is the S-meter read** — gated by bit3 of a config byte (mode-dependent), chip per band.
+- 0x30 ×4 (mode-control verification), 0x1F ×4 (the 0x0FFF soft-reset detect), 0x0D ×1 (status, channel-apply), 0x0A ×1 (PA bias service read), **0x1C ×2** (0x08021B42/0x08021C5A — not in the guide's read-only list; register-table version difference, open).
+- The session-23 "two variable-register reads" were chip-from-memory, not register-from-memory; registers there are immediates (0x0A, and the 0x1B site).
+
+RSSI UI consumer = the function containing 0x0801C464 (display updater region 0x0801C4xx).
