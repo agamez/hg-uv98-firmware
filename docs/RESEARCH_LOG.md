@@ -674,3 +674,20 @@ The draw helper 0x08018B60(x/y, ..., string, attr, [sp] attr): frame-ready gated
 - 0x3F/0x40/0x50/0x7B/0x86: memcmp/memset/draw_str singletons
 
 With this, the state machine's structure (ui_state_set + printable-char enum), the input system, the S-meter chain, the beacon windows, and the menu block layout are all closed. Remaining truly-open: per-state bodies beyond the fingerprints (REA decompile per state), the stripped tail-table commands, and the .data image contents (absent from the artifact).
+
+### 2026-10-15 — Session 29: REA decompile phase — state machine + beacon + RSSI validated and refined
+
+REA (Ghidra 12.1.4) opened the raw binary at the LINKED base 0x08004000 (file offset 0 mapped there), so REA addresses = log labels + 0x4000 and pool pointers resolved natively. Decompiled: ui_state_set (0x08014530), the per-state progress driver (0x08014302), the RSSI updater (canonical entry 0x080203d0).
+
+**ui_state_set(0x08010530 label / 0x08014530 REA) — full semantics:**
+- gate: [0x200050EA? — companion flag] clear && new_state != 0
+- stores the BAND byte ([0x20004E68+0x40]) into [0x2000469C+0xF0]
+- memcpy 0x1E bytes: 0x20004FD0 <- 0x20004F94 + band*0x1E — **snapshots the active band's S-meter ring** on every transition
+- sets companion flag [+2]=1, then the state byte 0x200050E8 = new_state
+- resolves the session-24/28 stride coincidence: 0x20004F94 hosts the two 0x1E ring blocks (chip 0/1); 0x20004FD0 = the active snapshot.
+
+**Progress driver (0x08010302 label) — refined:** branches on the 2-bit submode at flag+0xB bits 6-7 (and bit 7 = a third path); counter thresholds are **0x32 (50)** or **0x28 (40)** per path (the 0x29 compare = fires on pass 41 in the 40-path); completion formats via **DAT_08014504 = "$B%02d"** (index = raw byte) or **DAT_08014500 = "$C%02d"** (index = byte/5 — the beacon index advances in steps of 5 in the submode paths) and TXes 6 bytes. 50-byte buffer 0x2000335C cleared, frame-ready bit +9 bit0 cleared.
+
+**RSSI updater (0x080203d0 REA):** decompiler-confirmed `rf_read(chip, 0x1B)` (FUN_0802692e) argument order; sub-counter +0x77 to 16; ring write FUN_0801a8da, shift FUN_0801d8c0 (+4), snapshot, bar renderer FUN_0801ab36, post-calls FUN_0801a7aa/FUN_0801e296/FUN_08024d3c(1)/FUN_08022044; peak state cleared; anchors: flags 0x20005094, app-state 0x2000469C, rings 0x20004F94, band byte 0x20004E68+0x40, +0x20005152 flag.
+
+REA findings are consistent with sessions 20-28 throughout — no corrections needed, several refinements (thresholds, index/5, band snapshot, function-level anchors for the reconstruction).
