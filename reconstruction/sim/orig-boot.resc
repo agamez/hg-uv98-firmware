@@ -1,0 +1,49 @@
+# orig-boot — run the ORIGINAL firmware binary unmodified (session 45).
+#
+# Session 38/41 retraction applies: the image is NOT neutered. The reset
+# handler (label 0x08044690 = file 0x40690) is `nop.w; nop.w; bl 0x080429D4`
+# -> boot stub -> init walker -> __scatterload_zeroinit + compressed-RW-data
+# decompressor -> main (0x08029120). followup.md §5's "minimal patch" is
+# unnecessary; this runner executes the vendor bytes as-is.
+#
+# Harness-side notes (same as ck1.resc):
+#   * RCC_CFGR tag satisfies the vendor SystemInit SCLK_STS poll.
+#   * SYST_CVR=0 written at t=10 ms — the Renode SysTick model quirk
+#     (descending LimitTimer with CURRENT=0 first fires at 0xFFFFFF/fclk;
+#     silicon wraps in ~1 tick). Must be restated in equivalence reports.
+#   * The original's OSCtxSwCtr lives at RAM 0x200050EC (literal pool
+#     0x08027B34, read out of the original's OSIntExit @0x0802731A).
+
+using sysbus
+mach create "hguv98-orig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+
+# bootloader-equivalent handoff from the ORIGINAL's own vector table
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+
+# protocol UART output (USART2 = the 8051 link) to the console
+showAnalyzer sysbus.usart2
+
+echo "=== boot 10 ms (decompressor + SystemInit + main + OSStart) ==="
+emulation RunFor "00:00:00.010"
+
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+
+echo "=== run 100 ms — OS tick @1 kHz ==="
+emulation RunFor "00:00:00.100"
+echo "=== OSCtxSwCtr (0x200050EC):"
+sysbus ReadDoubleWord 0x200050EC
+
+echo "=== run 100 ms more ==="
+emulation RunFor "00:00:00.100"
+echo "=== OSCtxSwCtr again (must grow ~100):"
+sysbus ReadDoubleWord 0x200050EC
+echo "=== fault registers (must stay 0):"
+sysbus ReadDoubleWord 0xE000ED28
+sysbus ReadDoubleWord 0xE000ED2C
+quit

@@ -1,0 +1,67 @@
+# orig-diag9 — stack walk: find app-code return addresses on the prio-3 task stack.
+using sysbus
+mach create "hguv98-orig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+
+echo "=== 0-10 ms ==="
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+echo "=== run to 2 s ==="
+emulation RunFor "00:00:01.990"
+echo "=== PC / SP:"
+sysbus.cpu PC
+sysbus.cpu SP
+echo "=== stack dump (48 words from SP):"
+sysbus ReadWord 0x200022DC
+sysbus ReadWord 0x200022E0
+sysbus ReadWord 0x200022E4
+sysbus ReadWord 0x200022E8
+sysbus ReadWord 0x200022EC
+sysbus ReadWord 0x200022F0
+sysbus ReadWord 0x200022F4
+sysbus ReadWord 0x200022F8
+sysbus ReadWord 0x200022FC
+sysbus ReadWord 0x20002300
+sysbus ReadWord 0x20002304
+sysbus ReadWord 0x20002308
+sysbus ReadWord 0x2000230C
+sysbus ReadWord 0x20002310
+sysbus ReadWord 0x20002314
+sysbus ReadWord 0x20002318
+sysbus ReadWord 0x2000231C
+sysbus ReadWord 0x20002320
+sysbus ReadWord 0x20002324
+sysbus ReadWord 0x20002328
+sysbus ReadWord 0x2000232C
+sysbus ReadWord 0x20002330
+sysbus ReadWord 0x20002334
+sysbus ReadWord 0x20002338
+sysbus ReadWord 0x2000233C
+sysbus ReadWord 0x20002340
+sysbus ReadWord 0x20002344
+sysbus ReadWord 0x20002348
+sysbus ReadWord 0x2000234C
+sysbus ReadWord 0x20002350
+sysbus ReadWord 0x20002354
+sysbus ReadWord 0x20002358
+sysbus ReadWord 0x2000235C
+sysbus ReadWord 0x20002360
+sysbus ReadWord 0x20002364
+sysbus ReadWord 0x20002368
+sysbus ReadWord 0x2000236C
+sysbus ReadWord 0x20002370
+sysbus ReadWord 0x20002374
+sysbus ReadWord 0x20002378
+sysbus ReadWord 0x2000237C
+sysbus ReadWord 0x20002380
+sysbus ReadWord 0x20002384
+sysbus ReadWord 0x20002388
+sysbus ReadWord 0x2000238C
+sysbus ReadWord 0x20002390
+sysbus ReadWord 0x20002394
+sysbus ReadWord 0x20002398
+quit

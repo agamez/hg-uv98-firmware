@@ -1,0 +1,13 @@
+using sysbus
+mach create "hguv98-orig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "self.Log(LogLevel.Info, 'WALKER entered')"
+cpu AddHook 0x0801D846 "self.Log(LogLevel.Info, 'DECOMP entered')"
+cpu AddHook 0x0801D85A "self.Log(LogLevel.Info, 'FIXUP: r9=0x{0:X}'.format(self.GetRegister(9).RawValue))"
+echo "=== boot 10 ms ==="
+emulation RunFor "00:00:00.010"
+quit

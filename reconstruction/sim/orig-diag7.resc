@@ -1,0 +1,33 @@
+# orig-diag7 — 5 s virtual run: does the original's boot complete?
+using sysbus
+mach create "hguv98-orig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+showAnalyzer sysbus.usart2
+
+echo "=== 0-10 ms ==="
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+echo "=== 10-2600 ms ==="
+emulation RunFor "00:00:02.590"
+echo "=== OSCtxSwCtr:"
+sysbus ReadDoubleWord 0x200050EC
+echo "=== OSTime:"
+sysbus ReadDoubleWord 0x2000511C
+echo "=== PC:"
+sysbus.cpu PC
+echo "=== 2600-5100 ms ==="
+emulation RunFor "00:00:02.500"
+echo "=== OSCtxSwCtr:"
+sysbus ReadDoubleWord 0x200050EC
+echo "=== OSTime:"
+sysbus ReadDoubleWord 0x2000511C
+echo "=== PC:"
+sysbus.cpu PC
+echo "=== fault regs:"
+sysbus ReadDoubleWord 0xE000ED28
+sysbus ReadDoubleWord 0xE000ED2C
+quit

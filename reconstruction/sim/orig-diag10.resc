@@ -1,0 +1,49 @@
+# orig-diag10 — sampling profiler: 12 PC samples at 1 s virtual intervals.
+using sysbus
+mach create "hguv98-orig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+
+echo "=== 0-10 ms ==="
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+echo "=== sample 1 (t=1.0s) ==="
+emulation RunFor "00:00:00.990"
+sysbus.cpu PC
+echo "=== sample 2 (t=2.0s) ==="
+emulation RunFor "00:00:01.000"
+sysbus.cpu PC
+echo "=== sample 3 (t=3.0s) ==="
+emulation RunFor "00:00:01.000"
+sysbus.cpu PC
+echo "=== sample 4 (t=4.0s) ==="
+emulation RunFor "00:00:01.000"
+sysbus.cpu PC
+echo "=== sample 5 (t=5.0s) ==="
+emulation RunFor "00:00:01.000"
+sysbus.cpu PC
+echo "=== sample 6 (t=6.0s) ==="
+emulation RunFor "00:00:01.000"
+sysbus.cpu PC
+echo "=== sample 7 (t=7.0s) ==="
+emulation RunFor "00:00:01.000"
+sysbus.cpu PC
+echo "=== sample 8 (t=8.0s) ==="
+emulation RunFor "00:00:01.000"
+sysbus.cpu PC
+echo "=== sample 9 (t=9.0s) ==="
+emulation RunFor "00:00:01.000"
+sysbus.cpu PC
+echo "=== sample 10 (t=10.0s) ==="
+emulation RunFor "00:00:01.000"
+sysbus.cpu PC
+echo "=== sample 11 (t=11.0s) ==="
+emulation RunFor "00:00:01.000"
+sysbus.cpu PC
+echo "=== sample 12 (t=12.0s) ==="
+emulation RunFor "00:00:01.000"
+sysbus.cpu PC
+quit

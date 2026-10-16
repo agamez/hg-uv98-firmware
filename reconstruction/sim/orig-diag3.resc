@@ -1,0 +1,30 @@
+# orig-diag3 — why does OSCtxSwCtr freeze while ticks storm?
+# Read the original's OS state bytes (addresses from the OSIntExit literal
+# pools) after a long stormy window.
+using sysbus
+mach create "hguv98-orig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+
+echo "=== run 200 ms (storm regime reached) ==="
+emulation RunFor "00:00:00.200"
+echo "=== OSCtxSwCtr (0x200050EC):"
+sysbus ReadDoubleWord 0x200050EC
+echo "=== OSTime (0x2000511C):"
+sysbus ReadDoubleWord 0x2000511C
+echo "=== OSRunning (0x20005170):"
+sysbus ReadByte 0x20005170
+echo "=== OSLockNesting (0x2000516B):"
+sysbus ReadByte 0x2000516B
+echo "=== OSIntNesting (0x2000516C):"
+sysbus ReadByte 0x2000516C
+echo "=== OSPrioCur (0x2000516D):"
+sysbus ReadByte 0x2000516D
+echo "=== OSPrioHighRdy (0x2000516E):"
+sysbus ReadByte 0x2000516E
+echo "=== PC:"
+sysbus.cpu PC
+quit

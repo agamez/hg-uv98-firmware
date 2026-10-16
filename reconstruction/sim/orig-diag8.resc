@@ -1,0 +1,31 @@
+# orig-diag8 — 30 s virtual: does the original's boot complete?
+# Hooks on the bit-bang primitive (0x0802289A) and the busy-delay
+# (0x08017AA4) measure progress per window.
+using sysbus
+mach create "hguv98-orig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x0802289A "self.Log(LogLevel.Info, 'BB')"
+showAnalyzer sysbus.usart2
+
+echo "=== 0-10 ms ==="
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+echo "=== 10-5050 ms ==="
+emulation RunFor "00:00:05.040"
+echo "=== OSCtxSwCtr:"
+sysbus ReadDoubleWord 0x200050EC
+echo "=== 5050-15050 ms ==="
+emulation RunFor "00:00:10.000"
+echo "=== OSCtxSwCtr:"
+sysbus ReadDoubleWord 0x200050EC
+echo "=== 15050-30500 ms ==="
+emulation RunFor "00:00:15.450"
+echo "=== OSCtxSwCtr:"
+sysbus ReadDoubleWord 0x200050EC
+echo "=== PC:"
+sysbus.cpu PC
+quit

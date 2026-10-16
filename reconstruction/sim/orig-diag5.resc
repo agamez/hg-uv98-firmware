@@ -1,0 +1,33 @@
+# orig-diag5 — give the original's boot 1 s of virtual time; sample at 0.5/1.0 s.
+using sysbus
+mach create "hguv98-orig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+showAnalyzer sysbus.usart2
+
+echo "=== 0-10 ms ==="
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+echo "=== 10-500 ms ==="
+emulation RunFor "00:00:00.490"
+echo "=== OSCtxSwCtr:"
+sysbus ReadDoubleWord 0x200050EC
+echo "=== OSTime:"
+sysbus ReadDoubleWord 0x2000511C
+echo "=== PC:"
+sysbus.cpu PC
+echo "=== 500-1000 ms ==="
+emulation RunFor "00:00:00.500"
+echo "=== OSCtxSwCtr:"
+sysbus ReadDoubleWord 0x200050EC
+echo "=== OSTime:"
+sysbus ReadDoubleWord 0x2000511C
+echo "=== PC:"
+sysbus.cpu PC
+echo "=== fault regs:"
+sysbus ReadDoubleWord 0xE000ED28
+sysbus ReadDoubleWord 0xE000ED2C
+quit

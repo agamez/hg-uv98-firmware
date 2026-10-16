@@ -1,0 +1,29 @@
+# orig-diag2 — when does the original's tick fire under the quirk?
+# No harness writes at all; watch for first "Internal IRQ SysTick" and
+# sample OSCtxSwCtr every 100 ms up to 300 ms.
+using sysbus
+mach create "hguv98-orig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+logLevel -1 sysbus.nvic
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x0802BD68 "self.Log(LogLevel.Info, '### orig SysTickHandler')"
+
+echo "=== 0-100 ms ==="
+emulation RunFor "00:00:00.100"
+echo "=== OSCtxSwCtr:"
+sysbus ReadDoubleWord 0x200050EC
+echo "=== 100-200 ms ==="
+emulation RunFor "00:00:00.100"
+echo "=== OSCtxSwCtr:"
+sysbus ReadDoubleWord 0x200050EC
+echo "=== 200-300 ms ==="
+emulation RunFor "00:00:00.100"
+echo "=== OSCtxSwCtr:"
+sysbus ReadDoubleWord 0x200050EC
+echo "=== CTRL/LOAD:"
+sysbus ReadDoubleWord 0xE000E010
+sysbus ReadDoubleWord 0xE000E014
+quit

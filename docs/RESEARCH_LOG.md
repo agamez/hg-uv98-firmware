@@ -1049,3 +1049,73 @@ hook addresses with nm after every rebuild); BSS observables unchanged.
 ✓ (this session), tasks cycle ✓, no faults ✓, host tests ✓. CK1 CLOSED.
 Next: §5 original-binary runner (patched reset under analysis/), then CK2
 protocol conformance parity.
+
+### 2026-10-16 — Session 46: the ORIGINAL binary runs in Renode unmodified; boot state mapped; stall root-caused to a GPIO-config retry loop
+
+**1. followup.md §5 is RETRACTED-CONFIRMED — no reset patch exists or is needed.**
+Byte-level verification (this session): the 190416 reset handler at label
+0x08044690 (file 0x40690) = `AF F3 00 80 | AF F3 00 80 | FE F7 9C F9` =
+`nop.w; nop.w; bl 0x080429D4` — session 38's correction holds: boot chain
+intact (stub → walker → loaders → main). The runner `reconstruction/sim/
+orig-boot.resc` executes the vendor binary AS-IS via `sysbus LoadBinary ...
+0x08004000`. Vector table re-verified: MSP 0x20006780, Reset 0x08044691,
+PendSV 0x0802B21B, SysTick 0x0802BD69, ext[0] 0x0802AF4F.
+
+**ADDRESSING WARNING (cost a debug round):** for LoadBinary/LoadELF at
+0x08004000, label = file + 0x08004000 (the vector table is file 0x0). Every
+file-dump disassembly in this session initially used file+0x08000000 and read
+the WRONG function (the M/N/'0' AT1846S-write-looking code at file 0x23660 is
+LABEL 0x08027660, not the loop). PC/LR/hooks from Renode are labels; file
+dumps must subtract 0x4000.
+
+**2. The original's boot state at 30 s virtual (with the CVR workaround):**
+- Walker runs, calls exactly TWO loaders (hooked `blx r1` at 0x08042916:
+  0x0801D967 zeroinit, 0x0801D847 decompress; the `add r5,r9` RAM-base branch
+  at 0x0801D85A never taken).
+- Tables decompress byte-perfect vs `analysis/ram_tables_recovered.bin`
+  EXCEPT every flash string pointer loses its 0x0804 prefix (0x08043B20 →
+  0x00003B20; 2573 diff bytes = 2 per pointer + stragglers; dump:
+  analysis/orig_emulated_ram_tables.bin). OPEN: either the fixup base is
+  added later at use-time (benign) or a loader stage we haven't mapped adds
+  it (needs the next session; the python reference added it explicitly).
+- OS boots: 8 context switches, OSRunning=1, nestings 0, no faults, tick
+  verified (orig SysTickHandler hook 0x0802BD68 fired 1939×; OSTime
+  0x2000511C advances 1:1 with pends).
+- **FIRMWARE QUIRK (record for §7 timing parity):** the original's tick init
+  (OS_CPU_SysTickInitFreq at label 0x08027D88) reads SystemCoreClock from RAM
+  0x20006C50 = 8,000,000 at that moment → LOAD=7999 → at a 108 MHz SysTick
+  clock the OS tick = 74 µs (13.5 kHz storm). The reconstruction programs
+  board_setup_tick(108 MHz) → LOAD=107999 → 1 ms. The two images' tick
+  cadences differ BY DESIGN 13.5× (the reconstruction "corrected" the
+  vendor's un-updated SystemCoreClock). Any tick-level timing comparison must
+  normalize this. The same CVR=0 harness workaround (write after the app's
+  RVR write; t=10 ms verified for both images) is needed for the original.
+- USART2: zero bytes TX in 30 s virtual (protocol tasks never start).
+
+**3. The stall root-caused (orig-diag14):** the prio-3 main task loops
+forever in the GPIO-configuration writer at label 0x08023678 — a CRL/CRH
+nibble builder + BSRR/BRR pull-direction setter (configs 0x28/0x48 special-
+cased) driven by a descriptor list on the task stack (r1 = 0x200022D4/DC).
+16304 calls in 2 s with r0 = 0x40010C00 (GPIOB!) and the SAME descriptor pair
+→ an infinite config-retry loop around GPIOB in the main task's init; prio 3
+never blocks, so every lower task (protocol/UART/keys) starves. GPIOB hosts
+the ST7735 bus (WR=PB0, D0-7=PB8-15) — the retry condition is NOT resolved
+yet; prime suspect: the init verifies pin LEVELS and Renode's STM32F1 GPIO
+model returns 0 for every unconnected input pin (IDR = externally-driven
+connections only — stm32f1gpio.cs `IDR => GetValueFromBitsArray(State)`; no
+pull-up emulation). Fix belongs in the HARNESS (wire BooleanConstant-style
+pull-ups on the pins the config writer pulls up, or tag IDR) — never in the
+reconstruction. Next session: hook the BSRR/BRR writes in the retry loop to
+enumerate which GPIOB pins get pull configs, then drive those pins in the
+platform overlay.
+
+**4. Harness/tooling additions:** `orig-boot.resc` (the canonical original
+run), orig-diag1..14 + orig-ramdump.resc (the evidence chain), monitor-Python
+RAM dumps (`python "...emulationManager.CurrentEmulation.Machines[0]..."`
+works — no DumpMemory monitor command exists), and the `logLevel -1
+<periph>` syntax for Noisy logs. Renode GPIO pull-up emulation is the known
+gap to solve for the display/keypad init (§4 item 2/5).
+
+**CK status:** CK1 CLOSED (session 45). CK2 blocked on the original's boot
+completing — the GPIO retry loop is the blocker. The reconstruction side of
+CK2 (USART2 conformance vectors) is already green (make test-host).
