@@ -12,6 +12,19 @@ static evidence**. Per the project rules, without emulation or hardware this
 is a Level-3 result of the "builds + consistent with static evidence" kind —
 no runtime behavior is claimed.
 
+**Recovered architecture (sessions 18-32):** complete screen-state machine
+(~145 screen IDs, `ui_state_set` 0x08010530 with band-ring snapshot), the
+menu dispatcher (binary-search tree; 116-edge mapping in
+`docs/MENU_TREE.md`), the full input chain (scanner / PTT synth /
+software-polled keys / programmable IDs → gated `key_event`), battery
+gauge (ADC ch14, thresholds 3253/1751, 4 states) and S-meter chains
+(AT1846S 0x1B[15:8] RSSI → peak-hold → BCD timestamp history rings →
+numeric dB display), beacon windows ('$B%02d'/'$C%02d'), the menu redraw
+block layout, and the list scroller. All REA/Ghidra-validated (raw binary
+at linked base 0x08004000) and traceable in `docs/RESEARCH_LOG.md`
+(sessions 18-32). The protocol layer additionally passes the executed host
+conformance tests (`make test-host`).
+
 ## Vendored third-party code
 
 | Tree | Source | License |
