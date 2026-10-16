@@ -1,25 +1,22 @@
 # orig-boot — run the ORIGINAL firmware binary unmodified (canonical run).
 #
-# Sessions 46-47 state:
-#   * NO reset patch needed (session 38/41 retraction stands; the boot chain
-#     is intact) — the vendor bytes execute as-is via LoadBinary @0x08004000.
-#   * Harness workaround 1 (session 45): SYST_CVR=0 written at t=10 ms —
-#     Renode's descending SysTick LimitTimer with CURRENT=0 first fires at
-#     0xFFFFFF/fclk; silicon wraps in ~1 tick. Restate in equivalence reports.
-#   * Harness workaround 2 (session 47): r9 := 0x08040000 at the init-walker
-#     entry — the armlink compressed-RW-data loader adds r9 (the scatter
-#     base) to RAM-base-relative table pointers; Renode's reset leaves r9=0,
-#     so every table pointer lost its 0x0804 prefix and the boot's
-#     table-driven init executed through broken pointers. With r9 set, the
-#     firmware's own fixup code produces correct tables (0x20000000 =
-#     0x08043B20).
-#   * KNOWN REMAINING STALL (session 47): the prio-3 task's software-I²C
-#     EEPROM master (DATA=PB9, CLK=PA11) waits for a per-byte ACK that no
-#     slave model gives; the next harness item is a Python I²C-slave
-#     peripheral (see session-47 log entry for the full protocol decode).
+# Sessions 45-47 state: the original's OS boots and RUNS (context switches
+# flow, the tick advances, the first protocol frame "$A00" goes out on
+# USART2). Harness-side workarounds, all model-gap equivalents (restate in
+# every equivalence report):
+#   1. SYST_CVR=0 at t=10 ms - Renode's descending SysTick LimitTimer with
+#      CURRENT=0 first fires at 0xFFFFFF/fclk; silicon wraps in ~1 tick.
+#   2. r9 := 0x08040000 at the init-walker entry - the armlink loader's
+#      'add r5, r9' pointer fixup needs the scatter base; Renode reset
+#      leaves r9=0, so table pointers lost their 0x0804 prefix.
+#   3. gpioPortB removed from the platform (see gd32f103.repl header) -
+#      the software-I2C ACK read must return 0 or the settings-EEPROM
+#      driver wedges the boot in a NAK-retry storm.
+#   4. ADC2_SR tagged 0x2 (EOC) - the boot polls adc_flag_get(ADC2, EOC).
+#   5. SPI2 = sp2_fontflash.py - the font-flash stand-in (reads 0xFF).
 #
-# The original's OSCtxSwCtr = RAM 0x200050EC, OSTime = 0x2000511C (literal
-# pools 0x08027B34/0x08027B44 read out of OSIntExit/OSTimeTick).
+# NEXT (CK2): the "$A00" handshake on USART2 awaits a peer - the 8051-link
+# protocol responder (play the tests/test_protocol.c conformance vectors).
 
 using sysbus
 mach create "hguv98-orig"
@@ -29,6 +26,7 @@ machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/
 sysbus WriteDoubleWord 0x00000000 0x20006780
 sysbus WriteDoubleWord 0x00000004 0x08044691
 
+# SystemInit's SCLK_STS poll (same vendor code as the reconstruction)
 sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
 
 sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
@@ -44,18 +42,11 @@ emulation RunFor "00:00:00.010"
 
 sysbus WriteDoubleWord 0xE000E018 0x00000000
 
-echo "=== run 100 ms — OS tick ==="
-emulation RunFor "00:00:00.100"
+echo "=== run 2 s (OS tick + tasks + first $A00 frame) ==="
+emulation RunFor "00:00:01.990"
 echo "=== OSCtxSwCtr (0x200050EC):"
 sysbus ReadDoubleWord 0x200050EC
 echo "=== OSTime (0x2000511C):"
-sysbus ReadDoubleWord 0x2000511C
-
-echo "=== run 900 ms more ==="
-emulation RunFor "00:00:00.900"
-echo "=== OSCtxSwCtr:"
-sysbus ReadDoubleWord 0x200050EC
-echo "=== OSTime:"
 sysbus ReadDoubleWord 0x2000511C
 echo "=== fault registers (must stay 0):"
 sysbus ReadDoubleWord 0xE000ED28

@@ -1193,3 +1193,39 @@ ACK wait (deterministic, OSTime=0x68F4 identical across runs); the tables are
 now correct (r9 fix); the remaining gap = the missing I²C slave, same
 category as the followup-§4 synthesized peripherals. The reconstruction side
 of CK2 remains green (make test-host).
+
+**Session 47, part 2 — the stall cascade BROKEN: the original's OS RUNS.**
+The Python-I2C-slave plan from part 1 turned out unnecessary for boot
+progress. The working sequence (each fix exposes the next stall):
+1. GPIOB REMOVED from the platform (gd32f103.repl) — the ACK sample then
+   reads 0 (unimplemented range) → ACK → the settings-EEPROM driver
+   completes. (The IDR-tag experiments failed: the tag shadows monitor
+   reads but the firmware still sampled NAK — bypassed on the CPU path.
+   Removing the port sidesteps the model entirely.)
+2. Next stall: `adc_flag_get(ADC2, EOC)` poll at 0x0802C388 (handle =
+   0x40012800) — no ADC model. Fix: tag ADC2_SR (0x40012800) = 0x2.
+3. Next stall: SPI2 (0x40003800) — the EXTERNAL FONT FLASH transfers
+   (TXE/RXNE polls + full-duplex DR) — the followup-sec4 synthesized
+   peripheral. Fix: `sim/sp2_fontflash.py` (Python.PythonPeripheral:
+   0x03 READ + 24-bit addr state machine, 0x9F JEDEC ID, content 0xFF =
+   erased; IronPython 2 requires pure-ASCII scripts — an em-dash broke it).
+4. RESULT: OSCtxSwCtr 8 → **3010** (2 s), OSTime advancing, **the first
+   protocol frame "$A00" transmitted on USART2** (the 8051-link handshake),
+   zero faults. The original's OS + tasks + protocol pump are ALIVE.
+   (IronPython note: `SetRegister` needs
+   `RegisterValue.Create(v, 32)`, not an int.)
+
+Platform consolidation: gd32f103.repl now carries the GPIOB removal, the
+ADC2_SR tag and the SPI2 python peripheral (header documents all of it);
+orig-boot.resc = the canonical original run (RCC_CFGR tag + r9 hook + CVR
+workaround — dropping the RCC_CFGR tag silently wedges SystemInit, cost one
+debug round). ck1.resc re-verified green on the new platform (identical
+deterministic counters).
+
+**NEXT (CK2): the 8051-link peer.** The original sent "$A00" and expects the
+coprocessor's answer; the reconstruction will reach the same point. The
+peer = a USART2 responder playing the conformance vectors (tests/
+test_protocol.c) — the same stimulus feeds both images for the differential
+comparison. Then CK3 (AT1846S bus trace) and the settings-EEPROM content
+(the synthesized I2C EEPROM byte content — the $A-settings semantics supply
+the defaults).

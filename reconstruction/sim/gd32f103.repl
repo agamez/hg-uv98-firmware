@@ -55,10 +55,8 @@ nvicInput40: Miscellaneous.CombinedInput @ none
     -> nvic@40
 
 gpioPortA: GPIOPort.STM32F1GPIOPort @ sysbus <0x40010800, +0x400>
-    invertedAFPins: [[7, 1]]
 
-gpioPortB: GPIOPort.STM32F1GPIOPort @ sysbus <0x40010C00, +0x400>
-    invertedAFPins: [[13, 1], [14, 1], [15, 1], [0, 1], [1, 1]]
+
 
 gpioPortC: GPIOPort.STM32F1GPIOPort @ sysbus <0x40011000, +0x400>
 
@@ -71,8 +69,13 @@ gpioPortF: GPIOPort.STM32F1GPIOPort @ sysbus <0x40011C00, +0x400>
 gpioPortG: GPIOPort.STM32F1GPIOPort @ sysbus <0x40012000, +0x400>
 
 afio: GPIOPort.STM32F1AFIO @ sysbus 0x40010000
-    gpioPorts: [gpioPortA, gpioPortB, gpioPortC, gpioPortD, gpioPortE, gpioPortF, gpioPortG]
+    gpioPorts: [gpioPortA, gpioPortA, gpioPortC, gpioPortD, gpioPortE, gpioPortF, gpioPortG]
     [0-15] -> exti@[0-15]
+
+spi2: Python.PythonPeripheral @ sysbus <0x40003800, +0x10>
+    size: 0x10
+    initable: true
+    filename: "/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/sp2_fontflash.py"
 
 timer2: Timers.STM32_Timer @ sysbus 0x40000000
     IRQ -> nvic@28
@@ -111,9 +114,6 @@ gpioPortA:
     3 -> timer2@03
     15 -> timer2@00
 
-gpioPortB:
-    0 -> timer3@02
-    1 -> timer3@03
 
 gpioPortC:
     6 -> timer3@00
@@ -125,3 +125,4 @@ sysbus:
     init:
         ApplySVD @https://dl.antmicro.com/projects/renode/svd/STM32F103.svd.gz
         Tag <0x40021000, 0x40021003> "RCC_CR" 0x0A020083
+        Tag <0x40012800, 0x40012803> "ADC2_SR" 0x00000002
