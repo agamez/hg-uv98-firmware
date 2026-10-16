@@ -20,10 +20,11 @@
  *     memcpy 0x1E: 0x20004FD0 <- 0x20004F94 + band*0x1E  (ring snapshot)
  *   companion flag 0x200050EA = 1; screen id byte 0x200050E8 = screen.
  * Transitions: menu dispatcher (0x08011190+) = binary-search tree over
- * the selection index -> per-item byte setup + screen init
- * 0x0801715C(4, 0x1E) -> ui_state_set(screen); protocol handlers set
- * the RF states 'g'-'j'; guard paths reset to 0. ~150 setter sites
- * total (session 30).
+ * the selection index -> per-item setup + list-window scroller
+ * 0x0801715C(4, 0x1E) (keeps the selection visible: start = min(end,sel),
+ * end = selection) -> ui_state_set(screen); protocol handlers set
+ * the RF states 'g'-'j'; guard paths reset to 0. ~150 setter sites,
+ * 116 menu-tree edges extracted (docs/MENU_TREE.md, session 31).
  *
  * BEACON WINDOWS ('h'/'i'/'j', 0x08010302): pass counter
  * [0x2000469C+0x135] runs to 0x28 (fires on pass 41) or 0x32 (50) per

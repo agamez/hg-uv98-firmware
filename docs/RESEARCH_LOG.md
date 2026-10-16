@@ -716,3 +716,13 @@ With this, the UI architecture has no remaining structural unknowns: screen-swit
 - **0x0801715C = list-window scroller (corrects the "screen init" reading):** (list, new_end, selection) -> if selection > window end: window.start = min(new_end, selection), window.end = selection; else start unchanged; then 0x0801B074(list, 1). This is the menu scrolling mechanism.
 - **S-meter display is NUMERIC:** the renderer family at 0x0801EA04 (canonical entry; my 0x0801EB36 selector resolved into it) writes digit characters (+'0' bias) into a 20-byte field, formats "%2d-"-style above 0x32 (50 dB), draws at (0x27, 0x85) via 0x0801CC0C, and copies an 8-byte placeholder (DAT_0801F728) when no reading. The BCD history rings feed the peak timestamp, the numeric dB shows the live/peak level.
 - Ghidra failed to resolve 0x08014D06 (ui_list_select) and the protocol-handler in-body selector — capstone decodes stand.
+
+### 2026-10-15 — Session 32: menu tree extracted as data; S-meter display + history reset
+
+- **docs/MENU_TREE.md**: the complete dispatcher mapping — 116 edges over 37 selection-index values. Odd items = direct screens (item N -> state N); even items 0x00/0x02/0x04/0x06/0x08/0x0A/0x0C = submenu hubs fanning out to the second-level screens 0x33-0x8D; RF states entered from the protocol handlers only.
+- **0x0801B05C = S-meter history reset** (memcpy 0x1E from template DAT_0801FC48 + re-render; REA canonical entry for the 0x0801B074 selector).
+- **0x0801CBFE = selection position resolver**: keyTable[key*8] -> per-key record -> record[entry*4] rows, modes {0 = hidden (-1), 1 = plain, 2 = +0x2800, 3 = -0x5800} — scaled row coordinates; confirms the two-level key-table indirection (8-byte pointer records -> 4-byte u32 arrays).
+- **0x0801EA04 family = numeric S-meter display** (digit buffer +0x30 bias, "%2d-" above 50 dB, draw (0x27, 0x85) via 0x0801CC0C, 8-byte placeholder when no reading).
+- ui.c corrected (scroller name) and menu-tree reference linked.
+
+The architectural program is complete. Remaining: per-screen bodies for the leaf states — purely mechanical, no unknowns.
