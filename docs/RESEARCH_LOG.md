@@ -742,3 +742,12 @@ Per-pump RAM-argument extraction (83 pumps, 79 distinct sets, analysis/pump_args
 - Correction: the "20-byte blocks" read at pool literals in session 18 were the pumps' five independent pointer literals; the actual block struct = RAM 0x20005080 (.data contents absent — consistent with session 19's closure).
 
 The screen system = a linked table chain walked by the dispatcher. With this, every structurally-extractable relationship in the UI is mapped: state machine, menu tree, pump inventory, and the screen linkage chain. The extraction program is complete.
+
+### 2026-10-15 — Session 35: KT-file verification — .data absence proven for BOTH artifacts
+
+The session-19 .data-absence proof had run only on the 190416 file; the KT file (V1.0.1_190619-KT, 0x7C000 = full app flash) was never checked for the missing tables. Verification:
+- Builds differ substantially (53.3% of the overlap; vectors differ) — a distinct build, as expected for the KT2KT UI variant.
+- All three .data searches on the KT file: **zero** u32-670 (CTCSS table), **zero** CSS-range runs, and the only consecutive-pointer run = the vector table itself (75 entries at file 0x00004). **The .data image is absent from the KT file too.**
+- The KT tail beyond 0x42B97 = ONE 12,224-byte cluster (0x42B97-0x45B57) of continued Thumb code — the KT2KT UI additions — followed by clean 0xFF to 0x7C000. The KT build's .text simply extends further; no data image, no tail tables.
+
+**The .data-absence closure now covers both distributed artifacts.** The extraction program is complete with no remaining verification gaps. (The KT build's additional 12 KB of code is a separate variant analysis, out of scope unless requested.)
