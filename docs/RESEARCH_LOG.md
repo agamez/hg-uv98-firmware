@@ -691,3 +691,16 @@ REA (Ghidra 12.1.4) opened the raw binary at the LINKED base 0x08004000 (file of
 **RSSI updater (0x080203d0 REA):** decompiler-confirmed `rf_read(chip, 0x1B)` (FUN_0802692e) argument order; sub-counter +0x77 to 16; ring write FUN_0801a8da, shift FUN_0801d8c0 (+4), snapshot, bar renderer FUN_0801ab36, post-calls FUN_0801a7aa/FUN_0801e296/FUN_08024d3c(1)/FUN_08022044; peak state cleared; anchors: flags 0x20005094, app-state 0x2000469C, rings 0x20004F94, band byte 0x20004E68+0x40, +0x20005152 flag.
 
 REA findings are consistent with sessions 20-28 throughout — no corrections needed, several refinements (thresholds, index/5, band snapshot, function-level anchors for the reconstruction).
+
+### 2026-10-15 — Session 30: the complete state-transition table — states ARE screens
+
+Capstone scan of all ~150 bl ui_state_set (0x08010530) sites with the value each sets:
+
+- **0x080111BC-0x08011A98 = the menu dispatcher**: sets states 0x01, 0x02, ... 0x2F sequentially — one site per menu item. This is the screen-selection tree.
+- **0x08011BC8-0x080127xx**: the remaining screen inventory (0x30-0x86 + high codes 0x88-0x8D; letters '6'-'z', 'M', 'N', 'O', 'X', ...): ~100 more screens/modes.
+- **0x0800AEFE-0x0800D3E2 (protocol handler region)**: sets 'g' ×3, 'C', 'h' ×2, 'i' ×2, 'j' ×4, 0x88/0x89/0x8A/0x8C — protocol-driven RF/screen transitions.
+- **0x0801725C-0x080172B0 / 0x0801A210 / 0x0801D542**: guard/reset paths (0, 'g', 'h', 'i').
+
+Interpretation: the printable-char "state enum" = the SCREEN ID SPACE (states 1..0x8D ≈ 141 screen states + the RF states 'g'/'h'/'i'/'j' + 0 = off/idle). ui_state_set = the screen-switch function. The session-22 compared set (18 values) = the states with active per-pass logic in the UI task's routers; the rest are leaf screens served by the generic path (the 85 screen pumps map onto these states). REA's caller list for ui_state_set (5 sites) is incomplete vs the capstone scan — Ghidra call-coverage limitation, noted.
+
+This completes the UI architecture: screen-switch function, screen inventory, menu dispatcher, per-state logic sites, and the routers. Open remainder: per-screen bodies for the ~141 leaf states (mechanical REA work, no architectural unknowns).
