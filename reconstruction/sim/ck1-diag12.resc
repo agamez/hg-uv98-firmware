@@ -1,0 +1,44 @@
+# CK1-diag12 — bisect the SysTick chain in one run:
+#   A) baseline: count interrupt-begins for 10 ms
+#   B) disable SysTick (CTRL=0) for 10 ms — do the periodic interrupts stop?
+#   C) re-enable (CTRL=7) — do they resume?
+#   D) manual pend via ICSR.PENDSTSET with the timer interrupt off — does
+#      vector-15 delivery work at all? (splits timer-path vs delivery-path)
+using sysbus
+mach create "hguv98"
+machine LoadPlatformDescription @platforms/cpus/stm32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+
+cpu AddHookAtInterruptBegin "self.Log(LogLevel.Info, 'IB: IRQ={0} PC=0x{1:X}'.format(self.IRQ, self.PC.RawValue))"
+cpu AddHook 0x08005A88 "self.Log(LogLevel.Info, '### SysTickHandler ENTERED')"
+cpu AddHook 0x08005B98 "self.Log(LogLevel.Info, '### PendSVHandler ENTERED')"
+cpu AddHook 0x08004131 "self.Log(LogLevel.Info, '### DEFAULT_HANDLER ENTERED')"
+
+echo "=== boot 5 ms ==="
+emulation RunFor "00:00:00.005"
+
+echo "=== phase A: baseline 10 ms ==="
+emulation RunFor "00:00:00.010"
+echo "=== ICSR:"
+sysbus ReadDoubleWord 0xE000ED04
+
+echo "=== phase B: SysTick DISABLED (CTRL=0) for 10 ms ==="
+sysbus WriteDoubleWord 0xE000E010 0x00000000
+emulation RunFor "00:00:00.010"
+echo "=== CTRL readback:"
+sysbus ReadDoubleWord 0xE000E010
+
+echo "=== phase C: SysTick RE-ENABLED (CTRL=7) for 10 ms ==="
+sysbus WriteDoubleWord 0xE000E010 0x00000007
+emulation RunFor "00:00:00.010"
+
+echo "=== phase D: manual pend (CTRL=2, then PENDSTSET) ==="
+sysbus WriteDoubleWord 0xE000E010 0x00000002
+sysbus WriteDoubleWord 0xE000ED04 0x04000000
+emulation RunFor "00:00:00.001"
+echo "=== ICSR after manual pend:"
+sysbus ReadDoubleWord 0xE000ED04
+quit

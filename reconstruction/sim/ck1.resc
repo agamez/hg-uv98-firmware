@@ -1,22 +1,36 @@
-# CK1 — boot the HG-UV98 reconstruction to the UI task loop.
+# CK1 — boot the HG-UV98 reconstruction to a running OS tick (canonical run).
 #
-# The distributed app is linked at 0x08004000 behind a bootloader that is
-# NOT part of the reconstruction; at reset a Cortex-M3 fetches MSP/PC from
-# 0x00000000. We mirror the bootloader's handoff: place the vector entries
-# at 0x0 (MSP 0x20006800, Reset 0x08004165) — the app itself sets VTOR to
-# 0x08004000 in main(), so exceptions route correctly once the RTOS starts.
+# Session-45 state: boot chain verified (Reset_Handler → SystemInit → main →
+# OSInit → 7 tasks → OSStart → context switches), and the SysTick→OS tick
+# chain verified end-to-end. Root cause of the session-44 "silent tick" was
+# NEVER a delivery problem — see the session-45 log entry:
+#   1) The vendored Micrium port's OS_CPU_SysTickInit (ucos2/port/os_cpu_c.c)
+#      never writes SYST_CVR: RVR=cnts-1, SHPRI3, then two CSR read-modify-
+#      writes (|=CLKSOURCE|ENABLE, |=TICKINT).
+#   2) Renode models SysTick as a descending LimitTimer whose CURRENT=0 view
+#      (CVR never written) counts from the 24-bit limit, so the first
+#      LimitReached lands at 0xFFFFFF/systickFrequency (≈156 ms @108 MHz,
+#      ≈233 ms @72 MHz) — past every session-44 observation window.
+#   3) Silicon wraps CVR=0 to LOAD+1 on the next edge (≈1 ms), so this is a
+#      Renode-vs-silicon divergence, NOT a firmware bug.
+# Workaround (harness-side only, permitted by the mission rules; must be
+# restated in every equivalence report): after boot, write SYST_CVR=0 from
+# the monitor — the app's own RVR then takes effect on the first underflow
+# and the tick runs at the app's intended 1 kHz.
 
 using sysbus
 mach create "hguv98"
-machine LoadPlatformDescription @platforms/cpus/stm32f103.repl
 
-# bootloader-equivalent vector handoff
+# Project platform: stock stm32f103.repl with systickFrequency = 108 MHz
+# (the firmware's HCLK assumption; the stock 72 MHz made ticks 1.5 ms).
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+
+# bootloader-equivalent vector handoff (the app is linked at 0x08004000
+# behind the non-distributed bootloader; it sets VTOR itself in main)
 sysbus WriteDoubleWord 0x00000000 0x20006800
 sysbus WriteDoubleWord 0x00000004 0x08004165
 
-# Minimal RCC: SystemInit selects PLL (writes SCS=0b10) then polls
-# SCLK_STS (CFGR bits 3:2). No wait — the switch is "done" immediately.
-# (run 1 evidence: infinite spin on CFGR reads returning 0)
+# SystemInit selects PLL then polls CFGR SCLK_STS; the tag makes it "done"
 sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
 
 sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
@@ -24,17 +38,25 @@ sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
 # protocol UART output (USART2) to the console
 showAnalyzer sysbus.usart2
 
-echo "=== run 50 ms ==="
-emulation RunFor "00:00:00.050"
-echo "=== heartbeat (0x2000469C+0x166) read 1:"
-sysbus ReadWord 0x20004802
-echo "=== PC:"
-sysbus.cpu PC
-emulation RunFor "00:00:00.200"
-echo "=== heartbeat read 2 (must be > read 1):"
-sysbus ReadWord 0x20004802
-echo "=== PC:"
-sysbus.cpu PC
+echo "=== boot 10 ms ==="
+emulation RunFor "00:00:00.010"
+
+# harness-side CVR workaround (see header)
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+
+echo "=== run 100 ms — OS tick @1 kHz ==="
+emulation RunFor "00:00:00.100"
+echo "=== OSCtxSwCtr (0x200020BC; boot-only was <10):"
+sysbus ReadDoubleWord 0x200020BC
+echo "=== OSIdleCtr (0x20001FE0; >0 means idle got CPU time):"
+sysbus ReadDoubleWord 0x20001FE0
+
+echo "=== run 100 ms more ==="
+emulation RunFor "00:00:00.100"
+echo "=== OSCtxSwCtr again (must have grown ~100):"
+sysbus ReadDoubleWord 0x200020BC
+echo "=== OSIdleCtr again:"
+sysbus ReadDoubleWord 0x20001FE0
 echo "=== fault registers (must stay 0):"
 sysbus ReadDoubleWord 0xE000ED28
 sysbus ReadDoubleWord 0xE000ED2C

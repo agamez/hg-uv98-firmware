@@ -1,0 +1,30 @@
+# CK1-diag15 — test the Value=0 prediction: the port never writes CVR, so
+# Renode's descending LimitTimer starts its view at the 24-bit limit and the
+# first LimitReached should arrive at ~0xFFFFFF/72MHz = ~233.6 ms.
+# Run 400 ms with NO harness interference and watch the heartbeat.
+using sysbus
+mach create "hguv98"
+machine LoadPlatformDescription @platforms/cpus/stm32f103.repl
+logLevel -1 sysbus.nvic
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+
+echo "=== run 200 ms (expect silence) ==="
+emulation RunFor "00:00:00.200"
+echo "=== heartbeat:"
+sysbus ReadWord 0x20004802
+
+echo "=== run 100 ms more (crosses t=233ms) ==="
+emulation RunFor "00:00:00.100"
+echo "=== heartbeat:"
+sysbus ReadWord 0x20004802
+
+echo "=== run 100 ms more (steady ticking) ==="
+emulation RunFor "00:00:00.100"
+echo "=== heartbeat:"
+sysbus ReadWord 0x20004802
+echo "=== ICSR:"
+sysbus ReadDoubleWord 0xE000ED04
+quit

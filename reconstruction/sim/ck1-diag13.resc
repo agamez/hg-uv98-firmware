@@ -1,0 +1,23 @@
+# CK1-diag13 — SysTick LimitTimer isolation test: NO app loaded.
+# Arm SysTick from the monitor exactly like the app would (LOAD=107999,
+# VAL=0, CTRL=7), run 5 ms of virtual time, and check whether exception 15
+# ever becomes pending (ICSR bits [20:12] / PENDSTSET bit 26 + NVIC noisy log).
+using sysbus
+mach create "systick-iso"
+machine LoadPlatformDescription @platforms/cpus/stm32f103.repl
+logLevel -1 sysbus.nvic
+
+echo "=== arm SysTick from the monitor ==="
+sysbus WriteDoubleWord 0xE000E014 0x0001A5FF
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+sysbus WriteDoubleWord 0xE000E010 0x00000007
+echo "=== CTRL readback:"
+sysbus ReadDoubleWord 0xE000E010
+
+echo "=== run 5 ms ==="
+emulation RunFor "00:00:00.005"
+echo "=== ICSR (bit26 PENDSTSET / bits[20:12] VECTPENDING):"
+sysbus ReadDoubleWord 0xE000ED04
+echo "=== CTRL after run:"
+sysbus ReadDoubleWord 0xE000E010
+quit

@@ -1,0 +1,23 @@
+# CK1-diag17 — who actually runs? Count task entries over two 50 ms windows
+# with the CVR workaround active from t=10 ms.
+using sysbus
+mach create "hguv98"
+machine LoadPlatformDescription @platforms/cpus/stm32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+cpu AddHook 0x08005224 "self.Log(LogLevel.Info, 'TASK: idle')"
+cpu AddHook 0x0800512c "self.Log(LogLevel.Info, 'TASK: periodic')"
+cpu AddHook 0x0800513c "self.Log(LogLevel.Info, 'TASK: ui')"
+cpu AddHook 0x08005100 "self.Log(LogLevel.Info, 'TASK: dispatcher')"
+cpu AddHook 0x08005A88 "self.Log(LogLevel.Info, 'TICK: handler')"
+
+echo "=== boot 10 ms + CVR workaround ==="
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+echo "=== window 1: 50 ms ==="
+emulation RunFor "00:00:00.050"
+echo "=== window 2: 50 ms ==="
+emulation RunFor "00:00:00.050"
+quit

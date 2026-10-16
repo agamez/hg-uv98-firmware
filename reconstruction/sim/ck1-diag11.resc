@@ -1,0 +1,31 @@
+# CK1-diag11 — read ICSR (0xE000ED04) while paused after RunFor.
+# VECTACTIVE = bits 5:0, VECTPENDING = bits 21:12 & 5:0 region per ARM:
+#   ICSR bits: VECTACTIVE [5:0], RETTOBASE [11], VECTPENDING [20:12],
+#   ISRPENDING [22], ISRPREEMPT [23], PENDSTCLR [25], PENDSTSET [26],
+#   PENDSVCLR [27], PENDSVSET [28], NMIPENDSET [31].
+using sysbus
+mach create "hguv98"
+machine LoadPlatformDescription @platforms/cpus/stm32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+
+echo "=== run 5 ms ==="
+emulation RunFor "00:00:00.005"
+echo "=== ICSR (0xE000ED04):"
+sysbus ReadDoubleWord 0xE000ED04
+echo "=== heartbeat:"
+sysbus ReadWord 0x20004802
+echo "=== PC:"
+sysbus.cpu PC
+
+echo "=== run another 45 ms ==="
+emulation RunFor "00:00:00.045"
+echo "=== ICSR again:"
+sysbus ReadDoubleWord 0xE000ED04
+echo "=== heartbeat:"
+sysbus ReadWord 0x20004802
+echo "=== PC:"
+sysbus.cpu PC
+quit

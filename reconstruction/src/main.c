@@ -78,13 +78,16 @@ static void rssi_task(void *arg)
 }
 
 /* prio 29 [0x08028D74 | RECOVERED structure]: mailbox service task over an
- * 8-slot ring. SCAFFOLD body. */
+ * 8-slot ring. SCAFFOLD body. The original creates the task's queue in the
+ * 0x08028C26 cluster and passes the handle as parg (read by the task into
+ * the ring-service loop); we mirror that so the task blocks on an empty
+ * queue instead of spinning on a NULL handle. */
 static void service_task(void *arg)
 {
-    (void)arg;
+    mbox_t *m = (mbox_t *)arg;
     for (;;) {
         uint32_t msg;
-        (void)mbox_pend((mbox_t *)arg, 0, &msg);
+        (void)mbox_pend(m, 0, &msg);   /* blocks while no producer posts */
         /* original: process ring slot (index & 7) */
     }
 }
@@ -140,8 +143,6 @@ static void hw_init(void)
  * cluster). We mirror that ordering. */
 int main(void)
 {
-    int mbox_owner;
-
     /* [RECOVERED, main prologue 0x08029120..0x08029130]: VTOR = (0x4000 &
      * 0x1FFFFF80) | 0x08000000 = 0x08004000 — the app's own vector table
      * (the 16 KB below it is the non-distributed bootloader). Our link
@@ -174,9 +175,9 @@ int main(void)
     (void)task_create(dispatcher_task, 0, 1024, 11);
 
     /* Service tasks 29/30/31 with 512 B stacks; the service task owns a
-     * mailbox (original creates mailboxes in the 0x08028C26 cluster). */
-    mbox_owner = task_create(service_task, 0, 512, 29);
-    (void)mbox_owner;
+     * mailbox (original creates mailboxes in the 0x08028C26 cluster and
+     * passes the handle as the task's parg). */
+    (void)task_create(service_task, (void *)mbox_create(), 512, 29);
     (void)task_create(timeout_task, 0, 512, 30);
     (void)task_create(stats_task,   0, 512, 31);
 

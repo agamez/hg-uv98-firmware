@@ -1,0 +1,22 @@
+# CK1-diag14 — the app boot with NVIC noisy logging: does the C# SysTick
+# model see the app's writes, and does anything ever pend SysTick?
+using sysbus
+mach create "hguv98"
+machine LoadPlatformDescription @platforms/cpus/stm32f103.repl
+logLevel -1 sysbus.nvic
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+
+echo "=== boot + 50 ms ==="
+emulation RunFor "00:00:00.050"
+echo "=== CTRL readback:"
+sysbus ReadDoubleWord 0xE000E010
+echo "=== LOAD readback:"
+sysbus ReadDoubleWord 0xE000E014
+echo "=== ICSR:"
+sysbus ReadDoubleWord 0xE000ED04
+echo "=== heartbeat:"
+sysbus ReadWord 0x20004802
+quit

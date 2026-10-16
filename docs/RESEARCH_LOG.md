@@ -971,3 +971,81 @@ active/pending; (2) hook Default_Handler (0x08004131); (3) disarm the tick
 (board_setup_tick) and check whether the periodic interrupts stop — source
 isolation; (4) only then tlib-internals archaeology. The full handoff =
 `followup.md` §1.
+
+### 2026-10-16 — Session 45: CK1 SOLVED — the tick was never broken; Renode's SysTick model needed CVR
+
+**Outcome: CK1 = PASSED.** Canonical run `reconstruction/sim/ck1.resc` boots the
+reconstruction into a running 1 kHz OS tick: OSCtxSwCtr (0x200020BC) grows
+~223/100 ms, OSIdleCtr (0x20001FE0) accumulates (idle gets CPU time), CFSR/HFSR
+stay 0, `make test-host` green. Read this entry before touching the sim.
+
+**The diagnosis chain (all scripts kept in `reconstruction/sim/`):**
+1. diag11 — ICSR (0xE000ED04) read at pauses: 0x00000800 both times
+   (VECTACTIVE=0, VECTPENDING=0, RETTOBASE=1). Nothing active/pending at the
+   sampling instants → "an NMI is literally active" was already dead.
+2. diag12 — hooks + on/off correlation + manual pend. Two tooling facts first:
+   hook snippets are IronPython — `'s' + UInt32` throws and CRASHES the whole
+   emulator (exit 134); use `'IB: IRQ={0} PC=0x{1:X}'.format(...)`. The
+   InterruptBegin wrapper receives the tlib exception index as an argument
+   (stack: `OnInterruptBeginWrapper(CortexMWrappers, UInt64 exceptionIndex)`)
+   — and **`self.IRQ` is NOT the exception number**: it read 2 for BOTH the
+   SysTick entry and the PendSV entry (diag12 phase D). Every session-44
+   "periodic interrupt" with IRQ=2 was followed by `### PendSVHandler
+   ENTERED` — they were the boot context switches (PendSV delivered at the
+   idle task's OS_CPU_SR_Restore unmask, hence the constant interrupted PC
+   0x08005B0C). After boot settled: ZERO interrupt events. Phase D
+   (monitor-write ICSR.PENDSTSET while CTRL=0x2) → `### SysTickHandler
+   ENTERED`: **vector-15 delivery works.**
+3. diag13 — no-app isolation: arming SysTick from the monitor (LOAD=107999,
+   VAL=0, CTRL=7) pends exception 15 every 1.5 ms (NVIC NoisyLog "Internal
+   IRQ SysTick", ICSR bit 26 set). The C# model + timer + pend path are all
+   healthy. (Monitor logging syntax: `logLevel -1 sysbus.nvic`; NOT
+   `periph LogNoisy`/`LogLevel`.)
+4. diag14 — app boot with `logLevel -1 sysbus.nvic`: the model SEES the app's
+   writes ("Systick_NS enabled", "Systick_NS interrupt enabled", "Priority
+   0x10 set for interrupt SysTick") yet zero pends in 50 ms.
+5. ROOT CAUSE (os_cpu_c.c:706-726): the vendored Micrium port's
+   `OS_CPU_SysTickInit` **never writes SYST_CVR** — RVR=cnts-1, SHPRI3, then
+   two CSR read-modify-writes. Renode's NVIC models SysTick as a descending
+   LimitTimer whose view (CVR never written = 0) counts from the 24-bit
+   limit, so the first LimitReached lands at 0xFFFFFF/systickFrequency =
+   233.6 ms @72 MHz (stock repl) — beyond every session-44 window (50-240 ms).
+   diag15 CONFIRMED the prediction: silence through 200 ms, first pend in the
+   200-300 ms window, then pends every 1.5 ms. On real silicon CVR=0 + ENABLE
+   wraps to LOAD+1 on the next edge (~1 tick), so this is a Renode-vs-silicon
+   divergence, not a firmware bug. The original binary run will hit the same
+   quirk; the harness must apply the same workaround there.
+6. diag16/17 — with the workaround: SysTickHandler fires every tick
+   (console dedups repeats: "TICK: handler (32)" = 32 events on one line!),
+   OSCtxSwCtr scales with ticks. diag17's per-task hooks fire only on INITIAL
+   task entry (resumed tasks continue at the delay site) — entry-count 1 per
+   task is expected.
+
+**Workarounds and platform (all harness-side, no reconstruction change needed
+for the tick):**
+- `reconstruction/sim/gd32f103.repl` — project platform = stock stm32f103.repl
+  minus unused peripherals, with `systickFrequency: 108000000` (the firmware
+  programs the tick for 108 MHz HCLK; the stock 72 MHz rendered ticks 1.5 ms
+  and would skew every tick-level timing comparison). AFIO requires all 7
+  GPIO ports declared (E38 otherwise). RCC_CR tag preserved.
+- Canonical `ck1.resc` writes SYST_CVR=0 from the monitor at t=10 ms (after
+  boot, before the measurement windows) — mirrors silicon; must be restated
+  in every equivalence report (§7).
+- Renode command survival additions: `logLevel -1 <periph>` for Noisy logs;
+  hook snippets must format() non-strings; a failing hook aborts the run.
+
+**Reconstruction scaffold fix (code change, [SCAFFOLD] annotation updated):
+`main.c` service_task now receives a real mailbox** (`mbox_create()` handle
+passed as parg, mirroring the original's 0x08028C26 queue creation). Before,
+arg=0 made `OSMboxPend(NULL)` return an error immediately → prio-29 task
+spinning forever → idle starved (OSIdleCtr stuck at 0 — that was the
+"heartbeat stays 0" residue; the 0x20004802 address itself was from the
+ORIGINAL's RAM map and no reconstruction variable lives there — the correct
+reconstruction-side observables are OSCtxSwCtr/OSIdleCtr, see nm).
+Rebuild note: code shifted (OS_CPU_SysTickHandler now 0x08005AD4 — re-derive
+hook addresses with nm after every rebuild); BSS observables unchanged.
+
+**CK1 checklist state:** boot chain ✓ (session 44), tick→handler→delay-expiry
+✓ (this session), tasks cycle ✓, no faults ✓, host tests ✓. CK1 CLOSED.
+Next: §5 original-binary runner (patched reset under analysis/), then CK2
+protocol conformance parity.

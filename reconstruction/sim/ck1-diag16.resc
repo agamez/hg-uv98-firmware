@@ -1,0 +1,36 @@
+# CK1-diag16 — full CK1 criterion with reconstruction-side observables.
+# Prediction (diag15): with the port never writing CVR, Renode's descending
+# LimitTimer renders its first LimitReached at ~0xFFFFFF/72MHz ~= 233.6 ms;
+# from then on it pends every 108000/72MHz = 1.5 ms and the kernel ticks.
+# Phase 2 re-writes CVR from the monitor right after boot (harness-side
+# workaround mirroring silicon, where CVR=0 + enable -> first tick in ~1
+# period) and checks ticking starts ~1.5 ms later.
+using sysbus
+mach create "hguv98"
+machine LoadPlatformDescription @platforms/cpus/stm32f103.repl
+logLevel -1 sysbus.nvic
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+cpu AddHook 0x08005A88 "self.Log(LogLevel.Info, '### SysTickHandler')"
+
+echo "=== boot + 10 ms; write CVR=0 (harness workaround) ==="
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+echo "=== run 40 ms — handler should fire ~26x (1.5 ms period) ==="
+emulation RunFor "00:00:00.040"
+echo "=== OSCtxSwCtr (0x200020BC):"
+sysbus ReadDoubleWord 0x200020BC
+echo "=== OSIdleCtr (0x20001FE0):"
+sysbus ReadDoubleWord 0x20001FE0
+echo "=== run 100 ms more — switches should grow by ~100 ==="
+emulation RunFor "00:00:00.100"
+echo "=== OSCtxSwCtr again:"
+sysbus ReadDoubleWord 0x200020BC
+echo "=== OSIdleCtr again:"
+sysbus ReadDoubleWord 0x20001FE0
+echo "=== fault regs (must be 0):"
+sysbus ReadDoubleWord 0xE000ED28
+sysbus ReadDoubleWord 0xE000ED2C
+quit

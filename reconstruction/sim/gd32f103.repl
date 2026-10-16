@@ -1,0 +1,126 @@
+// gd32f103.repl — HG-UV98 platform (session 45).
+//
+// Base: Renode 1.17.0 stock platforms/cpus/stm32f103.repl (≈GD32F103: same
+// Cortex-M3, F1 peripheral layout, RCC/GPIO/USART/AFIO/EXTI/DMA addresses).
+// Differences from the stock file:
+//   * systickFrequency: 108000000 (the firmware programs the OS tick for a
+//     108 MHz HCLK: LOAD = 108000000/1000 - 1; the stock file assumes the
+//     72 MHz STM32F103 maximum, which renders ticks 1.5 ms instead of 1 ms
+//     and would skew every tick-level timing comparison in the differential
+//     harness).
+// The RCC_CR tag (oscillator-ready) and the SVD come with the copied sysbus
+// init block below, exactly as in the stock platform.
+fsmcBank1: Memory.MappedMemory @ sysbus 0x60000000
+    size: 0x10000000
+
+sram: Memory.MappedMemory @ sysbus 0x20000000
+    size: 0x10000000
+
+flash: Memory.MappedMemory @ sysbus 0x00000000
+    size: 0x20000000
+
+usart1: UART.STM32_UART @ sysbus <0x40013800, +0x100>
+    -> nvic@37
+    DMARequest -> dma1@4 | dma1@5
+
+usart2: UART.STM32_UART @ sysbus <0x40004400, +0x100>
+    -> nvic@38
+    DMARequest -> dma1@6 | dma1@7
+
+usart3: UART.STM32_UART @ sysbus <0x40004800, +0x100>
+    -> nvic@39
+    DMARequest -> dma1@2 | dma1@3
+
+nvic: IRQControllers.NVIC @ sysbus 0xE000E000
+    priorityMask: 0xF0
+    systickFrequency: 108000000
+    IRQ -> cpu@0
+
+cpu: CPU.CortexM @ sysbus
+    cpuType: "cortex-m3"
+    nvic: nvic
+
+exti: IRQControllers.STM32F4_EXTI @ sysbus 0x40010400
+    numberOfOutputLines: 19
+    [0-4] -> nvic@[6-10]
+    [5-9] -> nvicInput23@[0-4]
+    [10-15] -> nvicInput40@[0-5]
+
+nvicInput23: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 5
+    -> nvic@23
+
+nvicInput40: Miscellaneous.CombinedInput @ none
+    numberOfInputs: 6
+    -> nvic@40
+
+gpioPortA: GPIOPort.STM32F1GPIOPort @ sysbus <0x40010800, +0x400>
+    invertedAFPins: [[7, 1]]
+
+gpioPortB: GPIOPort.STM32F1GPIOPort @ sysbus <0x40010C00, +0x400>
+    invertedAFPins: [[13, 1], [14, 1], [15, 1], [0, 1], [1, 1]]
+
+gpioPortC: GPIOPort.STM32F1GPIOPort @ sysbus <0x40011000, +0x400>
+
+gpioPortD: GPIOPort.STM32F1GPIOPort @ sysbus <0x40011400, +0x400>
+
+gpioPortE: GPIOPort.STM32F1GPIOPort @ sysbus <0x40011800, +0x400>
+
+gpioPortF: GPIOPort.STM32F1GPIOPort @ sysbus <0x40011C00, +0x400>
+
+gpioPortG: GPIOPort.STM32F1GPIOPort @ sysbus <0x40012000, +0x400>
+
+afio: GPIOPort.STM32F1AFIO @ sysbus 0x40010000
+    gpioPorts: [gpioPortA, gpioPortB, gpioPortC, gpioPortD, gpioPortE, gpioPortF, gpioPortG]
+    [0-15] -> exti@[0-15]
+
+timer2: Timers.STM32_Timer @ sysbus 0x40000000
+    IRQ -> nvic@28
+    UpdateInterrupt -> dma1@2
+    frequency: 10000000
+    initialLimit: 0xFFFF
+
+timer3: Timers.STM32_Timer @ sysbus 0x40000400
+    IRQ -> nvic@29
+    UpdateInterrupt -> dma1@3
+    TriggerInterrupt -> dma1@6
+    frequency: 10000000
+    initialLimit: 0xFFFF
+
+timer4: Timers.STM32_Timer @ sysbus 0x40000800
+    IRQ -> nvic@30
+    UpdateInterrupt -> dma1@7
+    [0-2] -> dma1@[1, 4, 5]
+    frequency: 10000000
+    initialLimit: 0xFFFF
+
+dma1: DMA.STM32G0DMA @ sysbus 0x40020000
+    numberOfChannels: 7
+    [0-6] -> nvic@[11-17]
+
+// Alternate-function connections used by the firmware's bit-banged buses
+// (RF: PA15/PA9/PA8/PA12; display: PB0, PB8-15, PC1/PC3/PC10; keypad: PC7/
+// PC8/PC11; font-flash CS: PD4) are all plain GPIO in this design; the AF
+// crossbar entries below mirror the stock F1 wiring for the pins the model
+// needs for EXTI/timer capture. The keypad/PTT lines enter through EXTI.
+gpioPortA:
+    0 -> timer2@00
+    1 -> timer2@01
+    2 -> timer2@02
+    3 -> timer2@03
+    15 -> timer2@00
+
+gpioPortB:
+    0 -> timer3@02
+    1 -> timer3@03
+
+gpioPortC:
+    6 -> timer3@00
+    7 -> timer3@01
+    8 -> timer3@02
+    9 -> timer3@03
+
+sysbus:
+    init:
+        ApplySVD @https://dl.antmicro.com/projects/renode/svd/STM32F103.svd.gz
+        Tag <0x40021000, 0x40021003> "RCC_CR" 0x0A020083
