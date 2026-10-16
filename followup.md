@@ -25,25 +25,138 @@ file fully before writing any code.
   Pool-pointer *values* inside the image are linked addresses (file + 0x08004000).
   REA/Ghidra sessions open the raw binary with base 0x08004000 so REA addr = label + 0x4000.
 
-## 1. Where things stand
+## 1. Where things stand — session-44 handoff (READ THIS FIRST)
 
-- `docs/RESEARCH_LOG.md` — 37 sessions: full architecture of the main MCU
-  (GD32F103RET6, Cortex-M3) recovered from two distributed binaries.
-- `docs/MENU_TREE.md` (116 dispatcher edges), `docs/SCREENS.md` (86 pump sites,
-  20 list IDs), `analysis/pump_args.json` (screen linkage chain).
-- `reconstruction/` — buildable C (`make TOOLCHAIN_PATH=<arm-gcc-dir>`,
-  `make test-host` = green protocol conformance tests), tagged `level3-complete`:
-  - `src/rf.c/h` — AT1846S ×2 bit-bang transport + full register map
-  - `src/ui.c/h` — screen-state machine, input policy, battery/S-meter chains
-  - `src/protocol.c` + `tests/test_protocol.c` — the inter-MCU protocol
-  - `src/font.c` — external SPI-flash font fetchers (addressing math recovered)
-  - `src/display.c`, `src/startup.c`, `src/rtos.c` + vendored uC/OS-II + GD32 SPL
-- **Known-absent content (proven, both binaries):** the `.data` initialization image
-  (key tables, menu string tables, CSS tone table, screen attribute bytes) and the
-  stripped dispatcher tail table. Their RAM addresses and linkage structure are fully
-  mapped; their *contents* are unrecoverable from the artifacts.
-- The 8051 APRS coprocessor has full source (`UV98_868_220430_D4/`); it is NOT a
-  simulation target — model it as traffic (see §5).
+**Phase:** CK1 of §8 is IN PROGRESS in Renode. The OS boots and context-switches;
+the SysTick→handler link is the one broken piece. Read this section, then §4, then §8.
+
+**Repo state:** all work committed & pushed through session 44 (`docs/RESEARCH_LOG.md`
+= 44 sessions — read 39-44 for tables/compression/simulation). `reconstruction/`
+builds green (`make TOOLCHAIN_PATH=/tmp/opencode/arm-tc/usr/bin/` — the toolchain
+lives in /tmp, re-extract if a reboot wiped it) and `make test-host` passes.
+
+**Recovered content is IN the build (sessions 39-44):** `.tables` at RAM
+0x20000000 (the decompressed .data: key tables, menu string pointer arrays, the
+0x200016D0 **frequency sub-band table** — NOT a "CSS tone table", see session 43 —
+and the battery/S-meter ladders) and `.uistrings` at flash 0x08040000 (the
+original's string/asset region). Every table pointer resolves unmodified.
+Table-driven content can match byte-for-byte (§7 revised).
+
+**Simulation tooling:** Renode 1.17.0 installed at
+`~/tools/renode_1.17.0-portable` (portable, self-contained — no mono needed).
+Harness scripts in `reconstruction/sim/`:
+- `ck1.resc` — canonical CK1 run: vector handoff @0x0 + RCC_CFGR tag + heartbeat reads.
+- `ck1-hooks.resc` — tick-chain hook-counting pattern (re-check symbol addresses with nm first — code shifts on every rebuild!).
+- `ck1-diag8.resc` — AddHookAtInterruptBegin/End pattern (logs self.IRQ + interrupted PC).
+- `ck1-diag9.resc` — the tick-chain count that isolated the blocker.
+- `ck1-gdb.resc` — GDB-server pattern (start with `tail -f /dev/null | renode ...`).
+
+**What already works in Renode (do not re-derive):**
+- Platform: stock `platforms/cpus/stm32f103.repl` (≈GD32F103). It pre-tags RCC_CR
+  (0x40021000) = 0x0A020083 (HSERDY/PLLRDY/HSIRDY set) and models usart2 at
+  0x40004400, GPIO A-G, AFIO/EXTI, DMA, timers.
+- Vector handoff: the app is linked at 0x08004000 behind the non-distributed
+  bootloader; the harness writes MSP 0x20006800 + Reset 0x08004165 to 0x00000000/4
+  (the app sets VTOR = 0x08004000 itself in main).
+- RCC: SystemInit polls CFGR SCLK_STS after selecting PLL — harness Tag
+  `<0x40021004, 0x40021007> "RCC_CFGR" 0x00000008` satisfies it. (Session-44 log
+  entry has the spin-site address.)
+- Boot chain: Reset_Handler (tables copy) → SystemInit → main (VTOR, tick 108
+  MHz/1 kHz, OSInit, 7 tasks) → OSStart → OSStartHighRdy → context switch —
+  CFSR/HFSR = 0, PRIMASK = 0, OSTaskSwHook ×3, OS_Sched ×2, ui_task entered.
+
+**Session-44 fixes (commit 206bf14), for context:**
+- `main.c` was missing `OSInit()` entirely → kernel pools zero,
+  `OSInitHookBegin` never ran → `OS_CPU_ExceptStkBase` = 0 → OSStartHighRdy's
+  `msr MSP, r1` loaded MSP = 0 → the first exception BusFaulted
+  (CFSR = BFSR.PRECISERR, HFSR.FORCED) into Default_Handler.
+- `os_cfg.h`: `OS_CPU_HOOKS_EN` 0 → 1 (restores OSInitHookBegin); the duplicate
+  hook stubs were removed from `os_hooks.c` (the vendored port's bodies win;
+  this port variant doesn't define OSTaskSwHook/OSTimeTickHook — those stay in
+  os_hooks.c). NOTE: no header dependency tracking in the Makefile — after
+  touching os_cfg.h, `rm -rf build` or at least `rm build/k-*.o build/p-*.o`.
+
+**THE BLOCKER — SysTick interrupts fire but the tick handler never runs:**
+- SysTick verified armed by register read: CTRL (0xE000E010) = 0x7
+  (ENABLE|TICKINT|CLKSOURCE), LOAD = 108000 (= 1 ms @108 MHz; Renode's
+  `systickFrequency: 72000000` makes it 1.5 ms).
+- Periodic interrupts ARE taken; the interrupted PC = always 0x08005B0C = the
+  tail of OS_CPU_SR_Restore (the idle task's critical-section exit — the app
+  lives in Save/Restore pairs, so delivery at unmask is normal for the Micrium
+  port). At interrupt-begin `self.IRQ` = 2; `LogCpuInterrupts` labels it
+  "Fast Interrupt (FIQ)".
+- But OS_CPU_SysTickHandler (0x08005A88 — address verified current against nm,
+  and a hook on OS_Sched at the same build DOES fire) never executes:
+  SysTickHandler/OSTimeTick/OSIntEnter = 0 hook hits. Heartbeat (0x20004802)
+  stays 0; ui_task enters once then blocks forever.
+- Ruled out: vector[2] misroute (patching 0x08004008 → SysTickHandler changed
+  nothing), faults (CFSR = 0), PRIMASK stuck (= 0), VTOR (= 0x08004000 at 1/5/50 ms;
+  Renode independently "guessed" 0x08004000 at LoadELF), stale hook addresses,
+  SysTick misconfiguration (register-verified), GDB software breakpoints (never
+  fire — don't retry; hbreak untried).
+- Renode internals (source fetched to /tmp/opencode/{nvic,cortexm,arm}.cs —
+  re-fetch from renode-infrastructure master after a reboot):
+  `src/Emulator/Cores/Arm-M/NVIC.cs` — SysTick = a LimitTimer on
+  machine.ClockSource at `systickFrequency`, LimitReached →
+  SetPendingIRQ(SystemException.SysTick = 15); `SystemException` enum: NMI = 2,
+  PendSV = 14, SysTick = 15; the `irqs[]` array is indexed by exception number.
+  `src/Emulator/Cores/Arm/Arm.cs` ExceptionDescriptions[5] = "Fast Interrupt
+  (FIQ)" — the array is offset by one from tlib's exception_index (QEMU
+  numbering: EXCP_IRQ = 5, EXCP_FIQ = 6), so the delivered exception = tlib
+  EXCP_FIQ. The meaning of `self.IRQ` = 2 remains unresolved.
+
+**NEXT DIAGNOSTICS, cheapest definitive first (do not skip ahead):**
+1. Read ICSR (0xE000ED04) while paused after `emulation RunFor`: VECTACTIVE =
+   bits 5:0 = the ACTIVE exception number; VECTPENDING = bits 11:6. If
+   VECTPENDING = 15 → SysTick pending but never activated = the NVIC→CPU
+   signal path is the broken link. If VECTACTIVE = 2 → an NMI is literally
+   active. One RunFor + one ReadDoubleWord — start here.
+2. Hook Default_Handler (0x08004131): do the periodic interrupts land in it?
+   (diag10's vector[2] patch had no effect, so probably not — but the hook
+   proves it.)
+3. Source isolation: comment out `board_setup_tick` in main.c, rebuild, run —
+   do the periodic interrupts stop? If yes → the SysTick is the source and the
+   delivery is broken. If no → an unexpected source (check the .repl: several
+   `timerN: out -> gpioPortX#pin` connections exist and Renode timers count
+   from reset; EXTI → nvic@6-10/23/40 could be firing if hw_init armed lines).
+4. Only then tlib archaeology: how tlib's Cortex-M maps the NVIC output to an
+   exception and whether vector[15] is even consulted (fetch
+   renode-infrastructure `src/Emulator/Cores/Arm-M/` CPU + tlib arch/arm
+   sources; try `sysbus.cpu VectorTableOffset 0x08004000` explicitly).
+5. Any workaround must live in the harness/platform, never in the
+   reconstruction (the original runs this exact code on silicon) — and gets
+   recorded in every equivalence report (§7).
+
+**Renode survival guide (patterns that work / traps that waste time):**
+- Run: `cd ~/tools/renode_1.17.0-portable && timeout 240 ./renode --console
+  --disable-xwt <script.resc>`; background + GDB needs stdin kept open:
+  `(tail -f /dev/null | timeout N ./renode ... &)` — the monitor exits at EOF
+  (this silently killed the first GDB-server attempt).
+- `emulation RunFor "00:00:00.050"` = run then pause. Do NOT `start` first.
+- Scripts abort at the FIRST failing command — a bad command mid-script
+  silently truncates the run (cost us a full debug round).
+- State reads: `sysbus ReadDoubleWord <addr>`; CPU via properties:
+  `sysbus.cpu PC`, `sysbus.cpu SP`, `sysbus.cpu PRIMASK` (bare `cpu` dumps the
+  method/property list, not registers — but that list is a useful API reference).
+- SysTick VAL (0xE000E018) reads from the monitor are unreliable ("Syncing time
+  should be done from CPU thread only" + frozen value).
+- Hooks: `cpu AddHook <addr> "self.Log(LogLevel.Info, '...')"` and
+  `AddHookAtInterruptBegin/End` (inside the hook: `self.IRQ`,
+  `self.PC.RawValue`). They work — but re-derive addresses with nm after every
+  rebuild.
+- LoadELF logs three blocks: 23,624 B @0x08000000 (flash), 64 KB @0x08005C48
+  (the RAM segment's paddr = the tables' flash load image — by design,
+  Reset_Handler copies it to RAM), 27,543 B @0x08040000 (.uistrings).
+
+- `docs/MENU_TREE.md` (116 dispatcher edges), `docs/SCREENS.md` (86 pump sites
+  + the protocol-driven 'g'/'h'/'i'/'j' states), `analysis/pump_args.json`.
+- `reconstruction/` — buildable C (`make test-host` = green protocol tests):
+  `src/rf.c/h` (AT1846S ×2 + `at1846s_set_band_config` with the REAL sub-band
+  table), `src/ui.c/h` (screen machine, input policy, gauges), `src/protocol.c`
+  (+ host tests), `src/font.c`, `src/display.c`, `src/startup.c`, `src/rtos.c`,
+  `src/tables.S` + vendored uC/OS-II + GD32 SPL.
+- The 8051 APRS coprocessor has full source (`UV98_868_220430_D4/`); NOT a
+  simulation target — model it as traffic (§5).
 
 ## 2. Mission
 
@@ -90,8 +203,9 @@ Key wiring recovered in the log (model these behaviors, not just registers):
 
 ## 4. Custom devices to write (in order of boot dependency)
 
-1. **Clock/RCC** — enough for `SystemInit` (constants recovered; PLL to 108 MHz or
-   just accept the writes and run the model at a fixed rate).
+1. **Clock/RCC** — DONE for boot (session 44): the platform's built-in RCC_CR tag
+   covers the oscillator-ready reads; the harness adds an RCC_CFGR tag (0x8) for
+   SystemInit's SCLK_STS poll. No wait loops remain on the boot path.
 2. **GPIO** — four ports with output-pin visibility: every PA/PB/PC/PD write must be
    observable as events (the RF and display buses are bit-banged — the comparison
    harness *is* the pin trace).
@@ -182,8 +296,10 @@ fabricating agreement would corrupt the differential signal.
 
 ## 8. Suggested checkpoints
 
-1. **CK1** — Renode/QEMU machine boots the reconstruction to the UI task loop
-   (heartbeat counter at 0x2000469C+0x166 increments; routers run).
+1. **CK1** — IN PROGRESS (session 44): boots through the context switch with no
+   faults; the remaining criterion = the heartbeat (0x2000469C+0x166, i.e.
+   0x20004802) incrementing — blocked on the SysTick→handler link (§1 has the
+   full evidence chain and the next diagnostics in order).
 2. **CK2** — protocol conformance parity: both images pass the same USART2 vectors.
 3. **CK3** — RF parity: identical AT1846S write sequences for the fixed setup script.
 4. **CK4** — display: both images produce framebuffer dumps with identical
@@ -196,11 +312,12 @@ fabricating agreement would corrupt the differential signal.
 ## 9. File map
 
 ```
-docs/RESEARCH_LOG.md      # the evidence base — read sessions 18-37 first for UI/RF detail
+docs/RESEARCH_LOG.md      # the evidence base — read sessions 18-44 first for UI/RF/compression/sim detail
 docs/MENU_TREE.md         # 116 dispatcher edges
-docs/SCREENS.md           # pump inventory
+docs/SCREENS.md           # pump inventory + protocol-driven states
 reconstruction/           # the C tree (build: make TOOLCHAIN_PATH=...)
 reconstruction/src/*.c    # recovered mechanisms (start: ui.c, rf.c, protocol.c)
+reconstruction/sim/       # Renode CK1 harness + diagnostic patterns (§1)
 firmware/MAIN-MCU-*.bin   # original 190416 (0x42B97 bytes, neutered reset)
 firmware/V1.0.1_190619-KT.bin  # KT variant (0x7C000; APRS-menu redesign; tail to 0x45B57)
 firmware/UV98_868_220430_D4.hex # 8051 coprocessor image (45 KB)
