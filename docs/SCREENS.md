@@ -37,6 +37,28 @@ site (mode). The pumps are the per-screen key handlers:
 - 0x0800F1F0/0x0800F26C: list IDs 6/59 (the main-screen pumps)
 - List ID 0xD3 (2 sites): a special list
 
+## Protocol-driven screen states (no list pump)
+
+The RF states set by protocol handlers (session 24) and served by the
+per-state progress router 0x08010302 — no list pump, no key table:
+
+- **'g' (0x67)** — RF/scan progress state (set ×3 in the protocol region).
+- **'h' (0x68) / 'i' (0x69)** — beacon-list / beacon-detail windows
+  (session 26): pass counter [0x2000469C+0x135] compared against
+  **0x29 (41)** at 0x0801033C ('h') and 0x08010392 ('i'); on the pass
+  where it reaches 41 the 50-byte buffer at 0x2000335C is cleared, the
+  frame-ready bit (0x20005094+9 bit0) is dropped, the counter resets,
+  and the ARM transmits the next 6-byte request: `$B%02d\r\n` (index =
+  raw byte) for 'h', `$C%02d\r\n` (index = byte/5) for 'i' — templates
+  at linked 0x08043B08/0x08043B14, TX via 0x0801FEAA.
+- **'j' (0x6A)** — third beacon window (session 43 partial): 1-bit
+  submode (bit 6, ubfx 0x080103D8), counter compared against
+  **0x33 (51)** (0x080103F0/0x08010450), plus a `0x74 't'` byte compare
+  (0x080104AC) — body not yet fully expanded.
+
+(Session 43's capstone re-check corrected the earlier 0x28/0x32 reading:
+the compares are 0x29/0x29/0x33.)
+
 Per-session 18/32: each pump reads the key ID byte, indexes its
 8-byte-stride key-action table, moves the selection via
 ui_list_select, and issues the 20-byte redraw block; activation

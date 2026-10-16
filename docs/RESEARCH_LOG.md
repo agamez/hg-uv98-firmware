@@ -834,3 +834,81 @@ With the correct descriptor reading (the KT's decompressor entry @file 0x3E99C: 
 (The recovered table images are deliverables, not scratch — copied to `reconstruction/data/`: `ram_tables_recovered.bin` (190416, RAM 0x20000000-0x20001730), `kt_ram_tables_recovered.bin` (KT, same span, bilingual content), `kt_english_strings.txt` (951 English UI strings with their RAM addresses).)
 
 **Reconstruction integration (session 42 follow-up):** the recovered tables are now part of the build — `src/tables.S` (.incbin of `data/ram_tables_recovered.bin` + the UI string region `data/uistrings_region.bin`), the linker places `.tables` at RAM 0x20000000 (flash load image after .text) and `.uistrings` at 0x08040000, and `Reset_Handler` copies the tables to RAM exactly where the original's scatter-load put them. The built image's .data region = byte-identical to the decompressed original tables; every table pointer resolves into the embedded string region. The menu system now runs the real radio's menus in the reconstruction.
+
+### 2026-10-16 — Session 43: fill-ins before simulation — the "CSS tone table" reframed, KT zeroinit confirmed, beacon counters corrected
+
+With the tables embedded in the build (previous entry), the three open
+follow-ups closed. One is a **major retraction**.
+
+**1. RETRACTION (session 25): the "96-entry CSS tone table" @0x200016D0 is a FREQUENCY SUB-BAND table.**
+The recovered .data shows the table's real values — 24 initialized u32
+(the scan bound `cmp r0, #0x60` = 96 iterations at 0x080231AA; entries
+24-95 are the zero-init .bss part of a u32[96] C array, which is exactly
+why .data ends at 0x20001730 = 0x16D0 + 24×4):
+`40950000, 13650000, 14029000, 14408000, 14787500, 15546000, 15925000,
+16204000, 16683000, 17442000, 24456000, 35262500, 36400000, 37533500,
+38675000, 42087500, 43225000, 44362500, 46637500, 47775000, 48912500,
+50050000, 51187500` (+1 more). **Unit: RF frequency in 10 Hz** —
+136.5 / 144.08 / 147.875 / 174.42 MHz (VHF band edges incl. 162.04 ≈
+WX band start), 420.875 / 432.25 / 443.625 (UHF ham), 477.75 (AU UHF
+CB) … 511.875 — the AT1846S tuning range's sub-band boundaries.
+Corroborating caller evidence: all four `bl 0x08023156` sites pass the
+compared value in **r2** (prologue `movs r5, r2` — the compared value is
+the third parameter, not the second as session 25 assumed), and
+0x08020DF6 passes the return of 0x080168AA invoked on BCD-assembled
+nibble bytes — a parsed frequency. The setter's sentinel literals
+confirmed in its pool (file 0x23E00-0x23E0C): 45500000, 17442000,
+17062500, table base 0x200016D0. So **0x08023156(chip, flag, freq_10Hz)
+= per-frequency band/filter configuration**: table match → reg 0x05 =
+0x8543; sentinel match → 0x8643 (special frequencies: 174.42 MHz is
+also a table edge; 170.625; 455.0 — semantics INFERRED); scan exhausted
+→ 0x8763. reg 0x05 is undocumented in OpenRTX's register table; the
+0x8643/0x8763 bit patterns match the reg-0x58 audio-filter family
+([9:7] hi-pass bandwidth, bypass bits) — filter config, INFERRED.
+Consequence: `reconstruction/src/rf.{c,h}` renamed
+`at1846s_set_css` → `at1846s_set_band_config(chip, flag, freq_10hz)`,
+the scaffolded table-driven half replaced with the REAL scan (the table
+read through `ui_ram_tables + 0x16D0` — the embedded .tables lands at
+the original's absolute address 0x200016D0). The actual CTCSS/DCS tone
+programming path (reg 0x4A CTCSS freq = kHz×2^16, 0x4B/0x4C CDCSS,
+0x45 mode per the OpenRTX table) is NOT this function and remains to be
+pinpointed in the original.
+
+**2. KT zeroinit span CONFIRMED (closes session 41's open point).**
+KT scatter descriptor 1 @file 0x3E988 = `{0xFFFDAFC7, 0x00003A48,
+0x20001734, 0}` — loader self-relative: 0x08042988 − 0x25039 =
+0x0801D94F = the KT's `__scatterload_zeroinit` (0x0801D94E + Thumb bit,
+exactly session 41's aligned fix). Size 0x3A48 = 14,920 B, dst
+0x20001734 → **KT .bss = 0x20001734-0x2000517C, identical to the
+190416** (whose desc1 @0x3E994 = `{0xFFFDAFD3 → 0x0801D967, 0x3A48,
+0x20001734, 0}`). Descriptor-stride correction: records are **16 bytes
+{loader_rel, arg0, arg1, arg2}** — session 38's "12-byte" came from the
+"+3 words" return stride measured from the ARGS pointer (desc+4), not
+the descriptor start. desc2's arg0 = self-relative offset from the arg
+word to the packed stream: 190416 0x080429A8 + 0x3298 = 0x08045C40 =
+file 0x41C40 ✓; KT 0x0804299C + 0x3318 = 0x08045CB4 = file 0x41CB4,
+packed 0x1EC0>>1 = 3,936 B (vs 190416's 3,927 — the +9 packed bytes =
+the bilingual string-pointer differences; both blobs otherwise 5,937 B,
+identical layout).
+
+**3. Beacon-window counters corrected (session 26 numbers right, the
+later 'h'-state summary wrong).** Capstone re-scan of the router
+0x08010302: state compares 0x68/0x69/0x6A ('h'/'i'/'j'); pass counter
+compares `cmp r0, #0x29` (41) at 0x0801033C ('h') AND 0x08010392 ('i')
+— both beacon windows fire at 41; 'j' uses `cmp #0x33` (51) at
+0x080103F0/0x08010450 with a 1-bit submode (ubfx bit 6, 0x080103D8)
+plus a 0x74 't' byte compare (0x080104AC; body not yet expanded). The
+ui.c header's "runs to 0x28 or 0x32 per 2-bit submode" is corrected;
+docs/SCREENS.md gains a protocol-driven-state section.
+
+**Bonus:** the .data tail immediately before the sub-band table (RAM
+0x200016B0-0x16CF) = two descending u16 calibration ladders: 10 entries
+starting 0x0CB5 (3253 — the battery quantizer's threshold, ui.c) and 6
+entries starting 0x06D7 (1751 — its companion). The battery thresholds
+are the first rungs of multi-level ladders.
+
+All three corrections applied to `reconstruction/src/rf.{c,h}`,
+`reconstruction/src/ui.c`, `docs/SCREENS.md`, `followup.md` (§4.3 and
+the §7 equivalence boundary rewritten: table-driven content now matches
+byte-for-byte; only the SPI font glyphs, analog ADC/RSSI values, and
+timing remain non-matchable). Build green, host tests pass.

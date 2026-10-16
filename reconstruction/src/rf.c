@@ -13,7 +13,7 @@
  *   rf_read          0x0802292E  select -> reg|0x80 -> turnaround 0x080226F6
  *                                -> clock 16 bits in; callers mask conservatively
  *   at1846s_set_frequency  0x08023200..  (see below)
- *   at1846s_set_css        0x08023156    (see below)
+ *   at1846s_set_band_config 0x08023156    (see below; was set_css)
  *   gpio reconfig    0x080232E2  when reg 0x1F reads 0x0FFF -> rewrite 0x1F
  *
  * DELAYS: the original issues delay loops of ~8 units around each frame
@@ -61,14 +61,22 @@
  * 16 bits -> reg 0x2A. Formula independently confirmed by OpenRTX
  * ((freq * 16) / 1000).
  *
- * CSS SELECTION (0x08023156(chip, css, flag)): compares `css` against
- * three observed sentinel codes (45500000, 17442000, 17062500 — the
- * first is exactly 45.5 MHz; exact sentinel semantics open) then scans
- * a 96-entry u32 table in RAM at 0x200016D0. Match -> reg 0x05 = 0x8543;
- * special match -> 0x8643; scan exhausted -> 0x8763. The table and the
- * sibling key tables are boot-time .data copies whose flash image is
- * NOT present in the distributed file (verified: no pointer runs, no
- * CSS-range runs, no u32 670 anywhere in the image) — contents closed.
+ * BAND/FILTER CONFIG (0x08023156(chip, flag, freq_10Hz)) [CORRECTED
+ * session 43 — was misread in session 25 as a "CSS tone setter"]:
+ * compares `freq` against three sentinel literals {45500000, 17442000,
+ * 17062500} (pool file 0x23E00-0x23E08) then scans a u32[96] table in
+ * RAM at 0x200016D0 (base literal file 0x23E0C; scan bound `cmp #0x60`
+ * = 96 at 0x080231AA). The recovered .data shows the first 24 entries
+ * (the rest are zero-init .bss): RF frequencies in 10 Hz units —
+ * 136.5, 140.29, 144.08, 147.875, 155.46, 159.25, 162.04, 166.83,
+ * 174.42 (VHF edges incl. WX), 244.56, 352.625 … 511.875 MHz (UHF).
+ * Table match -> reg 0x05 = 0x8543; sentinel match -> 0x8643; scan
+ * exhausted -> 0x8763. reg 0x05 is undocumented in the OpenRTX register
+ * table; its bit patterns sit in the reg-0x58 audio-filter family
+ * ([9:7] hi-pass bandwidth, bypass bits) — per-sub-band filter config,
+ * INFERRED. Caller evidence: 0x08020DF6 passes the return of the BCD
+ * frequency parser 0x080168AA as r2 (the compared value; prologue
+ * `movs r5, r2`), r1 = 0/1 unused by the body.
  */
 #include <stdint.h>
 
@@ -166,24 +174,34 @@ void at1846s_set_frequency(uint8_t chip, uint32_t freq_hz)
     rf_write(chip, 0x2A, (uint16_t)(value & 0xFFFFu));
 }
 
-/* [0x08023156 | RECOVERED] CSS/mode selection; reg 0x05 values as
- * observed. The 96-entry tone table lives in RAM at 0x200016D0 (boot
- * .data copy; flash image absent from the distributed file — see
- * header note), so the table-driven half is scaffolded. */
-void at1846s_set_css(uint8_t chip, uint32_t css, int flag)
+/* [0x08023156 | RECOVERED | corrected session 43] Per-frequency
+ * band/filter configuration — NOT a CSS/tone setter (session 25's
+ * reading; see header note). The 96-entry sub-band table is REAL data
+ * now: it lives in the embedded .tables image at RAM 0x200016D0
+ * (ui_ram_tables + 0x16D0 — the linker places ui_ram_tables at
+ * 0x20000000, the original's absolute address). 24 entries are
+ * initialized in .data; entries 24..95 are zero-init in .bss, so a
+ * zero frequency can never match — the scan faithfully covers all 96
+ * like the original's `cmp #0x60` bound. */
+void at1846s_set_band_config(uint8_t chip, int flag, uint32_t freq_10hz)
 {
-    (void)flag;
     static const uint32_t specials[3] = { 45500000u, 17442000u, 17062500u };
+    extern const uint8_t ui_ram_tables[];          /* src/tables.S, RAM 0x20000000 */
+    const uint32_t *band = (const uint32_t *)(ui_ram_tables + 0x16D0);
 
+    (void)flag;
     for (int i = 0; i < 3; i++) {
-        if (css == specials[i]) {
+        if (freq_10hz == specials[i]) {
             rf_write(chip, 0x05, 0x8643);
             return;
         }
     }
-    /* 96-entry table scan (RAM 0x200016D0) omitted: table contents not
-     * present in the distributed artifact. Fallback config = scan
-     * exhausted path. */
+    for (int i = 0; i < 96; i++) {
+        if (freq_10hz == band[i]) {
+            rf_write(chip, 0x05, 0x8543);
+            return;
+        }
+    }
     rf_write(chip, 0x05, 0x8763);
 }
 

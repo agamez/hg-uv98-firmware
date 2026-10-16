@@ -101,13 +101,25 @@ Key wiring recovered in the log (model these behaviors, not just registers):
    plus ASCII 8×8/8×16 sets, and the asset-table classes 1–9 as stub blocks.
    Use the same synthesized image for both runs.
 
-**UPDATE (session 38):** the real table content EXISTS in the firmware as
-**armlink compressed-RW-data** — the boot path is vector -> nop;nop;bl ->
-boot stub 0x080429D4 -> init walker 0x08042900 -> loaders 0x0801D967 /
-0x0801D846 (an LZ/RLE decompressor, REA-decompiled). Decompress the
-descriptor streams (file ~0x423E0 and ~0x41C40) FIRST and load the real
-tables into the font/device models; synthesize only what the file
-truncation leaves missing.
+**UPDATE (sessions 38-42): RESOLVED — nothing needs synthesis here anymore.**
+The real table content EXISTS in the firmware as **armlink compressed-RW-data**
+(vector → boot stub → init walker → `__scatterload_zeroinit` + an LZ/RLE
+decompressor, REA-decompiled in session 38; session 41 proved the image
+complete — the packed stream ends exactly at the file end, entry 1 = .bss
+zero-init of 0x20001734-0x2000517C). Sessions 39/42 decompressed both builds'
+streams; the recovered tables are now **embedded in the reconstruction build**
+(`src/tables.S`: `.tables` at RAM 0x20000000, `.uistrings` at flash
+0x08040000 = the original's string region; `Reset_Handler` copies the tables
+like the original's scatter-load). Load the reconstruction ELF as-is — tables
+included. For the ORIGINAL image's run, let it execute its own decompression
+(boot chain is self-contained) or preload
+`reconstruction/data/ram_tables_recovered.bin`.
+
+**Session 43 correction:** the table at RAM 0x200016D0 once read as a "CSS
+tone table" is actually a **frequency sub-band table** (u32[96], 24
+initialized; RF frequencies in 10 Hz units: 136.5 … 511.875 MHz) feeding the
+reg 0x05 audio-filter config in 0x08023156 — see the research log.
+
 4. **AT1846S ×2** — model the register file from the map in `src/rf.c` (0x1F GPIO,
    0x29/0x2A frequency, 0x30 mode, 0x35 tone, 0x1B RSSI[15:8], 0x1C CSS flag,
    0x7F bank select). Reads return plausible values (configurable RSSI for tests).
@@ -157,15 +169,16 @@ Harness shape: stimulus scripts (JSON/DSL) → runner → per-run trace files
 
 ## 7. The equivalence boundary — state it in every report
 
-The absent `.data` image means **table-driven content cannot match byte-for-byte**.
-What CAN match byte-exactly: protocol responses (command handling is code, not
-tables), AT1846S register sequences, display primitive streams for code-driven
-drawing. What CANNOT: menu strings, per-screen key tables, CSS tone values, screen
-attribute bytes — the reconstruction must synthesize plausible tables (derive them
-from `docs/MENU_TREE.md`, the recovered string inventory, and the standard CTCSS/
-DCS lists) and mark every such byte in the diff as a known data-content difference.
-Do not "fix" the reconstruction to match the original's table content — that content
-does not exist in any artifact; matching it would be fabrication.
+**REVISED (sessions 42-43):** the `.data` image was recovered and embedded in
+the reconstruction — table-driven content NOW matches byte-for-byte: menu
+strings, key tables, screen attributes, the frequency sub-band table, the
+battery/S-meter calibration ladders. What still CANNOT match byte-exactly:
+(a) external SPI font-flash **glyph bitmaps** (the glyphs live on the SPI
+flash chip, not in the MCU image — the synthesized font remains, and every
+glyph-derived display byte in the diff is a known data-content difference),
+(b) ADC/RSSI analog readings (make them configurable in the device models),
+(c) timing jitter. Do not "fix" the reconstruction to smooth over those —
+fabricating agreement would corrupt the differential signal.
 
 ## 8. Suggested checkpoints
 

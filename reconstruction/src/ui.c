@@ -27,8 +27,10 @@
  * 116 menu-tree edges extracted (docs/MENU_TREE.md, session 31).
  *
  * BEACON WINDOWS ('h'/'i'/'j', 0x08010302): pass counter
- * [0x2000469C+0x135] runs to 0x28 (fires on pass 41) or 0x32 (50) per
- * 2-bit submode (flag+0xB bits 7:6); completion clears the 50-byte
+ * [0x2000469C+0x135] compared against 0x29 (41) for BOTH 'h' and 'i'
+ * (cmp sites 0x0801033C/0x08010392; session 43 re-check) and against
+ * 0x33 (51) for 'j' (0x080103F0/0x08010450), 'j' selecting a 1-bit
+ * submode (bit 6, ubfx 0x080103D8); completion clears the 50-byte
  * buffer 0x2000335C and the frame-ready bit (0x20005094+9 bit0), then
  * formats and TXes 6 bytes: "$B%02d\r\n" (index = raw byte) or
  * "$C%02d\r\n" (index = byte/5) — flash templates at linked

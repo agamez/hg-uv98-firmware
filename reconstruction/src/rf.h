@@ -16,7 +16,7 @@ uint32_t rf_read(uint8_t chip, uint8_t reg);             /* 0x0802292E, reg|0x80
 
 /* Register-level operations recovered from the image. */
 void at1846s_set_frequency(uint8_t chip, uint32_t freq_hz); /* 0x08023200..: MHz*16000 -> 0x29/0x2A */
-void at1846s_set_css(uint8_t chip, uint32_t css, int flag); /* 0x08023156: tone table scan, reg 0x05 */
+void at1846s_set_band_config(uint8_t chip, int flag, uint32_t freq_10hz); /* 0x08023156: sub-band filter scan (RAM 0x200016D0), reg 0x05 */
 void at1846s_mode_standby(uint8_t chip);  /* reg 0x30 = 0x4006 */
 void at1846s_mode_tx(uint8_t chip);       /* reg 0x30 = 0x4046 (0x7046 = 25 kHz variant) */
 void at1846s_mode_rx(uint8_t chip);       /* reg 0x30 = 0x40A6 (0x70A6 = 25 kHz variant) */
