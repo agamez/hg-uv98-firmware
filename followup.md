@@ -100,6 +100,14 @@ Key wiring recovered in the log (model these behaviors, not just registers):
    (the addressing math in `src/font.c` must be honored: `addr24 = ((hi−0xB0)×94 + lo + 685) << 5`)
    plus ASCII 8×8/8×16 sets, and the asset-table classes 1–9 as stub blocks.
    Use the same synthesized image for both runs.
+
+**UPDATE (session 38):** the real table content EXISTS in the firmware as
+**armlink compressed-RW-data** — the boot path is vector -> nop;nop;bl ->
+boot stub 0x080429D4 -> init walker 0x08042900 -> loaders 0x0801D967 /
+0x0801D846 (an LZ/RLE decompressor, REA-decompiled). Decompress the
+descriptor streams (file ~0x423E0 and ~0x41C40) FIRST and load the real
+tables into the font/device models; synthesize only what the file
+truncation leaves missing.
 4. **AT1846S ×2** — model the register file from the map in `src/rf.c` (0x1F GPIO,
    0x29/0x2A frequency, 0x30 mode, 0x35 tone, 0x1B RSSI[15:8], 0x1C CSS flag,
    0x7F bank select). Reads return plausible values (configurable RSSI for tests).

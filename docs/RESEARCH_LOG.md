@@ -770,3 +770,20 @@ Capstone deviation analysis over all 83 pump windows (first 0x100 bytes, key-pat
 - REA/Ghidra cannot decompile the pump entries (no Ghidra functions created there — the pumps are reached only through the indirect task paths); the capstone-level analysis is complete and sufficient: with the argument sets (session 34), the linkage chain, and this uniformity result, every pump is characterized.
 
 **The per-screen body item — the last "mechanical" residue — is finished.** Nothing in the distributed artifacts remains unextracted: state machine, menu tree, pump inventory, linkage chain, pump-body uniformity, all subsystem chains, both builds, and the 8051 binaries.
+
+### 2026-10-15 — Session 38: MAJOR CORRECTION — the .data is COMPRESSED, not absent
+
+Prompted by the user's observation that the distributed files flash and run on hardware, the "neutered reset" and ".data absent" conclusions were re-examined and both were wrong:
+
+**1. The reset chain works (retracts session 11's "neutered" reading).** The reset handler at file 0x40690 is `nop.w; nop.w; bl 0x080429D4` — the session-11 analysis stopped at the NOPs and miscomputed the BL target with base 0x08000000 instead of 0x08004000. Corrected chain: vector[1] -> nop;nop;bl -> boot stub 0x080429D4 (file 0x3E9D4) -> init walker 0x08042900 -> main. The KT build has the identical structure (vector[1] -> 0x08044740 -> bl 0x080429C8; stubs 12 bytes apart). **Nothing is neutered.**
+
+**2. The tables exist in-file — COMPRESSED (retracts sessions 19/35 "absent").** The boot stub calls an **init-array walker** (0x08042900: walks a PC-relative descriptor table, calling each loader with an args pointer, until an end marker). The two loaders:
+- 0x0801D967 (entry 1) — args {stream offset 0x3A48 -> packed stream at file 0x423E0, dst 0x20001734, 0} (REA decompile failed — capstone follow-up needed)
+- **0x0801D846 = armlink's compressed-RW-data decompressor (REA-decompiled):** LZ/RLE-style — control byte: low 2 bits = literal-run length (0 = 2-byte extended), high nibble = match length (0xF = extended), match decoding with back-references; dst from the descriptor; stream offset = param_1[0]; size/flags = param_1[1] (bit31 = RAM-base-relative flag).
+- Entry 2: stream at file ~0x41C40, size word 0x1EAE.
+
+The earlier content searches (pointer runs, u32 670, CSS runs) failed because **the table contents are packed** — the armlink compressed-RW-data feature. The file truncation at 0x42B97 cuts entry 1's stream (packed data for dst 0x20001734) to ~1,983 bytes; entry 2's stream (~0x41C40) may be complete.
+
+**Consequence: the key tables, string tables, CSS table, and screen attributes are RECOVERABLE** by implementing the decompressor (its full algorithm is in the decompiled body) and running it over the descriptor streams. The synthesis recommendation in followup.md is superseded: first decompress the real tables; synthesize only what remains truncated.
+
+**Open follow-ups:** implement the decompressor in C/Python; resolve entry 1's loader (0x0801D967) body; decompress both streams; verify the output against the known table addresses (key tables 0x20000060+, CSS 0x200016D0) — the decompressed RAM image will finally reveal the menu strings, key bindings, and tone table.
