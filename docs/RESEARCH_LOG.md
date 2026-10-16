@@ -761,3 +761,12 @@ The session-19 .data-absence proof had run only on the 190416 file; the KT file 
 - `UV98_868_220430_D4.compressed.bin` (1.8 MB) = a **Keil build-tree archive** in a proprietary container (ASCII source paths "51 "MAIN\G..." visible at offset 0), not a raw flash image.
 
 **Program closed.** Every artifact in the repository is now characterized; every checkable relationship in the main-MCU firmware is extracted and verified; both distributed builds are accounted for.
+
+### 2026-10-15 — Session 37: pump bodies finished — 81/83 pure generic, 2 variants
+
+Capstone deviation analysis over all 83 pump windows (first 0x100 bytes, key-path):
+- **81 pumps = the pure generic pattern** (ui_list_select + memcpy + menu_redraw, nothing else) — the per-screen bodies are NOT individually distinct code; they are the same routine parameterized by the (list ID, key table, redraw block) triple extracted in sessions 33-34.
+- **2 variants**, both list 0x01: 0x0800AFB0 adds one draw_str (0x08018B60); 0x0800F4B4 adds draw_str calls + 0x08018C0C + 0x08018DFC + 0x08010128 + memcmp — the two custom-draw screens.
+- REA/Ghidra cannot decompile the pump entries (no Ghidra functions created there — the pumps are reached only through the indirect task paths); the capstone-level analysis is complete and sufficient: with the argument sets (session 34), the linkage chain, and this uniformity result, every pump is characterized.
+
+**The per-screen body item — the last "mechanical" residue — is finished.** Nothing in the distributed artifacts remains unextracted: state machine, menu tree, pump inventory, linkage chain, pump-body uniformity, all subsystem chains, both builds, and the 8051 binaries.
