@@ -41,3 +41,4 @@ analysis/
 ghidra-project/
 rea-ghidra-*/
 reconstruction/build/
+!reconstruction/data/*.bin
