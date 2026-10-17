@@ -2132,3 +2132,42 @@ channel scan implemented; 94.58% FULL-16-bit ODR parity.**
   save-region size (4,120 vs 5,881), the missing 208/104/104/359-event
   bursts @118,308/137,739/145,359/158,942, and the pre-LCD vendor
   burst (2,507 vs 62). The ODR/display bus = CLOSED.
+
+**Session 53, part 3 — the I²C byte-level decode started; the raw
+evidence banked for the next session.**
+- The original's 104-event runtime burst (@ODR#137,739, one of two
+  identical) = dumped event-by-event into the analysis (the key
+  structure):
+  * events 0-2: CRH OUT, BSRR(high), BRR(low) = the START
+  * events 3-51: the output phase with CRH-OUT switches interleaved
+    INSIDE byte framing (not the clean 8-bits+ack of the read path) —
+    consistent with the EEPROM WRITE/ACK-polling path (0x080286C0's
+    one-byte-per-transaction with the ACK retry), not a read
+  * events 52-101: the (CRH IN, CRH OUT, BRR) repeating ×15 + the
+    OUT/BSRR tail — the direction switch PER BIT GROUP — matches
+    neither my read path (1 CRH/byte, 0 PB9 events/bit) nor a plain
+    write. Candidate: the page-write with the per-byte ack + the
+    polling, or a different driver variant.
+- The remaining I²C deltas (the recon vs the original):
+  BRR 6,495/14,188; BSRR 7,580/7,913; CRH 3,392/4,902; CRL 0/1.
+  The missing bursts: 208 @ODR#118,308; 104 ×2 @137,739/145,359;
+  359 @158,942; the pre-LCD 2,507 vs my 62; the save-region 5,881 vs
+  4,120; the scan per-read 101 vs 62.
+- NEXT SESSION (in order):
+  1. Decode 0x080286C0 (the write) + 0x080284E4 (dly) + 0x0802375E
+     (the IDR reader) with a FRESH careful disassembly — resolve the
+     writer mapping (0x08023780 vs 0x08023788) and the stop tail once
+     and for all; then match the 104-event burst event-by-event.
+  2. Identify the runtime burst call sites: what runs between the
+     status-page passes (the 208/104/104/359 bursts) — decompile the
+     main-task loop body after the routers (0x0800FE58/0x08010302/
+     0x08015DCC) and FUN_0801fddc's callers.
+  3. The per-read delta (62 vs 101): diff my eeprom_read's event
+     sequence against the original's 2-byte reads byte-by-byte.
+  4. The save region (4,120 vs 5,881): the ee_save page-write
+     accounting (the 0x4D write crosses 3 pages).
+  5. The pre-LCD vendor burst (2,507 vs 62): likely needs the vendor
+     region disassembly (the PIC code past the distributed image = the
+     strings region) — possibly a harness boundary.
+- STATE: the display bus = 100.00% CLOSED (the full 16-bit ODR,
+  160,753/160,753). Everything committed through this point.
