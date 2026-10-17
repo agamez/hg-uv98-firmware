@@ -14,9 +14,10 @@ rebuild -> run -> compare -> log -> commit. Log every claim in
 docs/RESEARCH_LOG.md (append-only), commit at milestones, push to
 main, never stage prompt.md or prompt.md~. When the active round
 closes (or is parked), update THIS kickoff block and §3 before moving
-to the next round. ACTIVE: Round B/C items 2-4 (the key-driven $A01
-stays parked on the state gate; the settings-shadow cross-checks
-continue). Item 1 ($A09) is CLOSED with a parked sub-item; Rounds N
+to the next round. ACTIVE: Round B/C item 2 remains parked on the
+state gate; the item-3 cross-checks continue opportunistically. The
+$A09 item (1) is CLOSED with a parked consumer sub-item; the routing
+was CORRECTED by the live marker test ($A00 -> rxBuf only). Rounds N
 and O are CLOSED; Round P item 1 is DONE.
 ```
 
@@ -190,9 +191,14 @@ log session 57.
 2. **The key-driven `$A01` write direction** — parked-blocked on what
    clears FLAG_BANK+2 bit2 naturally (session 56); revisit only if a
    B/C finding touches the state machine.
-3. **Cross-check the recovered `.data`-structure guesses against live
-   behavior** (§9 item 2): the settings-shadow base 0x2000684E + the
-   CHIRP offset match (session 58) = the first such cross-check datum.
+3. ~~**Cross-check the recovered `.data`-structure guesses against live
+   behavior**~~ — **the FIRST cross-check DONE (session 58 pt2)**: the
+   marker-settings experiment live-confirmed the rxBuf parse surface
+   (0x20003A84, the settings at +0x14) and CORRECTED the routing ($A00 =
+   rxBuf only); the two-instance settings model established (0x2000684E
+   = the main's own EEPROM settings; the CHIRP offsets verified against
+   the UI task's side-key dispatch). Continue opportunistically as the
+   B/C work touches other structures.
 4. **Round L maintenance** at the closure.
 
 Ground truth for the tone path (do NOT re-derive): the session-57 log

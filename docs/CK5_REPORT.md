@@ -197,7 +197,18 @@ wrapper call sites corroborate the same pattern for the local storage).
   byte-identical, CK4 100.00%, host tests pass. The tone's own bus
   writes (the presets) stay covered positionally by the verified
   orchestration; the GPIOD word has no comparison channel.
-- The `$A09` 4-byte-prefix routing and the stripped tail commands
+- ~~The `$A09` 4-byte-prefix routing~~ — **the ROUTING CORRECTED (session
+  58 pt2, the live marker test): the $A00 frame lands in rxBuf
+  (0x20003A84) ONLY — the "both buffers" receipt copy was a decompile
+  artifact; rxBuf2 stays zero on the original.** The recon's routing
+  fixed and verified (the marker scan + all channels). The two-instance
+  settings model established: 0x2000684E+ = the MAIN's own EEPROM
+  settings (pf1/pf2/top_short at +0x21/0x23/0x25, the CHIRP offsets);
+  the head's mirror frame = rxBuf with the settings at +0x14
+  (0x20003A98). The $A09 semantics = the vendor-source ground truth
+  (the side-key-2/beacon trigger); its downstream key-event conversion
+  = parked (the session-58 entry).
+- The stripped tail commands
   ($A10/$A11/$A30/$A31/$D00/$F00/$A50/$A51/$E0x/$F0x, the GB2312
   app-text set): **RESOLVED as unreachable on the platform** — the
   original's twelve tail compare strings live at 0x08044844+, past the
