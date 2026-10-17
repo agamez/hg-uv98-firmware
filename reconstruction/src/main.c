@@ -133,10 +133,15 @@ void hw_init(void)
     usart2_init();        /* APRS/BT link [0x0801F810 RECOVERED]           */
     /* EEPROM probe [session 51]: the original's pre-LCD I2C = a tiny
      * 2-byte access (5 CRH direction switches in the stream head). The
-     * exact call site = in the Ghidra-missed boot region — inferred. */
+     * exact call site = in the Ghidra-missed boot region — inferred.
+     * [session 53] the vendor's pre-LCD ops leave the PB9 latch LOW
+     * (the LCD init's ODR = 0x00xx), so the probe tail restores SDA
+     * low — the app-style stop leaves it HIGH and would poison every
+     * later display ODR read-modify-write. DATA-DERIVED tail. */
     {
         static uint8_t ee_probe[2];
         eeprom_read(0x0000u, 2u, ee_probe);
+        GPIO_BRR(GPIOB_BASE) = 0x200u;
     }
     display_init();       /* [0x0801BB22 RECOVERED]                        */
     /* [0x0802BDF4 boot GPIO init, missed-region disassembly]: PB13-15 =

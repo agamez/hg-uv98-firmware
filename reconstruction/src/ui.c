@@ -331,6 +331,17 @@ static void ui_screen0_build(void)
         display_blit_glyph_cell(0x58u, (uint8_t)(0x2Au + i * 8u),
                                 &ui_ascii8x16_font[(uint32_t)(uint8_t)line2[i] * 16u - 0x200u],
                                 0x0000u, 0xEFBEu);
+    /* [0x0801FDDC | RECOVERED session 53] channel-memory scan: 128
+     * two-byte EEPROM reads at 0x02 + 0x10*k, each validated against
+     * the VFO min/max ranges (the RAM-side validation is not
+     * bus-observable). The original's stream shows this as a single
+     * 12,987-event I2C burst between the status text grid and the
+     * content fill. */
+    {
+        uint8_t scanbuf[2];
+        for (uint32_t ch = 1u; ch < 0x81u; ch++)
+            eeprom_read((uint16_t)(ch * 0x10u - 0xEu), 2u, scanbuf);
+    }
     display_fill_rect(18u, 1u, 158u, 92u, 0xEFBEu);
     display_fill_rect(63u, 0u, 160u, 1u, 0x0000u);
     display_fill_rect(110u, 0u, 160u, 1u, 0x0000u);

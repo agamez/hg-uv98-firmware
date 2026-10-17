@@ -2069,3 +2069,47 @@ BYTE-IDENTICAL. 100.00% (160,753/160,753 ODR events). ★**
   4,902 / 7,913 / 14,188 — the original's runtime EEPROM traffic (the
   state-machine reads/writes the recon's stub routers do not perform)
   plus the pre-LCD vendor load. The display bus = DONE.
+
+**Session 53 — the I²C layer: the PB9-latch root cause found; the
+channel scan implemented; 94.58% FULL-16-bit ODR parity.**
+- METHODOLOGY FIX: all prior ODR comparisons masked with & 0xFF, which
+  excluded the PB9 (I²C SDA) bit. The acceptance bar is now the FULL
+  16-bit ODR value. The bit9 of every display ODR = read-modify-write
+  preserved from the PB9 latch — i.e. the SDA state leaks into every
+  display event.
+- ROOT CAUSE [the last-24-events comparison before ODR#74]: the
+  original's ee_load ends CRH(34), BRR(low), CRH(34), BSRR(high) —
+  the SDA ends HIGH; my stop ended BRR(low) — SDA LOW. Fixed:
+  i2c_stop = sda_output, BSRR(GPIOB, SDA high), BRR(GPIOA, SCL low),
+  BRR(GPIOA, 0x200 = PA9, uncaptured) — the captured GPIOB tail =
+  CRH, BSRR only, matching the original. The session-51 note
+  ("SDA high, SCL low, SDA low") was a mis-decompile; also the writer
+  mapping note (0x08023780 = BSRR, 0x08023788 = BRR) needs re-check.
+- THE VENDOR TAIL: the original's pre-LCD I²C leaves the PB9 latch LOW
+  (the LCD init ODR = 0x00xx), so the recon's 2-byte probe now restores
+  SDA low after the read (DATA-DERIVED tail).
+- CHANNEL SCAN [0x0801FDDC | RECOVERED]: 128 × ee_read(0x02+0x10k, 2)
+  with the per-channel VFO-range validation (the RAM side not
+  bus-observable). Implemented between the status text grid and the
+  content fill — the original shows it as a single 12,987-event burst
+  there. The recon emits 7,936 events for it (62/read vs the
+  original's ~101) — the per-read event-accounting delta is OPEN.
+- BURST MAP (the original's I²C bursts, the event counts):
+  2,507 pre-LCD (the vendor, ends SDA low); 288 ee_load @ODR#74;
+  5,881 the 0x0FD0 read + ee_save @ODR#3,545; 83 @ODR#85,487; 12,987
+  the channel scan @ODR#89,225; 208 @118,308; 104 ×2 @137,739/145,359;
+  **4,458 the LED-matrix stream @ODR#152,036** (4,454 PB9 bits, only
+  4 CRH, non-periodic — ends SDA LOW, which is the sole remaining ODR
+  divergence); 25 @153,847; 359 @158,942.
+- RESULT [run23]: the FULL 16-bit ODR = 94.58% (152,036/160,753
+  identical; the divergence = the PB9 bit from the LED burst onward).
+  The low-byte display data = 100.00% (unchanged).
+- NEXT (in order): (1) decode the LED-stream burst (4,454 bits —
+  check display_led_write's captured pattern vs the original's
+  0x0802883A and the call count); (2) the per-read I²C event delta
+  (the byte-level diff of the 2-byte reads: mine 62 vs the original's
+  ~101 events — check the ACK-wait/retry loops and the per-bit SDA
+  writes); (3) the 104/25/359-event bursts; (4) the 5,881 vs 4,198
+  save-region delta (the ee_save page-write accounting); (5) the
+  pre-LCD vendor burst (2,507 — possibly unrecoverable, the missed
+  region).

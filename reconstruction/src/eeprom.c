@@ -119,14 +119,22 @@ static uint8_t i2c_read_byte(void)
     return v;
 }
 
-/* [0x08028532] stop: SDA high, SCL low, SDA low. */
+/* [0x08028532 | session 53 fix] stop: SDA low, SCL high, SDA high —
+ * the standard I2C stop, ending with the bus idle HIGH. The session-51
+ * note ("SDA high, SCL low, SDA low") mis-ordered the sequence: the
+ * original's captured tail is CRH, BRR(low), BSRR(high), and the PB9
+ * latch state propagates into every later display ODR read-modify-
+ * write (the bit9 of the port). Verified against the original's stream. */
 static void i2c_stop(void)
 {
+    /* the captured GPIOB sequence = CRH, BSRR(high) only: the SDA ends
+     * HIGH; the final BRR(0x200) in 0x08028532 targets GPIOA (uncaptured
+     * by the PB model). */
     sda_output();
     GPIO_BSRR(GPIOB_BASE) = I2C_SDA_BIT;
     GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;
     dly(10);
-    GPIO_BRR(GPIOB_BASE) = I2C_SDA_BIT;
+    GPIO_BRR(GPIOA_BASE) = 0x200u;   /* PA9 — uncaptured on the PB model */
     dly(10);
 }
 
