@@ -1565,3 +1565,50 @@ reconstruction bug cluster (the RX path); two bugs fixed, one parked.**
   hex concatenation "0A1" = bytes 00,A1 = 0xA100, NOT 0x00A1) — the SENDN
   wire captures ([reg, val_hi, val_lo]) were the ground truth; corrected
   in session 49 part 2.
+
+**Session 50 — R1 SOLVED: the RX starvation was the BRR value; the frame
+path now achieves 532/534 byte parity with the original's raw copy.**
+- ROOT CAUSE: the reconstruction's usart2_init programmed BRR = 0x2580
+  (divisor 9600) while the ORIGINAL writes **BRR = 0x341** (divisor 833;
+  read from the running image at 0x40004408 — the original's CR1 = 0x202C
+  confirmed the same way). The Renode STM32_UART model paces injected
+  WriteChar bytes by platformFrequency (its 8 MHz default; the .repl sets
+  no usart frequency) / BRR divisor / 10 bits: 0x2580 → 833 baud →
+  12.0 ms/byte (the observed 83 takes/s!), 0x341 → 9604 baud →
+  1.04 ms/byte (534 bytes in ~0.56 s — the original's observed 534 takes
+  in the 1 s window). The "starvation" was never the ISR, the NVIC, or
+  the ring: the bytes were arriving at 1/12th speed and every observation
+  window was simply too short. Fix: the reconstruction writes the
+  original's own BRR value.
+- ISOLATION METHOD (the tooling lesson): hooks cannot see inside an ISR
+  loop, so the ISR was instrumented in C (a dbg array logging {SR, byte,
+  ring index} per take). The trace proved the ISR takes were sequential,
+  correctly paced, byte-perfect (dbg_idx = 0,1,2,...; dbg_dr = the frame
+  head), and exiting cleanly on RXNE=0 — shifting the hunt from the ISR
+  to delivery. The take-count-vs-RunFor-length comparison (83 takes @1 s,
+  416 @5 s) revealed the pacing. The dbg arrays were removed after the
+  diagnosis (they cost 6.4 KB RAM); the single-byte ISR form (the
+  original's shape) is retained.
+- RETRACTION (part): session 49's "CR1 |= UE RMW corruption" was
+  over-read — the 0x4002101 CR1 dumps came from the MONITOR's 16-bit
+  sysbus reads, which return garbage against the STM32_UART model
+  (AllowedTranslations covers Word/Byte only). Only 32-bit monitor reads
+  of this model are trustworthy (CR1 reads 0x202C both before and after
+  the single-write change). The single-write form is kept (it matches the
+  original's SPL shape) but the RMW was probably never harmful.
+- RESULT (pattern payload, settings[i] = i & 0xFF): the reconstruction's
+  rxBuf = the complete 534-byte frame; **532/534 bytes identical to the
+  original's raw copy at 0x20003A84**. The 2 differing bytes (frame 28-29:
+  original 0x38 0x39 vs the true 0x08 0x09) = the original's parser
+  mutating its WORKING copy in place — settings[8..9] OR'd with 0x30
+  (a binary→ASCII digit conversion); the original's second copy
+  (0x20003B84) is pristine, confirming buffer1 = the parse-working buffer
+  and buffer2 = the archive — exactly the decompiled two-memcpy structure
+  (DAT_08023EEC/DAT_08023EF0), which the reconstruction's rxBuf/rxBuf2 now
+  mirror. The in-place conversion = a Round C parser finding.
+- REGRESSION CHECK: 290 RFW events still fire (CK3 intact), fault
+  registers = 0, the OS runs. Harness note: after a WriteChar burst the
+  RunFor must cover ~0.6 s of virtual time for the full 534-byte frame at
+  9604 baud.
+- STATUS: R1 CLOSED. Round B (CK2 broadening) and Round C (the typed-field
+  parser) are unblocked.

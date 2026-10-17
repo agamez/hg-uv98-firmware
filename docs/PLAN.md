@@ -64,6 +64,53 @@ traces, the CK4 display streams, the classified difference list (mechanism
 vs data-content vs timing), and the workaround register (CVR, r9, GPIOB,
 ADC2, SPI2, the peer content). Append to the research log as the CK5 report.
 
+## Round R1 — the USART2 ISR starvation (the CK2-broadening blocker)
+Evidence so far: the original takes the IRQ 534× (RXNE set every entry,
+level-held re-take works), the reconstruction only 27-83× then never again;
+no faults; the OS alive; CR1 verified 0x202C. NEW FINDING (session 50):
+the monitor's 16-bit sysbus reads of the model are garbage (the
+AllowedTranslations hole) — the "CR1 = 0x4002101" corruption reading was a
+monitor artifact, so bug 2's RMW theory needs a retraction check; the
+32-bit CR1 read = 0x202C is the only trustworthy dump.
+Experiments queued:
+1. ISR-internal SR/DR trace: a dbg array written by the ISR C code per
+   iteration (hooks cannot see inside loops) — dump after the run, find the
+   exact iteration where RXNE drops while the queue still holds bytes.
+2. If RXNE drops early: the model's DR read path is miscounting — probe
+   with a 32-bit DR access (the model's native width).
+3. If RXNE holds and the loop exits clean: the starvation is between takes
+   — instrument Set(false)/Set(true) edges via the nvic log timeline vs the
+   dbg array's take boundaries.
+4. Fallback (harness-side, documented): a Python UART peripheral with
+   explicit per-byte IRQ edges replacing STM32_UART for the recon runs.
+
+## Round B — CK2 broadening (after R1)
+$A01 write-direction observation (the ARM emits it after a settings change —
+needs the keyscan, which is separately broken: TIM2 CC1 can never match),
+$B00/$C00 beacon reads with the 8051-side response formats from FUN_B, the
+$A02/$A08 telemetry pushes. Parity matrix v2 over all streams.
+
+## Round C — settings consumption (recon side)
+Implement the typed-field parser: the original stores the raw frame twice
+(0x20003AD0/0x20003BD0) AND a sparse field struct at 0x20004E40..0x20004F80
+(6-byte callsign, 4x0x38 field, scattered config). Decompile the parser
+call chain (the $A00 branch → FUN_0801D8C0 targets), map the struct
+offsets, wire into protocol.c, then re-run the pattern-payload diff on both
+images (needs R1 for the recon side).
+
+## Round E — CK4 display driver
+Decompile 0x080284F2/0x080285B6 (the serial display functions, PB13-15
+control), the controller init sequence, and the PB0-7 streaming path;
+implement in display.c against the pb_displaybus.py observable; diff the
+two streams structurally (the init phase byte-exact; the streaming phase
+census-level).
+
+## Round F — CK5 full differential report
+Boot parity (CK1), the matrix (CK2), the RF traces (CK3, 292/292), the
+display streams (CK4), the classified difference list, the workaround
+register (CVR, r9, GPIOB model, ADC2, SPI2, peer content, injection
+pacing), and the open items (R1, the keyscan/TIM2, the tone on-branch).
+
 ## Standing rules (in force)
 - The original binaries = immutable; every derived artifact lives under
   analysis/ or is a labeled generated artifact.

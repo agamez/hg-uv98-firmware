@@ -33,7 +33,15 @@ void usart2_init(void)
     REG8(NVIC_IP_BASE + IRQ_USART2) = (3 << 4) & 0xFF;
     irq_install(IRQ_USART2, USART2_IRQHandler);
 
-    USART_BRR(USART2_BASE) = 0x2580;                  /* 9600 baud at 72/108 MHz per SPL */
+    /* [session 50 fix] BRR = 0x341 — the ORIGINAL's own value (read from
+     * the running image at 0x40004408: mantissa 0x34, fraction 1, divisor
+     * 833). The Renode STM32_UART model derives its pacing from its
+     * platform frequency (8 MHz default) / BRR divisor, so 0x341 yields
+     * 9604 baud ≈ 1.04 ms/byte — matching the original's observed
+     * delivery (534 bytes in ~0.56 s). The previously used 0x2580 gave
+     * an effective 833 baud (12 ms/byte) and starved the frame delivery
+     * (open issue R1, sessions 49-50). */
+    USART_BRR(USART2_BASE) = 0x0341u;
     /* [session 49 fix] CR1 written ONCE as a 32-bit access. The previous
      * two-step init (plain write, then "|= UE" read-modify-write) lost
      * RE/TE/RXNEIE: the Renode STM32_UART model registers Word(4B) and
@@ -61,34 +69,34 @@ void usart2_send(const uint8_t *buf, uint32_t len)
 
 /* [0x0801F920 | RECOVERED]: RXNE ISR; accumulate into ring; on '\r\n'
  * require buf[0]=='$' and post the frame to the protocol layer.
- * [session 49 fix]: drains the whole receive FIFO per entry. The original's
- * ISR runs one byte per entry, but the model's level-held IRQ is re-taken
- * per byte only for the original binary (Renode evidence: the original's
- * ISR entered 534x, the reconstruction's stopped after 83 with RXNE still
- * set and the queue non-empty). Draining per entry is behaviorally
- * identical — the ring and the frame boundary logic are unchanged. */
+ * [session 50] single-byte form restored to mirror the original's ISR
+ * exactly (the model re-pends the held RXNE level on every DR read's
+ * Update(), giving one take per byte — the original's observed pattern).
+ * The earlier per-take drain experiment (session 49) is retained in git
+ * history; both forms starve identically, which localizes the fault to
+ * the model/queue delivery, not the ISR shape. */
 void USART2_IRQHandler(void)
 {
-    for (;;) {
-        uint8_t b;
+    uint8_t b;
+    uint32_t sr;
 
-        if (!(USART_SR(USART2_BASE) & USART_SR_RXNE))
-            return;                                   /* original: GetITStatus gate */
+    sr = USART_SR(USART2_BASE);
+    if (!(sr & USART_SR_RXNE))
+        return;                                       /* original: GetITStatus gate */
 
-        b = (uint8_t)USART_DR(USART2_BASE);
-        if (u2_idx < sizeof(u2_ring))
-            u2_ring[u2_idx++] = b;
+    b = (uint8_t)USART_DR(USART2_BASE);
+    if (u2_idx < sizeof(u2_ring))
+        u2_ring[u2_idx++] = b;
 
-        if (u2_idx >= 3 &&
-            u2_ring[u2_idx - 2] == '\r' && u2_ring[u2_idx - 1] == '\n') {
-            if (u2_ring[0] == '$') {
-                protocol_frame_received(u2_ring, u2_idx);
-            }
-            /* non-'$' frames: original clears the ready flag and resets
-             * (app-text commands are documented as unreachable in the June
-             * build behind the '$' gate — research log session 3). */
-            u2_idx = 0;
+    if (u2_idx >= 3 &&
+        u2_ring[u2_idx - 2] == '\r' && u2_ring[u2_idx - 1] == '\n') {
+        if (u2_ring[0] == '$') {
+            protocol_frame_received(u2_ring, u2_idx);
         }
+        /* non-'$' frames: original clears the ready flag and resets
+         * (app-text commands are documented as unreachable in the June
+         * build behind the '$' gate — research log session 3). */
+        u2_idx = 0;
     }
 }
 
