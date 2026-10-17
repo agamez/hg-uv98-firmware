@@ -2905,3 +2905,57 @@ gate = WRONG in the recon).
 - The EE image = still 0 non-FF after the first-boot: the vendor's
   ee_save write path = the phase-2 audit (the reads work; the page-write
   mode/conditional save = to decode).
+
+### 2026-10-17 — Session 59 pt4 (GOAL phase 1, continued): the I2C slave
+debugging — three bugs found and fixed, the bit-timing issue isolated (the
+turn ends mid-fix; the next session resumes here).
+
+- **BUG 1 (fixed): the 9th-clock sampling.** My slave sampled the ACK bit as
+  data (the 9-bit drift). Fixed with the explicit i2c_ack_wait phase: the
+  8th rise completes the byte and drives the ACK (EE_SDA_BIT=0); the 9th
+  rise consumes the ACK and releases.
+- **BUG 2 (fixed): the peripheral scope isolation.** The two python
+  peripherals (the GPIOA model, the displaybus) = SEPARATE namespaces (the
+  probe proved it: no ga_*/EE_* symbols visible across). The EE_SDA_BIT /
+  direction bridge over the engine globals = DEAD CODE. Rebuilt over the
+  sysbus scratch RAM: 0x2000F800 = the slave SDA bit, 0x2000F801 = the
+  master-output direction (the displaybus publishes it on the CRH writes,
+  the PB9 nibble = CRH bits 4-7 = 0x3 = the output), 0x2000F802/03 = the
+  START/STOP event (the level + the pending flag).
+- **BUG 3 (fixed): the SDA resolver port error.** The master-out SDA read
+  used the GPIOA ODR bit 9 (= PA9 = the RF line!) instead of the GPIOB ODR
+  (PB9 = the actual SDA). Fixed: 0x40010C0C bit 9.
+- **BUG 4 (fixed): the START/STOP detection.** The edge-based sda_last
+  compare fired on EVERY bit (the master changes SDA between my edges).
+  Rebuilt: the DISPLAYBUS detects the SDA changes while the SCL is high
+  (it sees the SDA writes and can read the SCL through the sysbus) and
+  publishes the event; the slave consumes it at the next edge. The event
+  is gated on the master-output direction (during the ACK/read phases the
+  master's stale ODR = not the line state).
+- **BUG 5 (isolated, OPEN): the bit sampling = one rise late.** The EDGE
+  trace (200 edges) shows the address bytes accumulating 0,1,0,0,0,0,0,1
+  instead of the 0xA0's 1,0,1,0,0,0,0,0 — the vendor's bit-bang changes
+  SDA while SCL is HIGH (the non-standard timing: the SDA set happens
+  before the SCL falls), so my rise-samples see the freshly-set NEXT bit
+  or the stale current bit depending on the exact event ordering. The
+  consequence: the device address is never recognized on the WRITE path,
+  the vendor's write retry loop spins (~12.4K I2C_BYTE hits), the boot
+  hangs in ee_save, and EE_WRITEPAGE = 0. The READ path = unaffected
+  (the DATAR state skips sampling; the 0xA1 address = recognized ONCE —
+  the first transaction — so the address recognition itself works).
+- **CRITICAL REINTERPRETATION OF pt2/pt3: the "bit2 = 0 / the first-boot /
+  the keys act" observations were made with the boot HUNG in the ee_save
+  retry — the 2M-event display activity = the OTHER tasks spinning, NOT
+  the main mode. The bit2 = 0 = the pre-session state, not the unlocked
+  radio. THE KEYS-ACT result (+211K events) = REAL (the key path = not
+  bit2-gated in the hung state) but the full main-mode validation =
+  MUST be redone after the slave's write path works. Nothing is lost:
+  the slave architecture is correct, the timing fix is the last mile.**
+- THE NEXT SESSION: (1) fix the sample-attribution (the candidate: sample
+  the SDA at the FALLING edge instead of the rising — the vendor's SDA is
+  stable from before the fall to after the rise, and the fall is what
+  precedes the master's read; OR track the displaybus-published SDA
+  change events as the bit boundaries); (2) re-run the boot to the
+  ee_save completion (EE_WRITEPAGE > 0); (3) the power-cycle flow
+  (the AIRCR reset) for the second boot with the persisted defaults;
+  (4) redo the main-mode validation (bit2, keys, $A01 via the peer flow).

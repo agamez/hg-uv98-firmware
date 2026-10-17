@@ -35,12 +35,16 @@ if request.IsInit:
     i2c_state = 'IDLE'       # IDLE ADDR AHI ALO DATAW DATAR
     i2c_bits = 0
     i2c_shift = 0
+    i2c_ack_wait = 0         # 1 = the next SCL rise is the ACK clock (skip sampling)
     i2c_word = 0
     i2c_outbyte = 0
     i2c_outbit = 0
     i2c_mem = None
     globals()['EE_SDA_BIT'] = 1
     import os
+    m = emulationManager.CurrentEmulation.Machines[0]
+    m['sysbus'].WriteByte(0x2000F800, 1)   # the bridge: the slave SDA released
+    m['sysbus'].WriteByte(0x2000F801, 1)   # the bridge: the master output (the default)
     if not os.path.exists('/tmp/opencode/ee_image.bin'):
         f = open('/tmp/opencode/ee_image.bin', 'wb')
         f.write(b'\xff' * 32768)
@@ -83,14 +87,50 @@ elif request.IsWrite:
 def i2c_tick(m):
     """Called after every ODR-changing GPIOA write: the SCL edge engine."""
     global i2c_scl_prev, i2c_sda_last, i2c_state, i2c_bits, i2c_shift
-    global i2c_word, i2c_outbyte, i2c_outbit
+    global i2c_word, i2c_outbyte, i2c_outbit, i2c_ack_wait
+    # consume the pending START/STOP event (the displaybus publishes it on
+    # the SDA writes while the SCL is high; we see it at our next edge)
+    if m['sysbus'].ReadByte(0x2000F803) == 1:
+        m['sysbus'].WriteByte(0x2000F803, 0)
+        evsda = m['sysbus'].ReadByte(0x2000F802)
+        i2c_state = 'IDLE'
+        i2c_bits = 0
+        i2c_shift = 0
+        i2c_ack_wait = 0
+        globals()['EE_SDA_BIT'] = 1
+        m['sysbus'].WriteByte(0x2000F800, 1)
+        if evsda == 0:
+            i2c_state = 'ADDR'   # START: expect the device address
+        return
     scl = (ga_odr >> 11) & 1
     if scl == i2c_scl_prev:
         return
     i2c_scl_prev = scl
-    sda = (m['sysbus'].ReadDoubleWord(0x40010C0C) >> 9) & 1  # displaybus ODR PB9
+    # the SDA line resolver (the bridge = the sysbus scratch 0x2000F801,
+    # published by the displaybus on the CRH writes): while the master
+    # drives PB9 (the output mode) the line = the master's ODR bit 9; when
+    # the master released PB9 (the input mode: the ACK phase or a read)
+    # the line = the slave's EE_SDA_BIT (published at 0x2000F800).
+    if m['sysbus'].ReadByte(0x2000F801) == 1:
+        sda = (m['sysbus'].ReadDoubleWord(0x40010C0C) >> 9) & 1  # PB9 = GPIOB!
+    else:
+        sda = globals()['EE_SDA_BIT'] & 1
+    globals()['i2c_dbg_n'] = globals().get('i2c_dbg_n', 0) + 1
+    if globals()['i2c_dbg_n'] < 200:
+        df = open('/tmp/opencode/i2c_slave.log', 'a')
+        df.write('EDGE n=%d scl=%d state=%s bits=%d sda=%d\n' % (globals()['i2c_dbg_n'], scl, i2c_state, i2c_bits, sda))
+        df.close()
+
     if scl == 1:
         # ---- SCL rising edge: the master samples the SDA. ----
+        if i2c_ack_wait:
+            # the 9th clock: the master reads our ACK (EE_SDA_BIT = 0) while
+            # SCL is LOW (the vendor reads after the falling edge); release
+            # the line only when the clock goes back high (this edge).
+            i2c_ack_wait = 0
+            globals()['EE_SDA_BIT'] = 1
+            m['sysbus'].WriteByte(0x2000F800, 1)
+            return
         if i2c_state in ('ADDR', 'AHI', 'ALO', 'DATAW'):
             i2c_shift = ((i2c_shift << 1) | sda) & 0xFF
             i2c_bits += 1
@@ -98,7 +138,9 @@ def i2c_tick(m):
                 byte = i2c_shift
                 i2c_bits = 0
                 i2c_shift = 0
+                i2c_ack_wait = 1
                 globals()['EE_SDA_BIT'] = 0      # ACK: drive SDA low on the 9th clock
+                m['sysbus'].WriteByte(0x2000F800, 0)
                 if i2c_state == 'ADDR':
                     if (byte & 0xF0) == 0xA0:
                         if (byte & 1) == 0:
@@ -110,6 +152,7 @@ def i2c_tick(m):
                     else:
                         i2c_state = 'IDLE'
                         globals()['EE_SDA_BIT'] = 1
+                        m['sysbus'].WriteByte(0x2000F800, 1)
                 elif i2c_state == 'AHI':
                     i2c_word = (byte << 8) & 0xFFFF
                     i2c_state = 'ALO'
@@ -122,24 +165,10 @@ def i2c_tick(m):
         # DATAR: the master samples our EE_SDA_BIT; nothing to do here.
         return
     # ---- SCL falling edge ----
-    if sda != i2c_sda_last:
-        # SDA moved while SCL was high: START (0) or STOP (1). Both reset us;
-        # the EEPROM keeps the current-address pointer across transactions.
-        i2c_state = 'IDLE'
-        i2c_bits = 0
-        i2c_shift = 0
-        globals()['EE_SDA_BIT'] = 1
-        if sda == 0:
-            i2c_state = 'ADDR'   # START: expect the device address
-        i2c_sda_last = sda
-        return
-    i2c_sda_last = sda
-    if i2c_state in ('ADDR', 'AHI', 'ALO', 'DATAW'):
-        # the ACK was clocked; release SDA
-        globals()['EE_SDA_BIT'] = 1
-    elif i2c_state == 'DATAR':
+    if i2c_state == 'DATAR':
         # shift out the next data bit (MSB first)
         globals()['EE_SDA_BIT'] = (i2c_outbyte >> (7 - i2c_outbit)) & 1
+        m['sysbus'].WriteByte(0x2000F800, globals()['EE_SDA_BIT'])
         i2c_outbit += 1
         if i2c_outbit == 8:
             i2c_word = (i2c_word + 1) & 0xFFFF
