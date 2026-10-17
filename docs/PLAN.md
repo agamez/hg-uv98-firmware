@@ -64,25 +64,18 @@ traces, the CK4 display streams, the classified difference list (mechanism
 vs data-content vs timing), and the workaround register (CVR, r9, GPIOB,
 ADC2, SPI2, the peer content). Append to the research log as the CK5 report.
 
-## Round R1 — the USART2 ISR starvation (the CK2-broadening blocker)
-Evidence so far: the original takes the IRQ 534× (RXNE set every entry,
-level-held re-take works), the reconstruction only 27-83× then never again;
-no faults; the OS alive; CR1 verified 0x202C. NEW FINDING (session 50):
-the monitor's 16-bit sysbus reads of the model are garbage (the
-AllowedTranslations hole) — the "CR1 = 0x4002101" corruption reading was a
-monitor artifact, so bug 2's RMW theory needs a retraction check; the
-32-bit CR1 read = 0x202C is the only trustworthy dump.
-Experiments queued:
-1. ISR-internal SR/DR trace: a dbg array written by the ISR C code per
-   iteration (hooks cannot see inside loops) — dump after the run, find the
-   exact iteration where RXNE drops while the queue still holds bytes.
-2. If RXNE drops early: the model's DR read path is miscounting — probe
-   with a 32-bit DR access (the model's native width).
-3. If RXNE holds and the loop exits clean: the starvation is between takes
-   — instrument Set(false)/Set(true) edges via the nvic log timeline vs the
-   dbg array's take boundaries.
-4. Fallback (harness-side, documented): a Python UART peripheral with
-   explicit per-byte IRQ edges replacing STM32_UART for the recon runs.
+## Round R1 — the USART2 ISR starvation — ✅ CLOSED (session 50)
+**Root cause: the reconstruction's BRR (0x2580) vs the original's 0x341.**
+The Renode model paces WriteChar delivery by platformFrequency/BRR/10 bits:
+0x2580 → 833 baud → 12 ms/byte (the observed starvation); 0x341 → 9604 baud
+→ 1.04 ms/byte. The reconstruction now writes the original's own BRR.
+Result: the complete 534-byte frame lands in rxBuf AND rxBuf2 (mirroring the
+original's two-memcpy structure); 532/534 byte parity vs the original's raw
+copy — the 2 diffs = the original's parser converting settings[8..9] to
+ASCII in its working buffer (a Round C parser finding). 290 RFW events
+intact, no faults. Retraction: the session-49 "CR1 RMW corruption" was a
+monitor 16-bit-read artifact (only 32-bit reads of the STM32_UART model are
+trustworthy).
 
 ## Round B — CK2 broadening (after R1)
 $A01 write-direction observation (the ARM emits it after a settings change —
