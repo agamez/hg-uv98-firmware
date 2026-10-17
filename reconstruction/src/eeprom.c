@@ -3,8 +3,9 @@
  *   0x080285B6 byte+ack, 0x08028532 stop, 0x08028566 master ack,
  *   0x08028666 read byte, 0x080286C0 write page, 0x0802873C read.
  * SDA = PB9, SCL = PA11; the device address byte = 0xA0 (write) /
- * 0xA1 (read) — a 24Cxx-class slave. Data polarity is INVERTED on SDA
- * (a '1' bit drives SDA low). The ACK is sampled through a PB9
+ * 0xA1 (read) — a 24Cxx-class slave. Data polarity on SDA is
+ * NON-INVERTED (bit=1 -> SDA high) [session 55 correction; see
+ * i2c_send_byte below]. The ACK is sampled through a PB9
  * direction switch (CRH nibble output 0x3 -> input 0x4); on the
  * canonical platform the pb_displaybus model returns IDR = 0, so the
  * ACK flag always reads "received" — the documented harness workaround
@@ -57,24 +58,33 @@ static void i2c_start(void)
     GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;
 }
 
-/* [0x080285B6] send one byte MSB first (inverted SDA), then the 9th-clock
- * ACK sample: SDA low, direction switch to input, SCL low, read, SCL
- * high. Sets ee_ack_flag = 1 when SDA reads 0 (slave ACK). */
+/* [0x080285B6] send one byte MSB first, then the 9th-clock
+ * ACK sample. [session 55 correction, re-verified against the
+ * disassembly AND the captured stream: the SDA data polarity is
+ * NON-INVERTED — bit=1 drives SDA HIGH (BSRR helper 0x08023780),
+ * bit=0 drives SDA LOW (BRR helper 0x08023788); the captured 0xA0
+ * device byte = BSRR,BRR,BSRR,BRR,BRR,BRR,BRR,BRR proves it. The
+ * session-51/54 "inverted polarity" note is RETRACTED (it came from
+ * misreading the bl targets — 0x08023780=BSRR(+0x10),
+ * 0x08023788=BRR(+0x14) stands). The ack tail raises SDA (BSRR)
+ * before the direction switch, then one SCL pulse; sets
+ * ee_ack_flag = 1 when SDA reads 0. The original's per-byte capture
+ * = CRH(out) + 8 SDA writes + BSRR + CRH(in) = 11 events.] */
 static void i2c_send_byte(uint8_t b)
 {
     sda_output();
     for (uint32_t i = 0; i < 8u; i++) {
         if (b & 0x80u)
-            GPIO_BRR(GPIOB_BASE) = I2C_SDA_BIT;     /* bit=1 -> SDA low  */
+            GPIO_BSRR(GPIOB_BASE) = I2C_SDA_BIT;    /* bit=1 -> SDA high */
         else
-            GPIO_BSRR(GPIOB_BASE) = I2C_SDA_BIT;
+            GPIO_BRR(GPIOB_BASE) = I2C_SDA_BIT;     /* bit=0 -> SDA low  */
         GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;
         dly(10);
         GPIO_BSRR(GPIOA_BASE) = I2C_SCL_BIT;
         b = (uint8_t)(b << 1);
     }
     dly(10);
-    GPIO_BRR(GPIOB_BASE) = I2C_SDA_BIT;
+    GPIO_BSRR(GPIOB_BASE) = I2C_SDA_BIT;
     dly(1);
     sda_input();
     dly(1);
