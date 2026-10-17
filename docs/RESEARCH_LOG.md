@@ -1822,3 +1822,32 @@ implemented; the fill and the splash blit achieve byte-exact counts.**
 - The exact boot EEPROM call site for the pre-LCD traffic (2,501
   events, no direction switches — a vendor-side read variant) remains
   an open item.
+
+**Session 52, part 2 — Round H phase 2: the glyph engine decoded;
+the color-scheme correction; the boot text identified.**
+- CORRECTION: FUN_0801BFB8's param_4 = the COLOR SCHEME (not the
+  inverse flag): scheme 0 = (fg 0x0000, bg 0xEFBE), 1 = (0x1F blue),
+  2 = (0, 0x8D5E), 3 = (0xF800 red, 0xEFBE), 4 = (0x0000, 0xEFBE when
+  the app blank flag is clear — the observed boot scheme), 5 = (0x13A2),
+  6 = (0x58E1), plus the inverse variants on param_5 (the highlight).
+  The observed "first cell" pixels = 0x0000 glyphs on 0xEFBE (84 bg +
+  44 fg pairs per 8x16 cell) — matching scheme 4, NOT the red scheme 3.
+- TEXT GEOMETRY: FUN_0801CB60(param_1 = y, param_2 = x, str, scheme,
+  class) — the advance = HORIZONTAL via FUN_0801CAC0 (+6/7/8/10/12/15/
+  19/16 per class onto x); the wrap = FUN_0801C99E (x reset + y += the
+  class pitch when x exceeds the per-class limit). The first boot text
+  cell = x 0x20-0x27, y 0x30-0x3F, the pitch 8 (the class 3).
+- GLYPH FETCH [0x08028F8C]: the per-class font tables in the internal
+  flash (the bases DAT_080290C8 = 0x080413CC for the 16-B stride class,
+  D0 = 0x08041F00 (12 B), D4 = 0x080419CC (14 B), D8 = 0x08042410 (20 B),
+  DC = 0x080401EC (24 B), E0 = 0x0803F490 (36 B), E4 = 0x080421C4 (45 B),
+  E8 = 0x0803DF68 (57 B), EC = 0x0803C7A8 (64 B)); the class 0 = a
+  10-byte RAM-copy path (FUN_0802BEC8 = the SPI2/flash fetch). The
+  extracted class-3 bitmaps do NOT match the rendered cells byte-for-
+  byte yet (the rendered first glyph = a 10-row ring shape) — the exact
+  glyph source mapping is an OPEN ITEM (candidates: the SPI2 flash, a
+  different base, or the per-char fetch path).
+- The boot text = "RESET WAIT..." (DAT_0801B970) drawn by the factory-
+  reset path FUN_0801B2E8 (which also writes the 0x4D defaults and
+  ee_saves) — 12 cells x 256 events ≈ the observed ~3.5k pre-fill
+  events.
