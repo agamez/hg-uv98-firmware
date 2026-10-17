@@ -116,7 +116,14 @@ call (0x802d200, 0x802bd88, 0x802b3cc, 0x802aac2, 0x8023798, 0x802d5d4,
 main.c/hw_init with the recovered calls; re-verify the CRH/ODR stream
 phases stay byte-identical.
 
-## Round H — UI scene renderer — ✅ BOOT + STATUS PAGE CLOSED (session 52)
+## Round H — UI scene renderer — ✅✅ CLOSED 100% (session 52)
+THE DISPLAY STREAM = 100.00% BYTE-IDENTICAL (160,753/160,753 ODR
+events over the original's full 3-second capture): the init, the boot
+text, the factory reset, the fill, the splash, the status page (the
+VFO "000.000" the class 6, the APRS/W/L the class 1, the "00" the
+class 3, the cursor, the battery icon the scheme 5, the RX-bar bitmap),
+and the periodic re-draws. The remaining CK4 item = the runtime I²C
+volume only (the state-machine EEPROM ops the stub routers skip).
 The boot display = 100% byte-identical (85,487 ODR: the init, the 13
 "RESET WAIT..." cells, the fill, the splash); the status-page build
 ("CALL:BAT:0.8 V" + the fills/lines/borders) pushes the parity to 80.0%
