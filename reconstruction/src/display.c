@@ -248,6 +248,62 @@ void display_blit_glyph_cell(uint8_t y, uint8_t x, const uint8_t *rec,
     }
 }
 
+/* [0x0801BFB8 class-1 path | RECOVERED session 52] 6x10 glyph cell:
+ * window (x, y, x+5, y+9), 0x2C, 60 pixels. The 12-byte record:
+ * bytes 0-5 = the columns of the top 8 rows (the LSB = the row 0),
+ * bytes 6-11 = the columns of the bottom 2 rows (the bits 0-1).
+ * Row-major emit, no PC2 wrap. */
+void display_blit_glyph_cell_6x10(uint8_t y, uint8_t x, const uint8_t *rec,
+                                  uint16_t fg, uint16_t bg)
+{
+    display_set_window(x, y, (uint16_t)(x + 5u), (uint16_t)(y + 9u));
+    tft_write_cmd(0x2C);
+    for (uint32_t r = 0; r < 8u; r++) {           /* the top 8 rows  */
+        for (uint32_t c = 0; c < 6u; c++) {
+            if (rec[c] & (1u << r))
+                tft_write_data(fg);
+            else
+                tft_write_data(bg);
+        }
+    }
+    for (uint32_t r = 0; r < 2u; r++) {           /* the bottom 2 rows */
+        for (uint32_t c = 0; c < 6u; c++) {
+            if (rec[6u + c] & (1u << r))
+                tft_write_data(fg);
+            else
+                tft_write_data(bg);
+        }
+    }
+}
+
+/* [session 52 pt8 | DATA-DERIVED bitmap, the class-3-style loop shape]
+ * 16x16 icon blit: the window (x, y, x+15, y+15), 0x2C, 256 pixels.
+ * The 32-byte record = column-major: the bytes 2c / 2c+1 = the rows
+ * 0-7 / 8-15 of the column c (the LSB = the row 0). Used for the
+ * header battery icon (fg 0x13A2 on bg 0xEFBE, scheme 5). */
+void display_blit_icon_16x16(uint8_t y, uint8_t x, const uint8_t *rec,
+                             uint16_t fg, uint16_t bg)
+{
+    display_set_window(x, y, (uint16_t)(x + 15u), (uint16_t)(y + 15u));
+    tft_write_cmd(0x2C);
+    for (uint32_t r = 0; r < 8u; r++) {
+        for (uint32_t c = 0; c < 16u; c++) {
+            if (rec[2u * c] & (1u << r))
+                tft_write_data(fg);
+            else
+                tft_write_data(bg);
+        }
+    }
+    for (uint32_t r = 0; r < 8u; r++) {
+        for (uint32_t c = 0; c < 16u; c++) {
+            if (rec[2u * c + 1u] & (1u << r))
+                tft_write_data(fg);
+            else
+                tft_write_data(bg);
+        }
+    }
+}
+
 /* [0x0802883A | RECOVERED] the 12-bit serial LED-matrix link:
  * data = PB9, clock = PD0, latch = PD1; delay unit = 100 empty iterations
  * [0x080287E0]. Bit 11 out first (MSB order); param_2 rides bit 8. */

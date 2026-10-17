@@ -2002,3 +2002,24 @@ original's ODR stream byte-identical.**
   glyphs, the class-0 small font, the bottom status boxes, and the
   periodic update policy — all state-machine driven, the next
   session's Round H phase 3.
+
+**Session 52, part 9 — the battery icon decoded; 85.0% parity.**
+- The header battery icon = a 16x16 custom glyph in scheme 5 (fg
+  0x13A2 on bg 0xEFBE), NOT an ASCII cell. The 32-byte column-major
+  record extracted from the stream (the pixel (r,c) = the bit (r&7)
+  of the record[2c]/[2c+1]); display_blit_icon_16x16() implemented.
+- display_blit_glyph_cell_6x10() = the class-1 renderer implemented
+  and verified: all 39 observed 6x10 cells match the class-1 table
+  (0x08041F00, the stride 12) at 60/60 — the screen renders "APRS",
+  "W", "L" labels. The class-1 font asset extracted (1,200 bytes).
+- RESULT [run12]: **the recon = 136,560 ODR events, byte-IDENTICAL to
+  the original's first 136,560 = 85.0% of the original's 160,753**
+  (the session start = 51.6%). The recon's stream now covers the init,
+  the boot text, the factory reset, the fill, the splash, the status
+  page, and the header icons.
+- The remaining 24,193 original-only events = the class-1 small-cell
+  transcription (the strings = the state content), the 12x20
+  double-height cells (the rows 29-48: 12 cols x 20 rows = 240 px —
+  a new multi-format cell type), the 128-px cells at the rows 35-50,
+  and the periodic update policy — all state-machine driven. The
+  primitives = recovered; the SEQUENCE = the next session's work.

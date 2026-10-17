@@ -19,3 +19,15 @@ ui_splash_image:
 .global ui_ascii8x16_font
 ui_ascii8x16_font:
     .incbin "data/ascii8x16_font.bin"
+
+/* ASCII 6x10 glyph table — [RECOVERED-DATA, session 52]: the class-1
+ * font at 0x08041F00 (the base DAT_080290D0), 12 bytes per char.
+ * Column-major: bytes 0-5 = the columns of the top 8 rows (the LSB =
+ * the row 0), bytes 6-11 = the columns of the bottom 2 rows (the bits
+ * 0-1). Rendered by FUN_0801BFB8's class-1 path (the window
+ * y..y+9 x..x+5, 60 pixels). */
+.section .rodata.font1, "a"
+.align 2
+.global ui_ascii6x10_font
+ui_ascii6x10_font:
+    .incbin "data/ascii6x10_font.bin"

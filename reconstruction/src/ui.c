@@ -318,6 +318,35 @@ static void ui_screen0_build(void)
     display_fill_rect(63u, 0u, 159u, 1u, 0x0000u);
     display_fill_rect(110u, 0u, 160u, 1u, 0x0000u);
     display_fill_rect(1u, 4u, 72u, 16u, 0xEFBEu);
+    /* [session 52 pt8, DATA-DERIVED] the observed tail: a space cell in
+     * the header, the 16x16 fills at the header right and the bottom
+     * row (the 0xEFBE), then the four solid-black 16x16 status boxes
+     * at the bottom row. */
+    display_blit_glyph_cell(1u, 108u, ui_ascii8x16_font, 0x0000u, 0xEFBEu);
+    /* [session 52 pt8] the battery icon: a custom glyph (not the ASCII
+     * table) rendered in scheme 5 (fg 0x13A2 on bg 0xEFBE). The 16-byte
+     * record below = the bitmap extracted from the original's stream
+     * (the column-major class-3 layout). DATA-DERIVED. */
+    {
+        /* the record = the 16 column-pairs (the LSB = the row 0), the
+         * bitmap extracted from the original's stream */
+        static const uint8_t batt_icon[32] = {
+            0xF8, 0x07, 0xF8, 0x07, 0xF8, 0x07, 0xF8, 0x07,
+            0xF8, 0x07, 0xF8, 0x07, 0xF8, 0x07, 0xF8, 0x07,
+            0xF8, 0x07, 0xF8, 0x07, 0xF8, 0x07, 0xF8, 0x07,
+            0xF8, 0x07, 0xF8, 0x07, 0xE0, 0x01, 0xE0, 0x01
+        };
+        display_blit_icon_16x16(1u, 139u, batt_icon, 0x13A2u, 0xEFBEu);
+    }
+    display_fill_rect(1u, 120u, 16u, 16u, 0xEFBEu);
+    display_fill_rect(111u, 72u, 16u, 16u, 0xEFBEu);
+    display_fill_rect(111u, 30u, 120u, 16u, 0xEFBEu);
+    display_fill_rect(111u, 1u, 5u, 16u, 0xEFBEu);
+    display_fill_rect(111u, 157u, 2u, 16u, 0xEFBEu);
+    display_fill_rect(111u, 6u, 16u, 16u, 0x0000u);
+    display_fill_rect(111u, 22u, 16u, 16u, 0x0000u);
+    display_fill_rect(111u, 125u, 16u, 16u, 0x0000u);
+    display_fill_rect(111u, 141u, 16u, 16u, 0x0000u);
 }
 
 void ui_task(void *p_arg)
