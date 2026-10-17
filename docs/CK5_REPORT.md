@@ -140,8 +140,14 @@ wrapper call sites corroborate the same pattern for the local storage).
 - The tone on-branch (RF-adjacent, untested).
 - The `$A09` 4-byte-prefix routing and the stripped tail commands
   ($A10/$A11/$A30/$A31/$D00/$F00/$A50/$A51/$E0x/$F0x, the GB2312
-  app-text set) — the original's tail table is in a Ghidra-missed
-  region; the recon falls through, documented as unknown.
+  app-text set): **RESOLVED as unreachable on the platform** — the
+  original's twelve tail compare strings live at 0x08044844+, past the
+  distributed file's end (the vendor flash region the distribution
+  truncates; the boot magic lives there too). On the simulator the
+  reads return 0, every tail memcmp fails, and the dispatch falls
+  through to the ring reset — exactly the reconstruction's documented
+  behavior. The tail's branch actions are documented in the research
+  log (session 52 pt4) for the real-hardware equivalence.
 - The exact boot EEPROM call site for the pre-LCD traffic (the
   Ghidra-missed region 0x0802CE00+; the recon wires a labeled inferred
   equivalent).
