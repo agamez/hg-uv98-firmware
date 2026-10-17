@@ -1,11 +1,12 @@
-# followup.md — Getting the HG-UV98 reconstruction RUNNING: simulation & differential validation
+# followup.md — the HG-UV98 reconstruction: simulation & differential validation
 
 You are continuing a completed reverse-engineering project. The analysis phase is
-**finished** (44 sessions, REA/Ghidra-validated, everything extractable extracted —
-including the compressed `.data`, recovered and embedded in the build). Your mission
-is different: **make it run** — emulate the firmware, and validate the
-C reconstruction against the original binary by differential comparison.
-**Start at §1 (the session-44 handoff).**
+**finished**; your mission is the simulation/differential phase: run both the
+original binary and the C reconstruction in Renode, drive them identically, diff
+the observable outputs, and close the remaining round items.
+**Start at §1 (the session-54 handoff).** The previous handoffs (session-44
+CK1 bring-up, sessions 45-53) are fully recorded in `docs/RESEARCH_LOG.md`;
+nothing in them needs re-deriving.
 
 ---
 
@@ -15,326 +16,268 @@ C reconstruction against the original binary by differential comparison.
   session entry per work session; never rewrite old entries — corrections are
   appended as retractions).
 - Git discipline: coherent milestone commits; **never stage the user's `prompt.md`
-  or `prompt.md~`**.
+  or `prompt.md~`**. Push to main at clean states.
 - Provenance annotations on all recovered code: `[RECOVERED]`, `[INFERRED]`,
-  `[SCAFFOLD]`, `[REPLACEMENT]`, `[VENDOR]`.
+  `[SCAFFOLD]`, `[REPLACEMENT]`, `[VENDOR]`, `[DATA-DERIVED]` (replayed tables
+  extracted from a reference capture).
 - The original firmware binaries are **immutable reference inputs**. Any file you
   produce that derives from them lives under `analysis/` (gitignored) or is a
-  clearly-labeled generated artifact.
+  clearly-labeled generated artifact. **Workarounds live only in the
+  harness/platform** (`reconstruction/sim/`) — never in the reconstruction — and
+  are restated in `docs/CK5_REPORT.md` §4.
 - **Addressing convention (critical):** all "0x080xxxxx" addresses in the log and
   docs = `file_offset + 0x08000000` (labels). Physical/linked flash = label + 0x4000.
   Pool-pointer *values* inside the image are linked addresses (file + 0x08004000).
   REA/Ghidra sessions open the raw binary with base 0x08004000 so REA addr = label + 0x4000.
 
-## 1. Where things stand — session-44 handoff (READ THIS FIRST)
+## 1. Where things stand — session-54 handoff (READ THIS FIRST)
 
-**Phase:** CK1 of §8 is IN PROGRESS in Renode. The OS boots and context-switches;
-the SysTick→handler link is the one broken piece. Read this section, then §4, then §8.
+**Checkpoint status:**
+- **CK1 (OS boot) ✅** — both images boot; the OS runs fully (context switches,
+  SysTick tick, all 7 tasks).
+- **CK2 (protocol) ✅** — byte-identical `$A00` handshake traces; the peer model
+  v1 works (see §7 workarounds 6-8). The settings-write direction awaits the
+  keyscan stimulus (Round N).
+- **CK3 (AT1846S SPI) ✅** — 292/292 bus events byte-identical, same order
+  (session 49).
+- **CK4 (display) ✅✅ CLOSED — ★ the FULL 16-bit ODR stream = 100.00%
+  byte-identical: 160,753/160,753 events** (session 53 pt2, independently
+  re-verified in session 54). The acceptance bar is the FULL 16-bit ODR value —
+  earlier rounds masked `& 0xFF` and hid the PB9/SDA-latch bit; **do not regress
+  to the masked comparison**. The remaining CK4 delta = the I²C event *counts*
+  only (the GPIOB writes that are not ODR events) = **Round M, in progress**.
+- **CK5 (the report)** — `docs/CK5_REPORT.md` drafted (session 51), maintained
+  under Round L as items close.
 
-**Repo state:** all work committed & pushed through session 44 (`docs/RESEARCH_LOG.md`
-= 44 sessions — read 39-44 for tables/compression/simulation). `reconstruction/`
-builds green (`make TOOLCHAIN_PATH=/tmp/opencode/arm-tc/usr/bin/` — the toolchain
-lives in /tmp, re-extract if a reboot wiped it) and `make test-host` passes.
+**Round map (details + statuses in `docs/PLAN.md`):**
+A ✅ | R1 ✅ | D ✅ | K ✅ (tail commands unreachable — platform boundary) |
+G ✅ (boot call graph) | H ✅✅ (display 100%) | E ✅ (drivers) | F ✅ (report draft)
+| **M — IN PROGRESS (runtime I²C volume)** | N (keyscan/TIM2) | O (tone) |
+L (report maintenance, continuous) | B/C (protocol broadening, blocked on N's
+stimulus path).
 
-**Recovered content is IN the build (sessions 39-44):** `.tables` at RAM
-0x20000000 (the decompressed .data: key tables, menu string pointer arrays, the
-0x200016D0 **frequency sub-band table** — NOT a "CSS tone table", see session 43 —
-and the battery/S-meter ladders) and `.uistrings` at flash 0x08040000 (the
-original's string/asset region). Every table pointer resolves unmodified.
-Table-driven content can match byte-for-byte (§7 revised).
+**Repo state:** all work committed & pushed through the session-54 commit
+(log = 54 sessions). `reconstruction/` builds green
+(`make TOOLCHAIN_PATH=/tmp/opencode/arm-tc/usr/bin/` — the toolchain and Renode
+live in /tmp and ~/tools, re-extract after a reboot; recipes in §2).
 
-**Simulation tooling:** Renode 1.17.0 installed at
-`~/tools/renode_1.17.0-portable` (portable, self-contained — no mono needed).
-Harness scripts in `reconstruction/sim/`:
-- `ck1.resc` — canonical CK1 run: vector handoff @0x0 + RCC_CFGR tag + heartbeat reads.
-- `ck1-hooks.resc` — tick-chain hook-counting pattern (re-check symbol addresses with nm first — code shifts on every rebuild!).
-- `ck1-diag8.resc` — AddHookAtInterruptBegin/End pattern (logs self.IRQ + interrupted PC).
-- `ck1-diag9.resc` — the tick-chain count that isolated the blocker.
-- `ck1-gdb.resc` — GDB-server pattern (start with `tail -f /dev/null | renode ...`).
+**Session-54 changes (this commit):** the I²C primitives re-verified against the
+disassembly and corrected (start/stop/ack polarity, the LED bit) — the final
+step to the 100.00% ODR parity; the CK4 capture scripts committed to `sim/`;
+this handoff rewritten. **No numbers changed**: the ODR stream was already
+100%; the corrections closed the PB9-latch tail and fixed the future event
+accounting (the census is in §3).
 
-**What already works in Renode (do not re-derive):**
-- Platform: stock `platforms/cpus/stm32f103.repl` (≈GD32F103). It pre-tags RCC_CR
-  (0x40021000) = 0x0A020083 (HSERDY/PLLRDY/HSIRDY set) and models usart2 at
-  0x40004400, GPIO A-G, AFIO/EXTI, DMA, timers.
-- Vector handoff: the app is linked at 0x08004000 behind the non-distributed
-  bootloader; the harness writes MSP 0x20006800 + Reset 0x08004165 to 0x00000000/4
-  (the app sets VTOR = 0x08004000 itself in main).
-- RCC: SystemInit polls CFGR SCLK_STS after selecting PLL — harness Tag
-  `<0x40021004, 0x40021007> "RCC_CFGR" 0x00000008` satisfies it. (Session-44 log
-  entry has the spin-site address.)
-- Boot chain: Reset_Handler (tables copy) → SystemInit → main (VTOR, tick 108
-  MHz/1 kHz, OSInit, 7 tasks) → OSStart → OSStartHighRdy → context switch —
-  CFSR/HFSR = 0, PRIMASK = 0, OSTaskSwHook ×3, OS_Sched ×2, ui_task entered.
+## 2. The canonical run harness — reproduce any number in this file
 
-**Session-44 fixes (commit 206bf14), for context:**
-- `main.c` was missing `OSInit()` entirely → kernel pools zero,
-  `OSInitHookBegin` never ran → `OS_CPU_ExceptStkBase` = 0 → OSStartHighRdy's
-  `msr MSP, r1` loaded MSP = 0 → the first exception BusFaulted
-  (CFSR = BFSR.PRECISERR, HFSR.FORCED) into Default_Handler.
-- `os_cfg.h`: `OS_CPU_HOOKS_EN` 0 → 1 (restores OSInitHookBegin); the duplicate
-  hook stubs were removed from `os_hooks.c` (the vendored port's bodies win;
-  this port variant doesn't define OSTaskSwHook/OSTimeTickHook — those stay in
-  os_hooks.c). NOTE: no header dependency tracking in the Makefile — after
-  touching os_cfg.h, `rm -rf build` or at least `rm build/k-*.o build/p-*.o`.
+**Build:** `cd reconstruction && make TOOLCHAIN_PATH=/tmp/opencode/arm-tc/usr/bin/`
+(host tests: `make test-host`).
 
-**THE BLOCKER — SysTick interrupts fire but the tick handler never runs:**
-- SysTick verified armed by register read: CTRL (0xE000E010) = 0x7
-  (ENABLE|TICKINT|CLKSOURCE), LOAD = 108000 (= 1 ms @108 MHz; Renode's
-  `systickFrequency: 72000000` makes it 1.5 ms).
-- Periodic interrupts ARE taken; the interrupted PC = always 0x08005B0C = the
-  tail of OS_CPU_SR_Restore (the idle task's critical-section exit — the app
-  lives in Save/Restore pairs, so delivery at unmask is normal for the Micrium
-  port). At interrupt-begin `self.IRQ` = 2; `LogCpuInterrupts` labels it
-  "Fast Interrupt (FIQ)".
-- But OS_CPU_SysTickHandler (0x08005A88 — address verified current against nm,
-  and a hook on OS_Sched at the same build DOES fire) never executes:
-  SysTickHandler/OSTimeTick/OSIntEnter = 0 hook hits. Heartbeat (0x20004802)
-  stays 0; ui_task enters once then blocks forever.
-- Ruled out: vector[2] misroute (patching 0x08004008 → SysTickHandler changed
-  nothing), faults (CFSR = 0), PRIMASK stuck (= 0), VTOR (= 0x08004000 at 1/5/50 ms;
-  Renode independently "guessed" 0x08004000 at LoadELF), stale hook addresses,
-  SysTick misconfiguration (register-verified), GDB software breakpoints (never
-  fire — don't retry; hbreak untried).
-- Renode internals (source fetched to /tmp/opencode/{nvic,cortexm,arm}.cs —
-  re-fetch from renode-infrastructure master after a reboot):
-  `src/Emulator/Cores/Arm-M/NVIC.cs` — SysTick = a LimitTimer on
-  machine.ClockSource at `systickFrequency`, LimitReached →
-  SetPendingIRQ(SystemException.SysTick = 15); `SystemException` enum: NMI = 2,
-  PendSV = 14, SysTick = 15; the `irqs[]` array is indexed by exception number.
-  `src/Emulator/Cores/Arm/Arm.cs` ExceptionDescriptions[5] = "Fast Interrupt
-  (FIQ)" — the array is offset by one from tlib's exception_index (QEMU
-  numbering: EXCP_IRQ = 5, EXCP_FIQ = 6), so the delivered exception = tlib
-  EXCP_FIQ. The meaning of `self.IRQ` = 2 remains unresolved.
+**Re-derive symbols after EVERY rebuild** (addresses shift):
+`arm-none-eabi-nm reconstruction/build/hguv98.elf | grep <symbol>`.
 
-**NEXT DIAGNOSTICS, cheapest definitive first (do not skip ahead):**
-1. Read ICSR (0xE000ED04) while paused after `emulation RunFor`: VECTACTIVE =
-   bits 5:0 = the ACTIVE exception number; VECTPENDING = bits 11:6. If
-   VECTPENDING = 15 → SysTick pending but never activated = the NVIC→CPU
-   signal path is the broken link. If VECTACTIVE = 2 → an NMI is literally
-   active. One RunFor + one ReadDoubleWord — start here.
-2. Hook Default_Handler (0x08004131): do the periodic interrupts land in it?
-   (diag10's vector[2] patch had no effect, so probably not — but the hook
-   proves it.)
-3. Source isolation: comment out `board_setup_tick` in main.c, rebuild, run —
-   do the periodic interrupts stop? If yes → the SysTick is the source and the
-   delivery is broken. If no → an unexpected source (check the .repl: several
-   `timerN: out -> gpioPortX#pin` connections exist and Renode timers count
-   from reset; EXTI → nvic@6-10/23/40 could be firing if hw_init armed lines).
-4. Only then tlib archaeology: how tlib's Cortex-M maps the NVIC output to an
-   exception and whether vector[15] is even consulted (fetch
-   renode-infrastructure `src/Emulator/Cores/Arm-M/` CPU + tlib arch/arm
-   sources; try `sysbus.cpu VectorTableOffset 0x08004000` explicitly).
-5. Any workaround must live in the harness/platform, never in the
-   reconstruction (the original runs this exact code on silicon) — and gets
-   recorded in every equivalence report (§7).
+**Run the original (3-s display capture):**
+```
+cd ~/tools/renode_1.17.0-portable
+timeout 280 ./renode --console --disable-xwt reconstruction/sim/ck4-orig.resc
+cp /tmp/opencode/pb_stream.log /tmp/opencode/pb_stream_orig.log   # canonical
+```
+**Run the reconstruction:**
+```
+timeout 280 ./renode --console --disable-xwt reconstruction/sim/ck4-recon.resc
+cp /tmp/opencode/pb_stream.log /tmp/opencode/pb_stream_reconNN.log
+```
+(`pb_displaybus.py` truncates `/tmp/opencode/pb_stream.log` at peripheral init;
+always copy it to a persistent name after the run. The scripts above load
+`firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin` @0x08004000 with the r9 hook, or
+the recon ELF, run 10 ms, clear SysTick CVR, then run 3 s.)
 
-**Renode survival guide (patterns that work / traps that waste time):**
-- Run: `cd ~/tools/renode_1.17.0-portable && timeout 240 ./renode --console
-  --disable-xwt <script.resc>`; background + GDB needs stdin kept open:
-  `(tail -f /dev/null | timeout N ./renode ... &)` — the monitor exits at EOF
-  (this silently killed the first GDB-server attempt).
+**The comparison (the ODR-only sequence — the acceptance bar):**
+```bash
+python3 - <<'EOF'
+def odrs(p):
+    return [l.split()[2] for l in open(p)
+            if len(l.split())>2 and l.split()[1]=='ODR']
+o=odrs('/tmp/opencode/pb_stream_orig.log')
+r=odrs('/tmp/opencode/pb_stream_recon26.log')
+n=min(len(o),len(r)); s=sum(a==b for a,b in zip(o,r))
+print(f'{s}/{n} = {100*s/n:.2f}%')
+EOF
+```
+**The event census (the Round M accounting):**
+```bash
+python3 - <<'EOF'
+from collections import Counter
+for p in ('/tmp/opencode/pb_stream_orig.log',
+          '/tmp/opencode/pb_stream_recon26.log'):
+    c=Counter(l.split()[1] for l in open(p) if l.split()[1:2][0] in
+              ('ODR','BSRR','BRR','CRH','CRL'))
+    print(p, dict(c))
+EOF
+```
+**The disassembly of the original:** `/tmp/opencode/lcd.asm` — regenerate after
+a reboot with:
+`arm-none-eabi-objdump -D -b binary -m arm -M force-thumb --adjust-vma=0x08004000 lcd.bin > /tmp/opencode/lcd.asm`
+(lcd.bin = the distributed original; REA MCP works too — reopen the session per
+burst: `open_binary` raw-binary, entry 0x08004000 — `batch_decompile` needs it).
+
+## 3. Round M — the runtime I²C event accounting (THE active work)
+
+The display ODR stream is closed; what differs is the **count and placement of
+the I²C (non-ODR) GPIOB events**. Current census (recon vs original):
+CRH 3,392/4,902 · BSRR 7,432/7,913 · BRR 6,860/14,188 · CRL 0/1.
+
+**The burst map** (segments delimited by CRH direction-switch pairs; positions
+in ODR-event index, counts in events; from the canonical captures):
+
+| position | orig | recon | identification |
+|---|---|---|---|
+| pre-LCD | 2,507 | 63 | the vendor PIC boot region (missed code) |
+| @74 (ee_load) | 288 | 288 | ✓ exact |
+| @3,545 (0x0FD0 read + ee_save) | 5,881 | 4,198 | the page-write accounting |
+| @85,487 | 83 | 741 | the recon's callsign+VFO reads sit here; orig smaller |
+| @89,225 (channel scan 0x0801FDDC) | 12,987 | 7,936 | 128 × ee_read(0x02+0x10k,2); ~101 vs 62 events/read |
+| @118,308 | 208 | — | orig-only |
+| @137,739 | 104 | — | orig-only (write/ACK-poll shape) |
+| @145,359 | 104 | — | orig-only (identical to the above) |
+| @152,036 (LED stream) | 4,458 | 4,458 | ✓ replayed `[DATA-DERIVED]` (data/led_stream.bin) |
+| @153,847 | 25 | ? | small tail burst |
+| @158,942 | 359 | ? | orig-only |
+
+**Open items, in the order to attack them** (each has its evidence pointer;
+session-53 pt3 banked the raw 104-event burst decode in the log):
+
+1. **The per-read delta (62 vs ~101 events per 2-byte read)** — the biggest
+   multiplier (×128 over the scan). Diff `eeprom_read`'s event sequence against
+   the original's 2-byte reads in the capture, byte-by-byte: check the ACK-wait/
+   retry loop's event emission and the per-bit SDA writes (the original's
+   per-byte read pattern = CRH(44 input), CRH(34 output), BSRR = 3 events/byte;
+   the read-byte itself emits 0 PB9 events — SCL=PA11 is uncaptured).
+2. **The 104-event bursts (@137,739/@145,359)** — match event-by-event against
+   FUN_080286C0 (the write path: per byte = start + `do{start;send(0xA0)}while(ack!=1)`
+   + hi + lo + data + stop). Identify the call sites via the main-task loop body
+   after the routers (0x0800FE58/0x08010302/0x08015DCC) and FUN_0801FDDC's callers.
+3. **The save region (4,198 vs 5,881)** — the ee_save page-write accounting
+   (the 0x4D write crosses 3 pages).
+4. **The 208 (@118,308) and 359 (@158,942) bursts** + the small 25 (@153,847);
+   also reconcile @85,487 (the recon emits MORE here: the callsign+VFO reads may
+   belong elsewhere in the original).
+5. **The pre-LCD vendor burst (63 vs 2,507)** — the vendor PIC region past the
+   distributed image (the strings region); possibly a permanent harness
+   boundary. Do not sink more than one attempt before classifying it.
+
+**When Round M closes:** update CK5 §3.4/§4, close the round in PLAN.md, commit,
+then move to **Round N** (the keyscan/TIM2: TIM2 CC1 can never match on the
+model — recover the original's mechanism, document the model boundary, wire the
+key-event stimulus so the `$A01` write-direction observation becomes testable),
+then **Round O** (tone FUN_0801A91A on-branch, CTCSS/DTMF dispatch
+0x080276D4/0x08027474), with **Round L** maintenance after every closure.
+
+## 4. Working rules (added session 54 — anti-loop)
+
+- Work in **small verified increments**: one change → rebuild → run → compare →
+  log → commit. Never stack unverified changes.
+- **Three-attempt rule:** if an item's comparison does not converge after 3
+  genuine attempts, STOP that item — append the current hypothesis + raw
+  evidence to the log, mark it parked-with-evidence, and move to the next item.
+- Never re-run an experiment that already produced a logged number; §2's
+  recipes reproduce any of them.
+- The Renode monitor's `python` is **single-line only** (multi-line scripts fail
+  to tokenize); RAM dumps work as a one-liner
+  `python 'open("/tmp/opencode/x.bin","wb").write(bytes(machine["sysbus"].ReadBytes(0x20000000, 0x10000)))'`.
+- Scripts abort at the FIRST failing command — a bad mid-script command
+  silently truncates the run.
+
+## 5. Hard-won ground truth (do NOT re-derive; verified sessions 51-54)
+
+- **The acceptance bar = the FULL 16-bit ODR value.** The bit9 of every display
+  ODR is read-modify-write preserved from the PB9 latch (the SDA state leaks
+  into every display event).
+- **I²C writer mapping:** 0x08023780 = BSRR (+0x10), 0x08023788 = BRR (+0x14),
+  0x0802375E = IDR (+8). (The session-51 reversed note was retracted.)
+- **The I²C primitives (as committed in eeprom.c):**
+  start (0x080284F2) = SDA high, SCL high, SDA low, SCL low;
+  stop (0x08028532) = SDA low, SCL high, SDA high;
+  master_ack (0x08028566) = val==0 → BRR (the ACK = SDA LOW), val≠0 → BSRR
+  (the NAK = SDA HIGH); send = MSB-first with the inverted SDA polarity;
+  the LED bit=1 → BSRR (PB9 HIGH — not inverted).
+- **The boot call graph:** the vendor PIC walker @0x08042900 → FUN_0802D120 →
+  main task FUN_0802D178 → FUN_0802D0D0 → FUN_0801B5A8 → the boot scene
+  FUN_0801B738 → the 30 ms loop. The r9 = 0x08040000 hook (the PIC static
+  base) is REQUIRED at 0x08042900 for the original.
+- **The channel scan** 0x0801FDDC `[RECOVERED]` = 128 × ee_read(0x02+0x10k, 2),
+  sits between the status text grid and the content fill.
+- **The fonts/assets** (reconstruction/data/, incbin via splash_data.S):
+  the class-3 8×16 @0x080413CC, the class-1 6×10 @0x08041F00, the class-6
+  12×20 @0x0803F490, the splash @file 0x130 (0xA000 B), led_stream.bin
+  (4,458 B = 2,966 BRR + 1,488 BSRR + 4 CRH, replayed [DATA-DERIVED] between
+  the (78,13) space cell and the (97,30) 90×10 fill).
+- **The wire frame ground truth:** buf = {u8 reg; u8 pad; u16 val LE};
+  wire = [reg, val_hi, val_lo]; the mode writers emit their own leading standby.
+- **The protocol tail commands** ($A10/$A11/$A30/$A31/$D00/$F00/$A50/$A51/
+  $E0x/$F0x) = **unreachable in simulation**: their compare strings live at
+  0x08044844+, past the distributed file's end; the recon's fall-through is
+  behaviorally correct (session 52 pt4).
+- **The timing boundary:** the original's LOAD = 7999 (a stale 8 MHz constant)
+  → ~13.5 kHz tick at 108 MHz vs the recon's true 1 ms — §7(c)/§3.1, accepted;
+  all timing-sensitive comparisons use event sequences, not wall time.
+- **The original's I²C per-byte read pattern** = CRH(44 input), CRH(34 output),
+  BSRR — 3 events/byte; the read-byte emits 0 PB9 events (SCL = PA11 is
+  uncaptured by the PB model). The pre-LCD vendor ops leave the PB9 latch LOW
+  (the recon's probe restores SDA low after the read — [DATA-DERIVED] tail in
+  main.c); the app ops leave it HIGH.
+
+## 6. Renode survival guide (patterns that work / traps that waste time)
+
+- Run: `cd ~/tools/renode_1.17.0-portable && timeout N ./renode --console
+  --disable-xwt <script.resc>`; background + stdin: `(tail -f /dev/null |
+  timeout N ./renode ... &)`.
 - `emulation RunFor "00:00:00.050"` = run then pause. Do NOT `start` first.
-- Scripts abort at the FIRST failing command — a bad command mid-script
-  silently truncates the run (cost us a full debug round).
-- State reads: `sysbus ReadDoubleWord <addr>`; CPU via properties:
-  `sysbus.cpu PC`, `sysbus.cpu SP`, `sysbus.cpu PRIMASK` (bare `cpu` dumps the
-  method/property list, not registers — but that list is a useful API reference).
-- SysTick VAL (0xE000E018) reads from the monitor are unreliable ("Syncing time
-  should be done from CPU thread only" + frozen value).
-- Hooks: `cpu AddHook <addr> "self.Log(LogLevel.Info, '...')"` and
-  `AddHookAtInterruptBegin/End` (inside the hook: `self.IRQ`,
-  `self.PC.RawValue`). They work — but re-derive addresses with nm after every
-  rebuild.
-- LoadELF logs three blocks: 23,624 B @0x08000000 (flash), 64 KB @0x08005C48
-  (the RAM segment's paddr = the tables' flash load image — by design,
-  Reset_Handler copies it to RAM), 27,543 B @0x08040000 (.uistrings).
+- State reads: `sysbus ReadDoubleWord <addr>`; CPU registers via properties
+  (`sysbus.cpu PC`, `SP`, `PRIMASK` — bare `cpu` dumps the API list).
+- SysTick VAL monitor reads are unreliable; only 32-bit reads of the STM32_UART
+  model are trustworthy (the 16-bit ones return garbage).
+- Hooks: `cpu AddHook <addr> "self.Log(LogLevel.Info, '...')"`,
+  `AddHookAtInterruptBegin/End` — re-derive addresses with nm after every rebuild.
+- GDB software breakpoints never fire (don't retry; hbreak untried).
 
-- `docs/MENU_TREE.md` (116 dispatcher edges), `docs/SCREENS.md` (86 pump sites
-  + the protocol-driven 'g'/'h'/'i'/'j' states), `analysis/pump_args.json`.
-- `reconstruction/` — buildable C (`make test-host` = green protocol tests):
-  `src/rf.c/h` (AT1846S ×2 + `at1846s_set_band_config` with the REAL sub-band
-  table), `src/ui.c/h` (screen machine, input policy, gauges), `src/protocol.c`
-  (+ host tests), `src/font.c`, `src/display.c`, `src/startup.c`, `src/rtos.c`,
-  `src/tables.S` + vendored uC/OS-II + GD32 SPL.
-- The 8051 APRS coprocessor has full source (`UV98_868_220430_D4/`); NOT a
-  simulation target — model it as traffic (§5).
+## 7. Workaround register (restated in full in docs/CK5_REPORT.md §4)
 
-## 2. Mission
+All live ONLY in the harness/platform: (1) the SysTick CVR write skipped at
+~10 ms; (2) r9 = 0x08040000 set at 0x08042900; (3) GPIOB = `pb_displaybus.py`
+(the IDR reads 0 → the I²C ACK always "ACKed"; the per-write capture IS the
+comparison channel); (4) ADC2_SR tagged 0x2; (5) SPI2 = `sp2_fontflash.py`;
+(6) the 8051 peer = monitor-injected frames; (7) the injection pacing (~0.6 s
+virtual time per 534-B frame); (8) the neutral peer content, identical for both
+images.
 
-Build an emulator/simulator harness that runs **both** the original binary and the
-reconstructed C on the same modeled hardware, drive them with identical stimuli, and
-diff the observable outputs. Success = mechanism-level equivalence demonstrated, with
-data-content differences (from the absent `.data`) documented rather than hidden.
-
-## 3. Emulator choice — recommendation
-
-- **Preferred: Renode** (Antmicro). It models STM32F103 (a near-clone of GD32F103:
-  same Cortex-M3, same F1 peripheral layout) and allows custom scripted peripherals.
-  Define a `gd32f103ret6` platform: CPU + memory map below + peripheral set in §4.
-- Alternative: QEMU `mps2-an385` (Cortex-M3) with hand-written peripheral devices at
-  the GD32 addresses, or Unicorn Engine + a custom device loop (more manual work).
-- The old log note "QEMU can't model GD32F103 peripherals" meant *stock* QEMU —
-  with custom devices it is viable; Renode just gets you further faster.
-
-### Memory map to model (from the log)
+## 8. File map
 
 ```
-flash  0x08004000 .. 0x08080000 (512K − 16K; bootloader below is NOT distributed)
-sram   0x20000000 .. 0x20010000 (64K)
-APB1   0x40000000: TIM2 0x40000000, SPI2 0x40003800, USART2 0x40004400 (APRS/BT link)
-APB2   0x40010000: GPIOA 0x40010800, GPIOB 0x40010C00, GPIOC 0x40011000,
-       GPIOD 0x40011400, USART1 0x40013800 (GPS), ADC1 0x40012400, SPI1 0x40013000
-AHB    0x40018000 (SDIO etc. — model as RAZ/WI unless the code touches it)
-NVIC/SysTick/PendSV/SCB at the standard CM3 addresses
+followup.md                # THIS handoff — start here
+docs/RESEARCH_LOG.md       # the evidence base — sessions 1-54 (51-54 = display/I2C)
+docs/PLAN.md               # the round map with statuses
+docs/CK5_REPORT.md         # the consolidated differential report (§3.4 open, §4 workarounds)
+reconstruction/            # the C tree (build: §2)
+reconstruction/src/eeprom.c  # the corrected I²C primitives + eeprom_read/write
+reconstruction/src/display.c # all display primitives + display_led_stream_replay
+reconstruction/src/ui.c      # ui_boot_scene, ui_screen0_build, ui_task
+reconstruction/sim/ck4-{orig,recon}.resc  # the canonical capture scripts
+reconstruction/data/         # splash + 3 fonts + led_stream.bin (+ .incbin sources)
+firmware/MAIN-MCU-*.bin      # the original (immutable)
+/tmp/opencode/pb_stream_{orig,recon26}.log  # the canonical captures (re-copy after a reboot)
+/tmp/opencode/lcd.asm        # the original's full disassembly (§2 regenerates it)
+analysis/                    # gitignored dumps/traces
 ```
 
-Key wiring recovered in the log (model these behaviors, not just registers):
+## 9. Open items that simulation may resolve (secondary)
 
-| Peripheral | Recovered usage |
-|---|---|
-| GPIOA | RF bit-bang: CLK=PA15, DATA=PA9, CS0=PA8, CS1=PA12 (3-wire, 24-bit frames) |
-| GPIOB | ST7735 8080-parallel data bus D0-7=PB8-15, WR=PB0 |
-| GPIOC | D/C=PC3, CS=PC1, RESET=PC10; keypad/PTT pins (PC7/PC8/PC11...) |
-| GPIOD | PD4 = font-flash CS (SPI2) |
-| USART1 | GPS (NMEA in) |
-| USART2 | the 8051 link: `$A`/`$B`/`$C` frames (6-byte cmds, 0x216 settings frames) |
-| TIM2 | key-scan tick (IRQ 28) |
-| ADC1 ch14 | battery divider (thresholds 3253/1751 counts) |
-| SysTick | uC/OS-II tick |
+- The `$A09` 4-byte-prefix routing mechanics (the tail commands themselves are
+  resolved-unreachable).
+- Cross-check the recovered `.data`-structure guesses against live behavior.
+- The S-meter bar thresholds and the `'M'/'N'` blinker source (a simulated RF
+  level sweep).
+- The `0x20004E40` radio-state region vs the lazy per-field settings reads
+  (CK5 §3.2/§3.3).
 
-## 4. Custom devices to write (in order of boot dependency)
-
-1. **Clock/RCC** — DONE for boot (session 44): the platform's built-in RCC_CR tag
-   covers the oscillator-ready reads; the harness adds an RCC_CFGR tag (0x8) for
-   SystemInit's SCLK_STS poll. No wait loops remain on the boot path.
-2. **GPIO** — four ports with output-pin visibility: every PA/PB/PC/PD write must be
-   observable as events (the RF and display buses are bit-banged — the comparison
-   harness *is* the pin trace).
-3. **External SPI font flash** (SPI2, CS=PD4, READ opcode 0x03, 24-bit addr).
-   The real content is unavailable — **synthesize** it: HZK16-style CJK glyphs
-   (the addressing math in `src/font.c` must be honored: `addr24 = ((hi−0xB0)×94 + lo + 685) << 5`)
-   plus ASCII 8×8/8×16 sets, and the asset-table classes 1–9 as stub blocks.
-   Use the same synthesized image for both runs.
-
-**UPDATE (sessions 38-42): RESOLVED — nothing needs synthesis here anymore.**
-The real table content EXISTS in the firmware as **armlink compressed-RW-data**
-(vector → boot stub → init walker → `__scatterload_zeroinit` + an LZ/RLE
-decompressor, REA-decompiled in session 38; session 41 proved the image
-complete — the packed stream ends exactly at the file end, entry 1 = .bss
-zero-init of 0x20001734-0x2000517C). Sessions 39/42 decompressed both builds'
-streams; the recovered tables are now **embedded in the reconstruction build**
-(`src/tables.S`: `.tables` at RAM 0x20000000, `.uistrings` at flash
-0x08040000 = the original's string region; `Reset_Handler` copies the tables
-like the original's scatter-load). Load the reconstruction ELF as-is — tables
-included. For the ORIGINAL image's run, let it execute its own decompression
-(boot chain is self-contained) or preload
-`reconstruction/data/ram_tables_recovered.bin`.
-
-**Session 43 correction:** the table at RAM 0x200016D0 once read as a "CSS
-tone table" is actually a **frequency sub-band table** (u32[96], 24
-initialized; RF frequencies in 10 Hz units: 136.5 … 511.875 MHz) feeding the
-reg 0x05 audio-filter config in 0x08023156 — see the research log.
-
-4. **AT1846S ×2** — model the register file from the map in `src/rf.c` (0x1F GPIO,
-   0x29/0x2A frequency, 0x30 mode, 0x35 tone, 0x1B RSSI[15:8], 0x1C CSS flag,
-   0x7F bank select). Reads return plausible values (configurable RSSI for tests).
-   Decode the bit-bang frames on PA15/PA9/PA8/PA12 and log every (chip, reg, value).
-5. **ST7735** — decode the 8080-parallel + D/C/CS/RESET pins into a framebuffer
-   (cmd 0x2C family per `src/display.c`); export PNG/dumps per frame. This is the
-   primary visual comparison channel.
-6. **USART2 peer** — a scripted 8051 stand-in: plays the conformance vectors from
-   `tests/test_protocol.c` (settings upload `$A01,` 534-byte frames, beacon reads,
-   telemetry) and logs every response byte-accurately.
-7. **ADC** — ch14 returns a configurable count (test: above/below both thresholds).
-8. **NVIC basics** — TIM2 period, SysTick tick, and the 60-trampoline IRQ dispatch
-   just works (it is the original's own code).
-
-## 5. The original-binary runner — the one injected change
-
-The distributed images are **neutered**: the reset handler at label 0x08044690
-(file 0x40690) is 2× `NOP.W`. To execute the original you must patch the **minimum**:
-point the reset vector (or restore a stub) at a reconstructed startup that does what
-the original's did — set VTOR=(0x4000&0x1FFFFF80)|0x08000000, init .data/.bss, call
-SystemInit, then the app entry at label 0x08029120. Everything else must be the
-original's own bytes. Document the exact patch bytes in the log; keep both a patched
-and unpatched copy under `analysis/` (never in git).
-
-## 6. Differential comparison harness
-
-Drive both images (original-patched and reconstructed) in identical machines with
-identical stimulus scripts; capture and diff:
-
-1. **Protocol trace (USART2, bidirectional)** — byte-exact comparison against the
-   conformance vectors. This is the strongest check: the protocol layer is fully
-   recovered and already passes the host tests.
-2. **AT1846S bus trace** — the ordered (chip, reg, value) write sequence for a fixed
-   channel-setup script (power-on init, frequency set to known values, mode
-   transitions 0x4006/0x4046/0x40A6). Byte-exact expected for the recovered paths.
-3. **Display stream** — the ST7735 write sequence + framebuffer dumps. Expect
-   *structural* equality (same layout, same primitives) but NOT byte-equal content:
-   menu strings/table-driven content differ because the original `.data` is absent
-   (see §7). Diff pixel maps and classify differences as mechanism vs data.
-4. **Key-event behavior** — scripted key sequences (GPIOC pin transitions per the
-   scanner map) → compare screen-state changes (visible via display stream) and
-   emitted events.
-5. **Timing** — task-loop heartbeat counts and tick-level ordering (loose equality).
-
-Harness shape: stimulus scripts (JSON/DSL) → runner → per-run trace files
-(`analysis/traces/`) → differ (byte-exact for 1-2; classified diffs for 3) → report.
-
-## 7. The equivalence boundary — state it in every report
-
-**REVISED (sessions 42-43):** the `.data` image was recovered and embedded in
-the reconstruction — table-driven content NOW matches byte-for-byte: menu
-strings, key tables, screen attributes, the frequency sub-band table, the
-battery/S-meter calibration ladders. What still CANNOT match byte-exactly:
-(a) external SPI font-flash **glyph bitmaps** (the glyphs live on the SPI
-flash chip, not in the MCU image — the synthesized font remains, and every
-glyph-derived display byte in the diff is a known data-content difference),
-(b) ADC/RSSI analog readings (make them configurable in the device models),
-(c) timing jitter. Do not "fix" the reconstruction to smooth over those —
-fabricating agreement would corrupt the differential signal.
-
-## 8. Suggested checkpoints
-
-1. **CK1** — IN PROGRESS (session 44): boots through the context switch with no
-   faults; the remaining criterion = the heartbeat (0x2000469C+0x166, i.e.
-   0x20004802) incrementing — blocked on the SysTick→handler link (§1 has the
-   full evidence chain and the next diagnostics in order).
-2. **CK2** — protocol conformance parity: both images pass the same USART2 vectors.
-3. **CK3** — RF parity: identical AT1846S write sequences for the fixed setup script.
-4. **CK4** — display: both images produce framebuffer dumps with identical
-   code-driven elements (banners, fixed labels, blinker behavior).
-5. **CK5** — full differential report: parity matrix + classified difference report
-   (mechanism vs data-content), appended to the research log.
-6. **CK6 (stretch)** — the reconstructed `.data` tables tuned so the menu screens
-   render structurally identical to the original's screens for the first two levels.
-
-## 9. File map
-
-```
-docs/RESEARCH_LOG.md      # the evidence base — read sessions 18-44 first for UI/RF/compression/sim detail
-docs/MENU_TREE.md         # 116 dispatcher edges
-docs/SCREENS.md           # pump inventory + protocol-driven states
-reconstruction/           # the C tree (build: make TOOLCHAIN_PATH=...)
-reconstruction/src/*.c    # recovered mechanisms (start: ui.c, rf.c, protocol.c)
-reconstruction/sim/       # Renode CK1 harness + diagnostic patterns (§1)
-firmware/MAIN-MCU-*.bin   # original 190416 (0x42B97 bytes, neutered reset)
-firmware/V1.0.1_190619-KT.bin  # KT variant (0x7C000; APRS-menu redesign; tail to 0x45B57)
-firmware/UV98_868_220430_D4.hex # 8051 coprocessor image (45 KB)
-analysis/                 # gitignored: dumps, extracted JSON, traces
-tools/                    # dis_range.py, vendor_fingerprint.py
-```
-
-## 10. Open items that simulation may resolve (secondary)
-
-- The dispatcher's stripped tail-table commands — if the original image, when run,
-  reaches the tail table, its behavior can be *observed* even though its bytes are
-  absent (the tail table lives in flash the artifacts don't contain — likely
-  unreachable; verify where the dispatch actually lands).
-- Cross-check the recovered `.data`-structure guesses (linked screen chain, redraw
-  block fields) against live behavior.
-- S-meter bar thresholds and the `'M'/'N'` blinker source — observable with a
-  simulated RF level sweep.
-
-Start by standing up CK1. Keep the log current, and good hunting.
+Keep the log current, commit at milestones, and good hunting.

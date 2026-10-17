@@ -37,7 +37,7 @@ TOBJ = build/tables.o
 .DEFAULT_GOAL := all
 
 build/tables.o: src/tables.S data/ram_tables_recovered.bin data/uistrings_region.bin
-build/splash_data.o: src/splash_data.S data/splash_128x160_rgb565.bin data/ascii8x16_font.bin data/ascii6x10_font.bin
+build/splash_data.o: src/splash_data.S data/splash_128x160_rgb565.bin data/ascii8x16_font.bin data/ascii6x10_font.bin data/big12x20_font.bin data/led_stream.bin
 	$(CC) -x assembler-with-cpp -mcpu=cortex-m3 -mthumb -Isrc -c $< -o $@
 	$(CC) -x assembler-with-cpp -mcpu=cortex-m3 -mthumb -Isrc -c $< -o $@
 

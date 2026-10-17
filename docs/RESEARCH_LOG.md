@@ -2171,3 +2171,35 @@ evidence banked for the next session.**
      strings region) — possibly a harness boundary.
 - STATE: the display bus = 100.00% CLOSED (the full 16-bit ODR,
   160,753/160,753). Everything committed through this point.
+
+**Session 54 — the I²C primitives re-verified and committed; the handoff
+(followup.md) refreshed for a clean continuation. No new simulation
+experiments this session.**
+- VERIFICATION: an independent ODR-only re-comparison of the canonical
+  captures (/tmp/opencode/pb_stream_orig.log vs pb_stream_recon26.log,
+  parsed as the ODR-only event sequence) = **160,753/160,753 =
+  100.00%** — the session-53 pt2 result reproduced from the raw logs
+  with the primitive corrections in the build. Census confirmed:
+  the recon 3,392 CRH / 7,432 BSRR / 6,860 BRR vs the original
+  4,902 / 7,913 / 14,188 (+ CRL 0 vs 1).
+- COMMITTED (the session-53 pt3 "resolve the primitives once and for
+  all" step, verified against the disassembly): i2c_start (0x080284F2:
+  SDA high, SCL high, SDA low, SCL low), i2c_stop (0x08028532: SDA
+  low, SCL high, SDA high), i2c_master_ack (0x08028566: val==0 = the
+  ACK = SDA LOW; val!=0 = the NAK = SDA HIGH), display_led_write bit
+  polarity (bit=1 → PB9 HIGH), the Makefile asset deps
+  (big12x20_font.bin, led_stream.bin). The writer mapping stands:
+  0x08023780 = BSRR (+0x10), 0x08023788 = BRR (+0x14), 0x0802375E =
+  IDR (+8) — the session-51 reversed note is retracted (again).
+- HARNESS: the canonical CK4 capture scripts committed to sim/
+  (ck4-orig.resc, ck4-recon.resc — they existed only in /tmp before,
+  which is wiped on reboot; recipes for every number now live in
+  followup.md §2).
+- HANDOFF: followup.md rewritten as the session-54 handoff — the
+  round map with statuses, the verified-facts list (do-not-re-derive),
+  the Round M open items with the full burst map, the anti-loop
+  working rules (small verified increments; a non-converging item gets
+  3 attempts then is parked with its evidence), and the reproduce-
+  any-number recipes.
+- STATE: the display bus = CLOSED (100.00%); the I²C event-count
+  deltas = the open Round M items (the census above unchanged).

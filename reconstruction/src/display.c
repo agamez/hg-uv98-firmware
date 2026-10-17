@@ -399,9 +399,9 @@ void display_led_write(uint16_t word, uint8_t flag)
         u |= 0x100u;
     for (uint32_t b = 0; b < 12u; b++) {
         if (u & 0x0800u)
-            GPIO_BRR(GPIOB_BASE) = 0x200u;      /* PB9 low              */
+            GPIO_BSRR(GPIOB_BASE) = 0x200u;     /* [session 53] bit=1 = PB9 high */
         else
-            GPIO_BSRR(GPIOB_BASE) = 0x200u;     /* PB9 high             */
+            GPIO_BRR(GPIOB_BASE) = 0x200u;      /* bit=0 = PB9 low               */
         GPIO_BSRR(GPIOD_BASE) = 1u;             /* clock high           */
         {   volatile uint32_t j;                /* delay(5)             */
             for (i = 0; i < 5u; i++)

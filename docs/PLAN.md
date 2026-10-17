@@ -165,17 +165,17 @@ commands ($A10/$A11/$A30/$A31/$D00/$F00/$A50/$A51/$E0x/$F0x + the GB2312
 app-text set). Disassemble the dispatch tail from the missed region,
 extend protocol.c, and extend the matrix to the tail commands.
 
-## Round M — runtime I²C volume (the last CK4 item) — session 53
-The recon's display stream = 100% but the GPIOB I²C volume differs:
-the recon 1,340 CRH / 2,572 BSRR / 1,377 BRR vs the original 4,902 /
-7,913 / 14,188. The gap = the original's runtime EEPROM ops (the
-state-machine reads/writes the stub routers skip) + the pre-LCD vendor
-load. Plan: (1) segment the original's full-event stream into the I²C
-bursts (the CRH direction-switch pairs), count + locate them relative
-to the display passes; (2) decompile the router cluster
-(0x0800FE58/0x08010302/0x08015DCC + 0x0801FDDC) for the EEPROM ops;
-(3) implement the ops in the recon's routers; (4) re-run, diff the I²C
-volume and positions.
+## Round M — runtime I²C volume (the last CK4 item) — session 53/54, IN PROGRESS
+The display ODR stream = 100.00% CLOSED (160,753/160,753, the FULL
+16-bit values — session 53 pt2, re-verified session 54). What differs =
+the I²C event counts: the recon 3,392 CRH / 7,432 BSRR / 6,860 BRR vs
+the original 4,902 / 7,913 / 14,188 (CRL 0 vs 1). The I²C primitives
+are corrected and committed (session 54). The full burst map + the
+ordered open items live in followup.md §3: (1) the per-read delta
+(62 vs ~101 events/2-byte read), (2) the 104-event write/ACK-poll
+bursts vs FUN_080286C0, (3) the save region (4,198 vs 5,881), (4) the
+208/359/25-event bursts, (5) the pre-LCD vendor burst (63 vs 2,507 —
+possibly a harness boundary).
 
 ## Round N — keyscan path (TIM2) — after M
 TIM2 CC1 can never match on the model (open since ~session 40).

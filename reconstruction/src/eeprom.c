@@ -46,13 +46,15 @@ static void sda_input(void)
 /* [0x080284F2] start/restart: SDA low, SCL low, then SDA high, SCL high. */
 static void i2c_start(void)
 {
+    /* [session 53 | 0x080284F2 verified] SDA high, SCL high, SDA low,
+     * SCL low — the captured sequence CRH, BSRR, BSRR, BRR, BRR. */
     sda_output();
-    GPIO_BRR(GPIOB_BASE) = I2C_SDA_BIT;
-    GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;
-    dly(10);
     GPIO_BSRR(GPIOB_BASE) = I2C_SDA_BIT;
-    dly(10);
     GPIO_BSRR(GPIOA_BASE) = I2C_SCL_BIT;
+    dly(10);
+    GPIO_BRR(GPIOB_BASE) = I2C_SDA_BIT;
+    dly(10);
+    GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;
 }
 
 /* [0x080285B6] send one byte MSB first (inverted SDA), then the 9th-clock
@@ -87,11 +89,13 @@ static void i2c_send_byte(uint8_t b)
  * -> SDA low; one SCL low-high pulse around it. */
 static void i2c_master_ack(uint8_t val)
 {
+    /* [session 53 | 0x08028566 verified] val==0 = the ACK = the SDA LOW;
+     * val!=0 = the NAK = the SDA HIGH. */
     sda_output();
     if (val == 0u)
-        GPIO_BSRR(GPIOB_BASE) = I2C_SDA_BIT;
-    else
         GPIO_BRR(GPIOB_BASE) = I2C_SDA_BIT;
+    else
+        GPIO_BSRR(GPIOB_BASE) = I2C_SDA_BIT;
     dly(5);
     GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;
     dly(10);
@@ -127,14 +131,13 @@ static uint8_t i2c_read_byte(void)
  * write (the bit9 of the port). Verified against the original's stream. */
 static void i2c_stop(void)
 {
-    /* the captured GPIOB sequence = CRH, BSRR(high) only: the SDA ends
-     * HIGH; the final BRR(0x200) in 0x08028532 targets GPIOA (uncaptured
-     * by the PB model). */
+    /* [session 53 | 0x08028532 verified] SDA low, SCL high, SDA high —
+     * the captured sequence CRH, BRR, BSRR. */
     sda_output();
-    GPIO_BSRR(GPIOB_BASE) = I2C_SDA_BIT;
-    GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;
+    GPIO_BRR(GPIOB_BASE) = I2C_SDA_BIT;
+    GPIO_BSRR(GPIOA_BASE) = I2C_SCL_BIT;
     dly(10);
-    GPIO_BRR(GPIOA_BASE) = 0x200u;   /* PA9 — uncaptured on the PB model */
+    GPIO_BSRR(GPIOB_BASE) = I2C_SDA_BIT;
     dly(10);
 }
 

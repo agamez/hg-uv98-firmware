@@ -147,15 +147,14 @@ wrapper call sites corroborate the same pattern for the local storage).
 
 ### 3.4 Application-layer gaps (open)
 
-- The UI scene renderer / draw cadence (CK4, above): the runtime 30 ms
-  redraws (~60k events/3 s) come from the UI state machine; the recon
-  reproduces the boot scene (the fill + the splash byte-exact) but not
-  the runtime cadence yet.
-- **The ASCII glyphs are computed at runtime by the original** (proven:
-  the rendered bitmaps appear nowhere in the flash, the RAM tables, or
-  a live RAM dump — session 52 pt3). The rendering geometry, the color
-  schemes, the per-class tables and the strides are recovered; the
-  generator algorithm is open.
+- ~~The UI scene renderer / draw cadence (CK4)~~ — **CLOSED (session 53):
+  the entire 3-s ODR stream is byte-identical (160,753/160,753, the FULL
+  16-bit values)**; the remaining open item = the I²C event-count deltas
+  (Round M, see the research log session 53/54 for the burst map).
+- ~~The ASCII glyphs are computed at runtime~~ — **RETRACTED (session 52
+  pt5): the glyphs are STORED** — the class-3 8x16 table @0x080413CC, the
+  class-1 6x10 @0x08041F00, the class-6 12x20 @0x0803F490, all extracted
+  into `reconstruction/data/` and rendered byte-identically.
 - The keyscan path (TIM2 CC1 can never match — the stimulus side).
 - The tone on-branch (RF-adjacent, untested).
 - The `$A09` 4-byte-prefix routing and the stripped tail commands
@@ -168,9 +167,10 @@ wrapper call sites corroborate the same pattern for the local storage).
   through to the ring reset — exactly the reconstruction's documented
   behavior. The tail's branch actions are documented in the research
   log (session 52 pt4) for the real-hardware equivalence.
-- The exact boot EEPROM call site for the pre-LCD traffic (the
-  Ghidra-missed region 0x0802CE00+; the recon wires a labeled inferred
-  equivalent).
+- The pre-LCD vendor I²C burst (2,507 events vs the recon's 63; no
+  direction switches) — the vendor PIC boot region (the boot call graph
+  itself was recovered in Round G, session 52); possibly a permanent
+  harness boundary (the code lives past the distributed image).
 
 ## 4. Workaround register (§7 restated)
 
