@@ -134,7 +134,7 @@ EOF
 python3 - <<'EOF'
 from collections import Counter
 for p in ('/tmp/opencode/pb_stream_orig.log',
-          '/tmp/opencode/pb_stream_recon26.log'):
+          '/tmp/opencode/pb_stream_recon34.log'):
     c=Counter(l.split()[1] for l in open(p) if l.split()[1:2][0] in
               ('ODR','BSRR','BRR','CRH','CRL'))
     print(p, dict(c))
