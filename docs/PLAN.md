@@ -91,18 +91,27 @@ call chain (the $A00 branch → FUN_0801D8C0 targets), map the struct
 offsets, wire into protocol.c, then re-run the pattern-payload diff on both
 images (needs R1 for the recon side).
 
-## Round E — CK4 display driver
-Decompile 0x080284F2/0x080285B6 (the serial display functions, PB13-15
-control), the controller init sequence, and the PB0-7 streaming path;
-implement in display.c against the pb_displaybus.py observable; diff the
-two streams structurally (the init phase byte-exact; the streaming phase
-census-level).
+## Round E — CK4 display driver — ✅ DRIVERS CLOSED (session 51)
+**Recovered:** ST7735-class TFT on the 8-bit parallel bus (PB0-7 data,
+PA0 WR strobe, PC3 RS/D-CX inverted, PC0 reset, PC2 control); the 86-op
+init table (0x0801BB22 — a Ghidra-missed region, recovered by direct
+disassembly); the window setter 0x0801B9C8 (0x2A/0x2B); the I2C EEPROM
+bit-bang (SDA=PB9, SCL=PA11, 0xA0/0xA1, the inverted SDA polarity, the
+double-START ACK retry); the 12-bit LED link (PB9/PD0/PD1, 0x0802883A);
+the boot GPIO phase 0x0802BDF4 (PB13-15 open-drain + PD2).
+**Verified:** the LCD init = 74/74 ODR events byte-identical; the CRH
+value set = exactly the original's with the same phase ordering.
+**OPEN (application layer):** the UI draw cadence (~135 window redraws/
+3 s in the original, the fill color 0xBEEF; ui.c = scaffold); the
+runtime EEPROM op volume; the exact boot EEPROM call sites (the missed
+region 0x0802CE00+).
 
-## Round F — CK5 full differential report
-Boot parity (CK1), the matrix (CK2), the RF traces (CK3, 292/292), the
-display streams (CK4), the classified difference list, the workaround
-register (CVR, r9, GPIOB model, ADC2, SPI2, peer content, injection
-pacing), and the open items (R1, the keyscan/TIM2, the tone on-branch).
+## Round F — CK5 full differential report — ✅ FIRST DRAFT (session 51)
+`docs/CK5_REPORT.md` = the consolidated report: the checkpoint results,
+the classified difference list (the timing boundary §3.1, the 2-byte
+transform §3.2, the retracted struct theory §3.3, the open app-layer
+gaps §3.4), the §7 workaround register (8 entries), the evidence index.
+Keep updating as the open items close.
 
 ## Standing rules (in force)
 - The original binaries = immutable; every derived artifact lives under
