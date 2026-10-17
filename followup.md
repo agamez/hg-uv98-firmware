@@ -173,13 +173,27 @@ the model (open since ~session 40). The items, in order:
 4. **Round L maintenance** — CK5 §3/§4 + PLAN.md + this §3 refresh at
    the closure.
 
-Ground truth that bears on N (do NOT re-derive): the input policy
-(key_event 0x0801E044, the gates, the four sources) is recovered in
-ui.c's header comment; the GPIOC scanner 0x08021000 (IDs 0x00/0x01 +
-auto-repeat, debounce 5); PTT synthesizer 0x08019F70; the software key
-loop 0x08020530; key_state_test 0x0801B28E = `state >= 0x40`. What is
-NOT yet recovered: the TIM2/EXTI plumbing that FEEDS those sources
-(and why TIM2 CC1 never matches on the model).
+Ground truth recovered in session 55 pt2 (do NOT re-derive; REA addrs):
+- ALL IRQ vectors = trampolines `movs r0,#n; bl 0x0802B1A6` — the RTOS
+  dispatcher calls RUNTIME-registered callbacks `ram_table[n]` (the
+  table pointer literal @0x0802B46C; the registration helper =
+  0x0802AF30(n, fn), the NVIC enable = 0x0802AF1C(n)).
+- TIM2 init = 0x0802D528: PSC=0x47, ARR=0x7D, DIER |= 2 (CC1IE, helper
+  0x0802C11E), CEN via 0x0802C100, NVIC {28,1,0,1} via 0x0802AE26,
+  handler registered = 0x0802D5B4.
+- TIM2 IRQ handler 0x0802D5B4: if (SR&2 = CC1IF, test helper
+  0x0802C16E) -> clear it (0x0802C19C) -> call 0x0802D4A6.
+- Work fn 0x0802D4A6 = the PA7/PA8 sampler: GPIOA IDR bit 0x100 (PA8)
+  vs the cache 0x20005163; on change: 0x20005165 = 1 and
+  0x20005164 = (PA7==1 ? PA8==0 : PA8==1). Two RAM flags.
+- INTERPRETATION [probable]: TIM2 CH1 = PA0 input capture; the PA7/PA8
+  pair = a 2-wire interface (NOT the GPIOC key matrix — that one is
+  polled by 0x08021000 separately).
+Still OPEN for N: (a) the CCMR1/CCER/PA0-GPIO capture config; (b) the
+consumers of 0x20005164/0x20005165; (c) the model-boundary note; (d)
+the stimulus design (candidate: monitor-poke TIM2 SR |= 2 — the real
+NVIC path — plus a GPIOA IDR value the sampler can read; verify what
+the stock GPIOA model returns for input pins PA7/PA8 first).
 
 **When Round N closes:** update CK5 §3/§4, close the round in PLAN.md,
 refresh the KICKOFF block at the top of this file, commit, then move
