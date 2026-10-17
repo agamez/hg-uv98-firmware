@@ -1678,3 +1678,43 @@ parity) CLOSED; the recon's per-command buffer routing corrected.**
   WriteChar burst (the model paces at 1.04 ms/byte); a 300 ms window
   silently truncates the frame (no CRLF, no dispatch — the earlier
   "missing 0x216 copy" in this very run).
+
+**Session 51 — CK4 Round E: the display subsystem RECOVERED and the init
+phase achieves 74/74 BYTE-EXACT parity.**
+- Controller identified: ST7735-class color TFT on an 8-bit parallel bus,
+  decompiled from the original (the Ghidra flow analysis MISSED the init
+  function's body at 0x0801BB30-0x0801BC74 — recovered by disassembling
+  the region directly; the region is reached only through an indirect
+  path so Ghidra never built the procedure).
+- PIN MAP (decompiled from the register helpers 0x08023780=BRR/0x08023788=
+  BSRR/0x0802375E=IDR/0x08023790=ODR and the literal pools):
+  PB0-7 = D0-D7 (the data byte written as ODR=(ODR&0xFF00)|byte,
+  0x0801BA30); PA0 = WR strobe (BSRR then BRR per byte); PC3 = RS/D-CX
+  (HIGH=command 0x0801BA6A, LOW=data 0x0801BA8C — inverted vs HD44780);
+  PC0 = reset (pulsed low-high-low in the init); PC2 = control (low after
+  the init). Window setter 0x0801B9C8 = 0x2A column range + 0x2B row range
+  (4 data bytes each). Color function 0x0801BD3C = RGB565 (0xF800/0x1F
+  constants). The GPIO config 0x0801BAC0: GPIOA CRL 0x33333333, GPIOC CRL
+  nibbles 0/1/3 = output, PC2 low.
+- INIT TABLE [0x0801BB22]: 0x11 SLPOUT, delays, 0xB1/B2/B3(05 3A 3A),
+  0xB4(03), 0xC0(28 08 84), 0xC1(C0), 0xC2(0C 00), 0xC3(8C 2A), 0xC4(8A EE),
+  0xC5(0C), 0x36(A8), 0xE0/E1 gamma tables, 0x3A(05)=RGB565, 0x29 DISPON,
+  PC2 low. 86 ops total, extracted from the disassembly.
+- NOT the display: 0x080284F2/0x080285B6/0x080286C0/0x0802873C = the
+  I2C EEPROM bit-bang driver (SDA=PB9, SCL=PA11, the device 0xA0/0xA1,
+  the ACK via a PB9 direction switch = the pb_displaybus ACK workaround's
+  true target). 0x0802883A = a 12-bit serial LED-matrix link
+  (data=PB9, clock=PD0, latch=PD1, delay unit 100 iters).
+- RECON: display.c rewritten from the scaffold to the recovered transport
+  + full init table + window + the LED link (display_led_write). hwregs.h
+  gained GPIOD. Build clean.
+- PARITY RESULT (3 s runs, both images on the canonical platform):
+  the recon's init = **74/74 ODR events byte-identical** to the original's
+  first 74 (the full init phase). The original's stream continues with
+  ~160k ODR events: the pixel stream = the fill color 0xBEEF as alternating
+  hi/lo byte writes (50,749+50,499), 0xFFFF fills, ~135 window redraws in
+  3 s (~22 ms cadence), plus the PB9 I2C traffic (14,188 BRR + 7,913 BSRR
+  of 0x200, and the CRH direction switch 0xBBB44434 <-> 0xBBB44444,
+  3022+1875 writes). The recon draws nothing after the init (ui.c = the
+  UI state machine = still a scaffold) — the CK4 remaining gap = the UI
+  scene renderer cadence + the EEPROM I2C driver, NOT the transport.

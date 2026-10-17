@@ -30,6 +30,7 @@
 #define GPIOA_BASE      0x40010800U
 #define GPIOB_BASE      0x40010C00U
 #define GPIOC_BASE      0x40011000U
+#define GPIOD_BASE      0x40011400U
 #define GPIO_CRL(g)     REG32((g) + 0x00)
 #define GPIO_CRH(g)     REG32((g) + 0x04)
 #define GPIO_IDR(g)     REG32((g) + 0x08)

@@ -3,36 +3,131 @@
 #include "font.h"
 #include "hwregs.h"
 
-/* ---- transport (SCAFFOLD) --------------------------------------------------
- * The original drives the panel through GPIOB/GPIOC control lines plus a
- * data bus (GPIOA/GPIOC show the heaviest literal usage: 17/16 references).
- * The exact bus width and pin map are not yet disentangled from the
- * stripped init; the reconstruction exposes the documented command/data
- * primitives over a stubbed transport. */
-static void tft_write_cmd(uint8_t cmd)
+/* ---- transport [RECOVERED session 51: 0x0801BA30/0x0801BA6A/0x0801BA8C] ----
+ * 8-bit parallel TFT bus, ST7735-class controller (the init table at
+ * 0x0801BB22: 0x11 SLPOUT, 0xB1-B4 frame rates, 0xC0-C5 power, 0x36 MADCTL,
+ * 0xE0/E1 gamma, 0x3A=0x05 RGB565, 0x29 DISPON):
+ *   PB0-7  = D0-D7  (direct ODR write, high byte preserved)
+ *   PA0    = WR strobe (BSRR then BRR per byte)
+ *   PC3    = RS/D-CX (HIGH = command, LOW = data — inverted vs HD44780)
+ *   PC0    = reset line (pulsed low-high-low in the init)
+ *   PC2    = chip-select-ish control (high through the init, low after)
+ *   PB9/PD0/PD1 = the 12-bit LED matrix serial link (0x0802883A)          */
+static void bus_write(uint8_t b)
 {
-    (void)cmd;    /* panel bus wiring is an open question (research log) */
+    uint32_t odr = GPIO_ODR(GPIOB_BASE);
+    GPIO_ODR(GPIOB_BASE) = (odr & 0xFF00u) | (uint32_t)b;
+    GPIO_BSRR(GPIOA_BASE) = 1u;                 /* [0x0801BA30] WR set  */
+    GPIO_BRR(GPIOA_BASE) = 1u;                  /*            WR clear  */
+}
+
+static void tft_write_cmd(uint8_t cmd)          /* [0x0801BA6A] */
+{
+    GPIO_BSRR(GPIOC_BASE) = 8u;                 /* PC3 high = command   */
+    bus_write(cmd);
+    GPIO_BRR(GPIOC_BASE) = 8u;
+}
+
+static void tft_write_byte(uint8_t v)           /* [0x0801BA8C] */
+{
+    GPIO_BRR(GPIOC_BASE) = 8u;                  /* PC3 low = data       */
+    bus_write(v);
+}
+
+/* [0x0801BAA4] delay: n outer × 7000 inner empty iterations. Kept in the
+ * original's shape (volatile) so the emulated timing stays comparable. */
+static void lcd_delay(uint32_t n)
+{
+    volatile uint32_t i;
+    while (n--) {
+        for (i = 0; i < 7000u; i++)
+            ;
+    }
 }
 
 static void tft_write_data(uint16_t v)
 {
-    (void)v;
+    tft_write_byte((uint8_t)(v >> 8));
+    tft_write_byte((uint8_t)v);
 }
 
-/* [0x080179C8 set-window | RECOVERED via call context of 0x08018D32] */
+/* [0x0801BB22 | RECOVERED] the controller init: the GPIO setup (0x0801BAC0:
+ * GPIOA CRL 0x33333333, GPIOC CRL 0x44443443, PC2 low, PA0 output), the
+ * reset pulse train on PC0, and the ST7735-class register table. */
+void display_init(void)
+{
+    GPIO_CRL(GPIOA_BASE) = (GPIO_CRL(GPIOA_BASE) & ~0xFFFFFFFFu) | 0x33333333u;
+    GPIO_CRL(GPIOC_BASE) = (GPIO_CRL(GPIOC_BASE) & ~0x0000FFFFu) | 0x00004443u;
+    GPIO_BRR(GPIOC_BASE) = 2u;                  /* PC2 low              */
+    /* PA0 output: nibble already 3 from the GPIOA write above            */
+
+    lcd_delay(10);
+    GPIO_BSRR(GPIOC_BASE) = 2u;                 /* PC2 high             */
+    GPIO_BRR(GPIOC_BASE) = 1u;                  /* PC0 low              */
+    lcd_delay(20);
+    GPIO_BSRR(GPIOC_BASE) = 1u;                 /* PC0 high             */
+    lcd_delay(80);
+    GPIO_BRR(GPIOC_BASE) = 1u;                  /* PC0 low              */
+    lcd_delay(80);
+
+    tft_write_cmd(0x11);                        /* SLPOUT               */
+    lcd_delay(120);
+    tft_write_cmd(0xB1);                        /* frame rate           */
+    tft_write_byte(0x05); tft_write_byte(0x3A); tft_write_byte(0x3A);
+    tft_write_cmd(0xB2);
+    tft_write_byte(0x05); tft_write_byte(0x3A); tft_write_byte(0x3A);
+    tft_write_cmd(0xB3);
+    tft_write_byte(0x05); tft_write_byte(0x3A); tft_write_byte(0x3A);
+    tft_write_byte(0x05); tft_write_byte(0x3A); tft_write_byte(0x3A);
+    tft_write_cmd(0xB4);  tft_write_byte(0x03);
+    tft_write_cmd(0xC0);
+    tft_write_byte(0x28); tft_write_byte(0x08); tft_write_byte(0x84);
+    tft_write_cmd(0xC1);  tft_write_byte(0xC0);
+    tft_write_cmd(0xC2);
+    tft_write_byte(0x0C); tft_write_byte(0x00);
+    tft_write_cmd(0xC3);
+    tft_write_byte(0x8C); tft_write_byte(0x2A);
+    tft_write_cmd(0xC4);
+    tft_write_byte(0x8A); tft_write_byte(0xEE);
+    tft_write_cmd(0xC5);  tft_write_byte(0x0C);
+    tft_write_cmd(0x36);  tft_write_byte(0xA8); /* MADCTL               */
+    tft_write_cmd(0xE0);                        /* gamma +              */
+    tft_write_byte(0x05); tft_write_byte(0x1A); tft_write_byte(0x0C);
+    tft_write_byte(0x0E); tft_write_byte(0x3A); tft_write_byte(0x34);
+    tft_write_byte(0x2D); tft_write_byte(0x2F); tft_write_byte(0x2D);
+    tft_write_byte(0x2A); tft_write_byte(0x2F); tft_write_byte(0x3C);
+    tft_write_byte(0x00); tft_write_byte(0x01); tft_write_byte(0x02);
+    tft_write_byte(0x10);
+    tft_write_cmd(0xE1);                        /* gamma -              */
+    tft_write_byte(0x04); tft_write_byte(0x1B); tft_write_byte(0x0D);
+    tft_write_byte(0x0E); tft_write_byte(0x2D); tft_write_byte(0x29);
+    tft_write_byte(0x24); tft_write_byte(0x29); tft_write_byte(0x28);
+    tft_write_byte(0x26); tft_write_byte(0x31); tft_write_byte(0x3B);
+    tft_write_byte(0x00); tft_write_byte(0x00); tft_write_byte(0x03);
+    tft_write_byte(0x12);
+    tft_write_cmd(0x3A);  tft_write_byte(0x05); /* RGB565               */
+    tft_write_cmd(0x29);                        /* DISPON               */
+    GPIO_BRR(GPIOC_BASE) = 2u;                  /* PC2 low              */
+}
+
+/* [0x0801B9C8 | RECOVERED]: 0x2A column range then 0x2B row range, each
+ * with 4 data bytes (start hi/lo, end hi/lo). 0x2C memory write is issued
+ * by the caller (display_draw_area), matching the original's layering. */
 void display_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 {
     tft_write_cmd(0x2A);            /* column address set (ILI9341 family)  */
-    tft_write_data(x0); tft_write_data(x1);
+    tft_write_byte((uint8_t)(x0 >> 8)); tft_write_byte((uint8_t)x0);
+    tft_write_byte((uint8_t)(x1 >> 8)); tft_write_byte((uint8_t)x1);
     tft_write_cmd(0x2B);            /* row address set                      */
-    tft_write_data(y0); tft_write_data(y1);
-    tft_write_cmd(0x2C);            /* memory write — confirmed constant    */
+    tft_write_byte((uint8_t)(y0 >> 8)); tft_write_byte((uint8_t)y0);
+    tft_write_byte((uint8_t)(y1 >> 8)); tft_write_byte((uint8_t)y1);
 }
 
 /* [0x08018D32 | RECOVERED]: compute x1=x+w-1, y1=y+h-1, set window, fill. */
 void display_draw_area(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
 {
     display_set_window(x, y, (uint16_t)(x + w - 1), (uint16_t)(y + h - 1));
+    tft_write_cmd(0x2C);            /* memory write — confirmed constant    */
     for (uint32_t i = 0; i < (uint32_t)w * h; i++)
         tft_write_data(color);
 }
@@ -86,7 +181,53 @@ void display_draw_text(uint16_t x, uint16_t y, const char *s, uint8_t style)
     }
 }
 
-void display_init(void)
+/* [0x0802883A | RECOVERED] the 12-bit serial LED-matrix link:
+ * data = PB9, clock = PD0, latch = PD1; delay unit = 100 empty iterations
+ * [0x080287E0]. Bit 11 out first (MSB order); param_2 rides bit 8. */
+void display_led_write(uint16_t word, uint8_t flag)
 {
-    /* SCAFFOLD: panel identification/reset sequence not yet recovered. */
+    uint32_t u = (uint32_t)word;
+    volatile uint32_t i;
+
+    GPIO_BRR(GPIOD_BASE) = 1u;                  /* clock low            */
+    {   volatile uint32_t j;                    /* delay(13)            */
+        for (i = 0; i < 13u; i++)
+            for (j = 0; j < 100u; j++)
+                ;
+    }
+    if (flag)
+        u |= 0x100u;
+    for (uint32_t b = 0; b < 12u; b++) {
+        if (u & 0x0800u)
+            GPIO_BRR(GPIOB_BASE) = 0x200u;      /* PB9 low              */
+        else
+            GPIO_BSRR(GPIOB_BASE) = 0x200u;     /* PB9 high             */
+        GPIO_BSRR(GPIOD_BASE) = 1u;             /* clock high           */
+        {   volatile uint32_t j;                /* delay(5)             */
+            for (i = 0; i < 5u; i++)
+                for (j = 0; j < 100u; j++)
+                    ;
+        }
+        GPIO_BRR(GPIOD_BASE) = 1u;              /* clock low            */
+        {   volatile uint32_t j;                /* delay(5)             */
+            for (i = 0; i < 5u; i++)
+                for (j = 0; j < 100u; j++)
+                    ;
+        }
+        u <<= 1;
+    }
+    GPIO_BSRR(GPIOD_BASE) = 1u;                 /* clock high           */
+    GPIO_BSRR(GPIOB_BASE) = 0x200u;             /* PB9 high             */
+    {   volatile uint32_t j;                    /* delay(1)             */
+        for (i = 0; i < 1u; i++)
+            for (j = 0; j < 100u; j++)
+                ;
+    }
+    GPIO_BRR(GPIOD_BASE) = 2u;                  /* latch low            */
+    {   volatile uint32_t j;                    /* delay(1)             */
+        for (i = 0; i < 1u; i++)
+            for (j = 0; j < 100u; j++)
+                ;
+    }
+    GPIO_BSRR(GPIOD_BASE) = 2u;                 /* latch high           */
 }

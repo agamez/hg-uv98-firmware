@@ -19,9 +19,10 @@
 
 #include <stdint.h>
 
-void display_init(void);                       /* SCAFFOLD (panel ID unknown)   */
+void display_init(void);                       /* [0x0801BB22] recovered init  */
 void display_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
 void display_draw_area(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
 void display_draw_text(uint16_t x, uint16_t y, const char *s, uint8_t style);
+void display_led_write(uint16_t word, uint8_t flag);   /* [0x0802883A] LED link */
 
 #endif /* DISPLAY_H */
