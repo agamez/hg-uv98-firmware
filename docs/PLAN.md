@@ -58,11 +58,10 @@ capture the display write stream (the serial driver DATA=PB9/CLK=PA11 plus
 the 8080-parallel candidates) from both images and diff structurally.
 Deliverable: the framebuffer/write-stream diff, classified.
 
-## Round F — CK5 (the full differential report)
-Assemble: the CK1 boot parity, the CK2 matrix (all stimuli), the CK3 RF
-traces, the CK4 display streams, the classified difference list (mechanism
-vs data-content vs timing), and the workaround register (CVR, r9, GPIOB,
-ADC2, SPI2, the peer content). Append to the research log as the CK5 report.
+## Round F — CK5 (the full differential report) — ✅ FIRST DRAFT (session 51)
+`docs/CK5_REPORT.md` assembled (the checkpoint results, the classified
+difference list, the §7 workaround register, the evidence index).
+Maintained continuously under Round L below.
 
 ## Round R1 — the USART2 ISR starvation — ✅ CLOSED (session 50)
 **Root cause: the reconstruction's BRR (0x2580) vs the original's 0x341.**
@@ -106,12 +105,50 @@ value set = exactly the original's with the same phase ordering.
 runtime EEPROM op volume; the exact boot EEPROM call sites (the missed
 region 0x0802CE00+).
 
-## Round F — CK5 full differential report — ✅ FIRST DRAFT (session 51)
-`docs/CK5_REPORT.md` = the consolidated report: the checkpoint results,
-the classified difference list (the timing boundary §3.1, the 2-byte
-transform §3.2, the retracted struct theory §3.3, the open app-layer
-gaps §3.4), the §7 workaround register (8 entries), the evidence index.
-Keep updating as the open items close.
+## Round G — boot flow recovery (the missed region) — session 52
+The Ghidra-missed code islands (reached only via indirect paths):
+disassemble directly (arm-none-eabi-objdump -M force-thumb) and recover
+the boot order. Targets: the caller chain up to main (0x0802D080 ←
+0x0802D120 ← ?), the early EEPROM probe call site (the 5 pre-LCD CRH
+writes in the stream head), and the functions 0x0802D0D0/0x0802D120
+call (0x802d200, 0x802bd88, 0x802b3cc, 0x802aac2, 0x8023798, 0x802d5d4,
+0x802a9e0, 0x802a9ba, 0x802d5e4). Replace the inferred labels in
+main.c/hw_init with the recovered calls; re-verify the CRH/ODR stream
+phases stay byte-identical.
+
+## Round H — UI scene renderer (the CK4 app-layer gap) — session 52+
+The original redraws ~135 windows/3 s (~22 ms cadence; the fill color
+0xBEEF dominates, 0xFFFF white second). Recover the draw chain: who
+calls the window setter FUN_0801b9c8 and the fill FUN_0801bd3c (the
+BL scan found FUN_0801bd3c called from 0x801c954 = inside FUN_0801c904's
+function); identify the boot scene (the splash/blank) and the periodic
+redraw driver (the UI task tick). Reconstruct the minimal scene
+renderer in ui.c at the CADENCE level ([DATA-DERIVED] labels where the
+content is synthesized), then census-compare the two streams.
+
+## Round I — keyscan path (TIM2) — after H
+The keyscan: TIM2 CC1 can never match on the model (open since session
+~40). Recover the original's keyscan mechanism (TIM2 input capture? the
+GPIO EXTI?), document the model limitation as a harness boundary, and
+wire the key-event stimulus path so the $A01 write-direction observation
+becomes testable.
+
+## Round J — tone path — after I
+FUN_0801a91a (the tone wrapper, decompiled session 49/51) — the tone
+on-branch: the RF-adjacent tone generation, the CTCSS/DTMF dispatch
+(0x080276D4, 0x08027474 already decompiled). Trace the tone enable
+condition and reproduce.
+
+## Round K — the protocol tail (the missed region) — after J
+The ISR's tail table: $A09 (the 4-byte prefix) routing + the stripped
+commands ($A10/$A11/$A30/$A31/$D00/$F00/$A50/$A51/$E0x/$F0x + the GB2312
+app-text set). Disassemble the dispatch tail from the missed region,
+extend protocol.c, and extend the matrix to the tail commands.
+
+## Round L — CK5 report maintenance — continuous
+Update docs/CK5_REPORT.md as each round closes: reclassify the
+differences, refresh the parity numbers, and keep the §7 workaround
+register in sync with the platform files.
 
 ## Standing rules (in force)
 - The original binaries = immutable; every derived artifact lives under
