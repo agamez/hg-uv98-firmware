@@ -14,7 +14,8 @@ rebuild -> run -> compare -> log -> commit. Log every claim in
 docs/RESEARCH_LOG.md (append-only), commit at milestones, push to
 main, never stage prompt.md or prompt.md~. When the active round
 closes (or is parked), update THIS kickoff block and §3 before moving
-to the next round.
+to the next round. ACTIVE: Round P (host-test triage) then Round O
+(tone); Round N is CLOSED with a parked sub-item (see §3).
 ```
 
 You are continuing a completed reverse-engineering project. The analysis phase is
@@ -54,7 +55,8 @@ nothing in them needs re-deriving.
   SysTick tick, all 7 tasks).
 - **CK2 (protocol) ✅** — byte-identical `$A00` handshake traces; the peer model
   v1 works (see §7 workarounds 6-8). The settings-write direction awaits the
-  keyscan stimulus (Round N).
+  keyscan stimulus (Round N) → **now stimulus-proven but state-gated (Round N
+  closed with a parked sub-item — see §3)**.
 - **CK3 (AT1846S SPI) ✅** — 292/292 bus events byte-identical, same order
   (session 49).
 - **CK4 (display + I²C) ✅✅✅ CLOSED — ★★ the FULL 187,757-event GPIOB stream
@@ -64,30 +66,36 @@ nothing in them needs re-deriving.
   The acceptance bar remains the FULL 16-bit ODR value — do not regress to
   the masked comparison.
 - **CK5 (the report)** — `docs/CK5_REPORT.md` maintained (§3.4 closed items
-  updated, §4 workaround register current through session 55).
+  updated, §4 workaround register current through session 56).
 
 **Round map (details + statuses in `docs/PLAN.md`):**
 A ✅ | R1 ✅ | D ✅ | K ✅ (tail commands unreachable — platform boundary) |
 G ✅ (boot call graph) | H ✅✅ (display 100%) | E ✅ (drivers) | F ✅ (report draft)
 | M ✅✅ (runtime I²C volume — full bus parity, session 55) |
-**N — ACTIVE (keyscan/TIM2 stimulus)** | O (tone) |
-L (report maintenance, continuous) | B/C (protocol broadening, blocked on N's
-stimulus path).
+| **N ✅ CLOSED session 56 (keyscan = 3 ADC2 ladders; the TIM2 boundary
+re-diagnosed = CCR1 model reset; the stimulus works on both images; the $A01
+acceptance parked-blocked on the app-state gate — Rounds B/C)** |
+**P — ACTIVE (the pre-existing host-test failures: 4, stash-proven)** |
+O (tone) |
+L (report maintenance, continuous) | B/C (protocol broadening — now ALSO
+unblocked on the state gate: what clears FLAG_BANK+2 bit2 naturally).
 
-**Repo state:** all work committed & pushed through the session-55 commit
-(log = 55 sessions). `reconstruction/` builds green
+**Repo state:** all work committed & pushed through the session-56 commits
+(log = 56 sessions). `reconstruction/` builds green
 (`make TOOLCHAIN_PATH=/tmp/opencode/arm-tc/usr/bin/` — the toolchain and Renode
 live in /tmp and ~/tools, re-extract after a reboot; recipes in §2).
 
-**Session-55 changes (this commit):** Round M closed — the send_byte polarity
-corrected (non-inverted; four bl targets re-derived), the missing/misplaced
-EEPROM ops implemented (the 0x0800 VFO-default block, the scan head reads +
-the scan-time save, the 8 VFO reads moved into the scan tail, the 5 late
-bursts at exact ODR positions), the boot step-5 corrected to the RF shadow
-write, three [DATA-DERIVED] replays added (25/359/2,507 events — the vendor
-burst supersedes the old probe), led_stream.bin's 2 swapped CRH pairs fixed.
-**No ODR regression**: 160,753/160,753 = 100.00% throughout; the full stream
-is now exact. The handoff rewritten.
+**Session-56 changes (these commits):** Round N closed — the keyscan
+mechanism recovered (3 ADC2 resistor ladders + the code maps + the threshold
+tables; the TIM2/PC7-PC8 pair = an accessory sampler, GPIOC not GPIOA), the
+model boundary evidenced live (CCR1=0xFFFF reset, CC1IF never sets, the
+sampler chain dead on both images), the ADC2_DR runtime-tag stimulus
+implemented and proven on BOTH images (identical RAM key clusters), the
+recon keyscan chain implemented [RECOVERED] (key_adc_read/key_scan/
+key_get_code + the ui_task poll slice), the app-state gate found and parked
+(FLAG_BANK+2 bit2 = 0x14 from boot, firmware-maintained ≤10 ms), and 4
+pre-existing host-test failures discovered (Round P opened). **No ODR
+regression**: 160,753/160,753 = 100.00% throughout.
 
 ## 2. The canonical run harness — reproduce any number in this file
 
@@ -146,56 +154,75 @@ a reboot with:
 (lcd.bin = the distributed original; REA MCP works too — reopen the session per
 burst: `open_binary` raw-binary, entry 0x08004000 — `batch_decompile` needs it).
 
-## 3. Round N — the keyscan/TIM2 stimulus path (THE active work)
+## 3. Round P — the host-test regression (THE active work), then Round O
 
-Round M closed in session 55 (the full GPIOB bus = event-identical;
-the burst op-map and the primitive corrections are in the research log
-session 55). **Round N** (from PLAN.md): TIM2 CC1 can never match on
-the model (open since ~session 40). The items, in order:
+Round N CLOSED in session 56 (the keyscan mechanism = 3 ADC2 resistor
+ladders — NOT TIM2/EXTI/an IDR scan; the TIM2 chain = a PC7/PC8 accessory
+sampler dead on the model because the Renode STM32_Timer resets
+CCR1=0xFFFF while the vendor never writes CCR1/CCMR1/CCER; the ADC2_DR
+runtime-tag stimulus decodes keys on BOTH images into identical RAM key
+clusters; the recon keyscan chain implemented [RECOVERED]). PARKED
+sub-item: the original boots with FLAG_BANK+2 bit2 = 1 (firmware-
+maintained, re-asserted ≤10 ms), which swallows every non-side key —
+the `$A01` write-direction acceptance unblocks via Rounds B/C (what
+clears that bit naturally). Full evidence: the research log session 56
+pt1/pt2. Note the session-55-pt2 "PA7/PA8" ground truth was corrected:
+the sampler port = 0x40011000 = GPIOC (PC7/PC8).
 
-1. **Recover the original's keyscan mechanism** — how the original
-   detects keys: TIM2 input capture? EXTI on the key rows? a polled
-   IDR scan (0x08021000 = the GPIOC scanner per the ui.c notes)?
-   Decompile the TIM2 init + IRQ handler and the 0x08021000 scanner;
-   decide what the recon must implement vs. what stays a stub.
-2. **Document the model boundary** — TIM2 CC1 "can never match": write
-   down exactly WHY (the capture-compare register model lacks the
-   input path? the key matrix has no electrical model?) and what a
-   real key press does to TIM2/EXTI in the original.
-3. **Wire the key-event stimulus** — a harness-side way to inject a
-   key press into BOTH images identically (Renode: a GPIOC write from
-   the monitor, or an EXTI pending-bit poke, or a TIM2 CCR preload —
-   whatever the mechanism from item 1 dictates). The acceptance =
-   the recon's `$A01` write-direction observation becomes testable:
-   drive a key that changes a setting, observe the `$A01` frame and
-   the resulting EEPROM traffic on both images (this also unblocks
-   Rounds B/C, the protocol broadening).
-4. **Round L maintenance** — CK5 §3/§4 + PLAN.md + this §3 refresh at
+**Round P items, in order:**
+
+1. **Triage the 4 host-test failures** (stash-proven pre-existing on the
+   session-55 state): test_protocol.c:78/79 (the `$A01` settings-upload
+   frame memcmp + rxBuf[100]) and :136/140 (FLAG_FRAME_READY, the
+   sentence-prefix boundaries). Find the committing session
+   (git log -p reconstruction/src/protocol.c), fix the regression or
+   re-baseline the test if the behavior change was intended+logged.
+2. **Round O (tone)** — FUN_0801A91A on-branch, the CTCSS/DTMF dispatch
+   0x080276D4/0x08027474 (already decompiled); trace the enable
+   condition, reproduce in the recon, compare.
+3. **Round L maintenance** — CK5 §3/§4 + PLAN.md + this §3 refresh at
    the closure.
 
-Ground truth recovered in session 55 pt2 (do NOT re-derive; REA addrs):
+Ground truth recovered in session 56 (do NOT re-derive; REA addrs =
+lcd.asm addrs, binary loaded @0x08004000):
 - ALL IRQ vectors = trampolines `movs r0,#n; bl 0x0802B1A6` — the RTOS
   dispatcher calls RUNTIME-registered callbacks `ram_table[n]` (the
   table pointer literal @0x0802B46C; the registration helper =
   0x0802AF30(n, fn), the NVIC enable = 0x0802AF1C(n)).
-- TIM2 init = 0x0802D528: PSC=0x47, ARR=0x7D, DIER |= 2 (CC1IE, helper
-  0x0802C11E), CEN via 0x0802C100, NVIC {28,1,0,1} via 0x0802AE26,
-  handler registered = 0x0802D5B4.
-- TIM2 IRQ handler 0x0802D5B4: if (SR&2 = CC1IF, test helper
-  0x0802C16E) -> clear it (0x0802C19C) -> call 0x0802D4A6.
-- Work fn 0x0802D4A6 = the PA7/PA8 sampler: GPIOA IDR bit 0x100 (PA8)
-  vs the cache 0x20005163; on change: 0x20005165 = 1 and
-  0x20005164 = (PA7==1 ? PA8==0 : PA8==1). Two RAM flags.
-- INTERPRETATION [probable]: TIM2 CH1 = PA0 input capture; the PA7/PA8
-  pair = a 2-wire interface (NOT the GPIOC key matrix — that one is
-  polled by 0x08021000 separately).
-Still OPEN for N: (a) the CCMR1/CCER/PA0-GPIO capture config; (b) the
-consumers of 0x20005164/0x20005165; (c) the model-boundary note; (d)
-the stimulus design (candidate: monitor-poke TIM2 SR |= 2 — the real
-NVIC path — plus a GPIOA IDR value the sampler can read; verify what
-the stock GPIOA model returns for input pins PA7/PA8 first).
+- TIM2 init = 0x0802D528: PSC=0x47, ARR=0x7D (shadow byte 0x20005154),
+  DIER |= 2 (CC1IE), NVIC {28,1,0,1}, handler = 0x0802D5B4, CEN toggle.
+  **NO CCR1/CCMR1/CCER writes anywhere in the image** (no pool literals
+  0x40000018/20/34). Live model state: CR1=1 CEN, DIER=2, SR=1 (UIF
+  only — CC1IF never), CCR1=0xFFFF = the Renode reset default.
+- Work fn 0x0802D4A6 = the **PC7/PC8** sampler (port literal 0x40011000
+  = GPIOC — the session-55 "GPIOA" note was wrong): IDR-test helper
+  0x0802375E(port, mask) = (IDR & mask)?1:0; bit 0x100 (PC8) vs the
+  cache 0x20005163; on change: 0x20005165 = 1 and 0x20005164 = PC7^PC8.
+- The keypad = the key decoder 0x080281A6 (polled by key_get_code
+  0x080282FC; the UI key task = 0x08019DCC ~167 Hz; the second decoder
+  caller = the boot hold-loop 0x08023334): three ladders — ch14/group A
+  (table 0x20001684, window 662..3253, flags 0x20005140/0x20005160,
+  codes {10,11,12,13,1,2,3,14}), ch15/group B (0x200016A4, same window,
+  0x20005142/0x20005161, codes {4,5,6,0,7,8,9,15}), ch12/group C
+  (0x200016C4, window 672..1751, 0x20005144/0x20005162, codes
+  {18,19,20}); entry = {u16 upper @+0, u16 lower @+2}, match =
+  lower<adc<upper; adc_read = 0x080296CA (mutex 0x200050D4, EOC spin on
+  SR&2 via 0x0802C388, 4x u16 DR reads 0x0802C37A = *(0x40012800+0x4C),
+  averaged). The keypad-lock gate = bit0 of 0x20009458.
+- The battery quantizer SHARES ADC2: 0x08022618 adc_read(7), thresholds
+  3429/3357/3155/2851 -> 4/3/2/1/0 bars. Injection constraint: a key
+  value < 2851 leaves the battery path unchanged.
+- The UI task dispatch: keycode byte 0x2000515E (every pass); the gates
+  FLAG_BANK(=0x20005094)+2 bit7 (inhibit) / bit2 (state); the main-mode
+  branch = 0x8019fea (0x2000515F copy + the 40-poll long-press counters
+  at 0x200046BD == 40); the state branch handles only 18/19/20.
+- The stimulus = `sysbus Tag <0x4001284C 0x4> "ADC2_DR" <value>` at
+  runtime (note `<addr size>` with a SPACE); scripts
+  reconstruction/sim/ck4-key-{orig,recon}*.resc; the differential =
+  the mid-hold key-cluster dumps (orig_keydump_hold.bin vs
+  recon_keydump_hold.bin — the keyscan-owned bytes match).
 
-**When Round N closes:** update CK5 §3/§4, close the round in PLAN.md,
+**When Round P closes:** update CK5 §3/§4, close the round in PLAN.md,
 refresh the KICKOFF block at the top of this file, commit, then move
 to **Round O** (tone FUN_0801A91A on-branch, CTCSS/DTMF dispatch
 0x080276D4/0x08027474), with **Round L** maintenance after every
@@ -284,9 +311,10 @@ closure.
 All live ONLY in the harness/platform: (1) the SysTick CVR write skipped at
 ~10 ms; (2) r9 = 0x08040000 set at 0x08042900; (3) GPIOB = `pb_displaybus.py`
 (the IDR reads 0 → the I²C ACK always "ACKed"; the per-write capture IS the
-comparison channel); (4) ADC2_SR tagged 0x2; (5) SPI2 = `sp2_fontflash.py`;
-(6) the 8051 peer = monitor-injected frames; (7) the injection pacing (~0.6 s
-virtual time per 534-B frame); (8) the neutral peer content, identical for both
+comparison channel); (4) ADC2_SR tagged 0x2 (EOC, bit1); (5) the ADC2_DR
+runtime-tag key injection (session 56); (6) SPI2 = `sp2_fontflash.py`;
+(7) the 8051 peer = monitor-injected frames; (8) the injection pacing (~0.6 s
+virtual time per 534-B frame); (9) the neutral peer content, identical for both
 images. Restated in full (incl. the session-55 [DATA-DERIVED] bus replays and
 the accepted timing boundary) in `docs/CK5_REPORT.md` §4.
 

@@ -181,15 +181,33 @@ the 2,507-event vendor pre-LCD burst). Full evidence: the research log
 session 55; the op-map decoder: /tmp/opencode/m_ops.py convention.
 
 ## Round N — keyscan path (TIM2) — after M
-TIM2 CC1 can never match on the model (open since ~session 40).
-Recover the original's keyscan mechanism (the input capture? the EXTI?
-the polled IDR?), document the model boundary, wire the key-event
-stimulus path so the $A01 write-direction observation becomes testable.
+~~TIM2 CC1 can never match on the model (open since ~session 40).~~
+**CLOSED session 56 (with a parked sub-item).** The mechanism was
+re-diagnosed with evidence: the keypad = 3 ADC2 resistor ladders
+(ch14/15/12, tables 0x20001684/6A4/6C4, codes {10,11,12,13,1,2,3,14} /
+{4,5,6,0,7,8,9,15} / {18,19,20}); the TIM2 chain = a PC7/PC8 accessory
+sampler, dead on the model because the Renode STM32_Timer resets
+CCR1=0xFFFF while the vendor never writes CCR1/CCMR1/CCER (inert on
+both images). The ADC2_DR runtime-tag injection decodes keys on BOTH
+images into an identical RAM key cluster (session-56 key dumps).
+PARKED sub-item (blocks the $A01 write-direction acceptance): the
+original boots with FLAG_BANK+2 bit2 = 1 (firmware-maintained,
+re-asserted within 10 ms), swallowing every non-side key before the
+dispatch — unblocks via the state-machine/peer recovery (Rounds B/C).
+The recon's single key-cluster divergence = 0x2000515F (the main-mode
+copy, gated off in the original).
 
 ## Round O — tone path — after N
 FUN_0801a91a (the tone wrapper): the tone on-branch, the CTCSS/DTMF
 dispatch (0x080276D4, 0x08027474 already decompiled). Trace the enable
 condition, reproduce.
+
+## Round P — host-test regression triage — BEFORE O (session 56 finding)
+`make test-host` = 4 failures on the committed session-55 state
+(stash-proven pre-existing): test_protocol.c:78/79 (the $A01
+settings-upload frame memcmp + rxBuf[100]) and :136/140
+(FLAG_FRAME_READY, the sentence-prefix boundaries). Fix or triage;
+the suite is the safety net for Rounds B/C.
 
 ## Round L — CK5 report maintenance — continuous
 Update docs/CK5_REPORT.md as each round closes: reclassify the

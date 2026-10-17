@@ -2419,3 +2419,84 @@ exact both sides (CRH 4,902 / BSRR 7,913 / BRR 14,188 / CRL 1 / ODR 160,753).
 (= the same harness mechanism as the ADC2_SR tag; identical command sequence
 for both images). Candidate first key: value 2730 = group A idx1 = code 11
 (<2851, battery-safe).
+
+### 2026-10-17 — Session 56, part 2: Round N item 3 — the stimulus works on
+BOTH images; the recon keyscan chain implemented; the app-state gate found.
+
+**The injection (harness, both images identically).** `sysbus Tag <0x4001284C
+0x4> "ADC2_DR" <value>` issued at runtime from the .resc (note: the two-arg
+range form needs a SPACE, `<addr size>`, not a comma). The value = the 12-bit
+ladder code; the 4-sample average = the same value. First probe: 2730 (group
+A idx1) -> KEYDECODE code11 fired 135x in a 0.3 s hold (decoder hooks).
+
+**The original's dispatch flow (fully traced, 0x08019DCC = the UI task body,
+~167 Hz; GETCODE 701 = 501 UI + 200 the boot hold-loop 0x08023334):**
+- The keycode byte = 0x2000515E (r7, pool @0x801a398); written EVERY pass
+  (0xFF included). During a code-10 hold: 0x2000515E = 10, 0x20005140 = 2330
+  (the ch14 sample), 0x20005160 = 1 — the scan->decode->RAM chain proven.
+- r6 = 0x20005094 (FLAG_BANK, pool @0x801a37c — EARLIER NOTES SAYING r6 =
+  0x20009450 WERE MY MISREAD; corrected), r5 = 0x2000469C (APP_STATE),
+  r4 = 0x2000684E.
+- Gates: bit7 of FLAG_BANK+2 (0x20005096) = inhibit; bit2 of FLAG_BANK+2 =
+  the state gate: ==0 -> the main-mode dispatch (0x8019fea: *(FLAG_BANK+6)
+  &= 0x7F, *(0x2000515F) = key, keys 11/12/13/14/18/19/20 each behind a
+  **40-poll long-press counter** at *(APP_STATE+0x21) = 0x200046BD (==40),
+  keys 1/2 behind the screen-id == 0x67 ('g') check, digits through the
+  pump vtable blx (r4[0]<<4 + table, entry +4/+8)); ==1 -> ONLY keys
+  18/19 (0x08027E10) and 20 (a gated 30-stride-table path) act; everything
+  else falls to the loop end.
+- **THE BOOT STATE GATE: FLAG_BANK+2 = 0x14 (bit2 SET) from boot in the
+  ORIGINAL.** Every injectable group-A key (the A/B/C windows overlap, and
+  ch14 is scanned first, so a shared DR value can only ever decode as group
+  A) is swallowed by the bit2=1 branch. Monitor RAM pokes of bit2=0 are
+  re-asserted by the firmware within 10 ms (probe ra0..ra6: 0x10 right
+  after the poke, 0x14 at +10 ms, stable 0x14 after). One poke produced a
+  +9,101-event display burst (a state-machine reaction) — the app state
+  machine OWNS this flag. Watchpoint (Renode 1.17 `cpu AddWatchpoint` does
+  not exist) and the hook-side poke (a hook with machine access never
+  fired) = the writer hunt parked after 4 attempts with the evidence above.
+  UNBLOCKING PATH: the state-machine/peer recovery (Rounds B/C) — what
+  naturally clears bit2 (the $A01 acceptance waits exactly there).
+- The GPIOB stream under any key hold = byte-identical to the baseline
+  (187,757 events) — the swallowed keys are bus-invisible, consistent.
+
+**The recon side [RECOVERED, committed].** ui.c: key_adc_read (ADC2 SQR3
+write + EOC spin + 4x DR averaged — the mutex stubbed), key_scan (the
+TIM2/PC7-PC8 accessory branch [inert on the model, kept for fidelity] +
+the 3 ladder groups reading the .tables thresholds IN PLACE at
+0x20001684/6A4/6C4, windows 662..3253 / 672..1751), key_get_code (the
+0x20009458-bit0 lock gate + the A/B/C code maps), and the ui_task poll
+slice (the 0x2000515E write every pass; the FLAG_BANK+2-bit2 gate read;
+the main-mode RAM prefix). hwregs.h: ADC2_SR/SQR3/DR, ADC_SR_EOC = bit1
+(FIRST WRITTEN AS bit2 — the EOC spin hung the machine; caught by the
+recon diag hooks: UI_TASK=1/GETCODE=1 then no progress; fixed).
+ui.h: the key-cluster defines.
+
+**THE DIFFERENTIAL (identical injection, mid-hold dumps, 0.5 s hold of
+code 10; recon press at t=4.0 s because the recon's true-1 ms boot scene
+runs ~13x longer than the original's stale-tick one):**
+- MATCH (the keyscan-owned bytes): 0x20005140 = 2330 BOTH; 0x20005160 = 1
+  BOTH; 0x2000515E = 10 BOTH (the recon dump read as a halfword shows
+  0x0A0A = 10 at +0x5E AND +0x5F); ch15/ch12 = 0 BOTH; the TIM2 sampler
+  bytes 0x20005163/64/65 = 0 BOTH.
+- DOCUMENTED DIVERGENCE: 0x2000515F (the main-mode keycode copy) = 0 in
+  the original (the bit2=1 gate swallows before the copy) vs 10 in the
+  recon (the recon's gate byte = 0 — the recon has no boot-state writer;
+  the parked state-machine item). Non-keyscan boot-state bytes
+  (0x20005146/4A/4C/54/58/5A/5C — e.g. 0x20005154 = 0x7D the TIM2 ARR
+  shadow) = pre-existing recon deltas, not keyscan-owned.
+- The recon's ui_task cadence = 30 true-ms vs the original's ~6 ms (the
+  accepted timing boundary; event/RAM-state comparisons, not wall time).
+
+**PRE-EXISTING HOST-TEST FAILURES FOUND (not mine — stash-proven):**
+`make test-host` = 4 FAILURES on the committed session-55 state:
+test_protocol.c:78/79 (the $A01 settings-upload frame memcmp + rxBuf[100])
+and :136/140 (FLAG_FRAME_READY on the sentence-prefix boundaries). The
+last logged "all tests pass" = the CK2-era sessions; the session-54/55
+protocol-side changes evidently regressed the suite unnoticed. Logged as
+the next session's first candidate item (fix or triage before Round O).
+
+NEXT for Round N closure: (a) the Round L maintenance (CK5 §3/§4, PLAN.md,
+followup.md §1/§3); the $A01 write-direction acceptance stays OPEN-BLOCKED
+on the state gate (parked-with-evidence, unblocked by Rounds B/C); Round O
+(tone) next after the host-test triage.
