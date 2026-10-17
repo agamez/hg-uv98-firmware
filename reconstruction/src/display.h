@@ -24,5 +24,9 @@ void display_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
 void display_draw_area(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
 void display_draw_text(uint16_t x, uint16_t y, const char *s, uint8_t style);
 void display_led_write(uint16_t word, uint8_t flag);   /* [0x0802883A] LED link */
+void display_fill_rect(uint8_t y, uint8_t x, uint8_t cols, uint8_t rows,
+                       uint8_t blank);                 /* [0x0801CD32]         */
+void display_blit_image(uint8_t y, uint8_t x, uint8_t rows, uint8_t cols,
+                        const uint8_t *img, uint32_t len);   /* [0x0801D334] */
 
 #endif /* DISPLAY_H */

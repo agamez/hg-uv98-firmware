@@ -15,6 +15,7 @@
 #include "uart.h"
 #include "protocol.h"
 #include "display.h"
+#include "ui.h"
 #include "eeprom.h"
 #include "rf.h"
 
@@ -24,17 +25,6 @@
  * matrix/scan function 0x080175A8 and handler 0x08017738 are not yet
  * reconstructed; body is SCAFFOLD. */
 static volatile uint8_t ui_key_last;
-
-static void ui_task(void *arg)
-{
-    (void)arg;
-    for (;;) {
-        /* INFERRED cadence: original delays 30 ticks per loop. */
-        if (ui_key_last)
-            protocol_send_status_text("\0\0\0\0\0\0");   /* placeholder  */
-        time_dly(30);
-    }
-}
 
 /* prio 10 [0x08017664 | RECOVERED cadence]: 1 ms periodic background task;
  * every 8th pass runs a maintenance call (0x0801E6F4). Body SCAFFOLD. */
@@ -129,7 +119,7 @@ static void stats_task(void *arg)
  * chip init (0x080227AA), USART1 (0x0802932C), USART2 (0x0801F810).
  * PLL/clock tree configuration lived in the stripped SystemInit; the
  * reconstruction asserts the documented 108 MHz HCLK as INFERRED. */
-static void hw_init(void)
+void hw_init(void)
 {
     /* Clock tree (108 MHz HCLK / 2 flash wait states) is configured by the
      * vendor SystemInit() called from Reset_Handler — its code is present
@@ -156,13 +146,8 @@ static void hw_init(void)
     GPIO_CRH(GPIOB_BASE) = (GPIO_CRH(GPIOB_BASE) & ~0xFFF00000u) | 0xBBB00000u;
     GPIO_CRL(GPIOD_BASE) = (GPIO_CRL(GPIOD_BASE) & ~0xF00u) | 0x300u;
     GPIO_BRR(GPIOD_BASE) = 4u;
-    /* EEPROM settings load [session 51]: the 0x4D-byte settings block at
-     * 0x0A00 (the save path FUN_0801A6EA). The bulk of the original's
-     * I2C traffic (3022+1875 direction switches) happens in this phase. */
-    {
-        static uint8_t ee_settings[0x4D];
-        eeprom_read(0x0A00u, 0x4Du, ee_settings);
-    }
+    /* the 0x4D-byte settings load moved to ui_boot_scene() [0x0801B738
+     * runs it after the task creators, per the recovered main task]. */
     /* RF chip init [0x080227AA call site RECOVERED]: bus GPIO config
      * (0x080267AA, session 49 decompile) then the 50-register AT1846S
      * init table applied to chip 1 then chip 0 (session 49 trace,

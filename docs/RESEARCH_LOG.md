@@ -1768,3 +1768,57 @@ value set now EXACTLY equals the original's.**
   74/74 byte-exact. Remaining CK4 gap = the UI draw cadence (~135
   window redraws / 3 s in the original; the recon's ui.c = scaffold)
   and the runtime EEPROM op volume — application-layer, not drivers.
+
+**Session 52 — Round G+H: the boot flow recovered; the boot scene
+implemented; the fill and the splash blit achieve byte-exact counts.**
+- BOOT CALL GRAPH [recovered via BL-scanning the missed region]:
+  the vendor boot (an init-table walker at 0x08042900 over a RAM table
+  at 0x20000074; the vendor code is position-independent with r9 =
+  0x08040000 as the static base — the reason the r9 hook exists) ->
+  FUN_0802D120 (the app init: the bootloader-region checks, the task
+  creation) -> FUN_0802D178 (the MAIN TASK): the peripheral init
+  FUN_0802D0D0 ([the RF gpio 0x080267AA, the chip selects, ..., the LCD
+  init 0x0801BB22 @D0C2, the PB13-15/PD2 init 0x0802BDF4 @D0C6]) ->
+  FUN_0801B5A8 (the task-creator trio) -> **FUN_0801B738 (the boot
+  scene)** -> the 30 ms UI loop.
+- BOOT SCENE [0x0801B738 fully decompiled]: zero the state structs ->
+  ee_load (0x4D @0x0A00 -> 0x20004E68; the recon's inferred wiring
+  CONFIRMED) -> the magic check (app+0x44 vs ROM past the distributed
+  image -> always fails on the sim) -> **FUN_0801B2E8(0) = the
+  factory-reset path**: draw_text(0x30, 0x20, "RESET WAIT...", 4, 3)
+  [DAT_0801B970], the default fields, ee_save -> led_write(0x5F) ->
+  **fill(0,0,160,128) = the hardcoded background 0xEFBE** [0x0801CD32;
+  0x0000 when the app blank flag +0x18 is set] -> **the splash blit
+  (128x160 RGB565 @0x08004130, 0xA000 bytes)** [0x0801D334] -> the
+  callsign draw (empty on the sim) -> delay(2000) -> 8 VFO/config
+  EEPROM reads (0x0FCD/0x0FCF/0x0FB0/0x0F90/0x1FCD/0x1FCF/0x1FB0/
+  0x1F90). The original's stream: the pre-LCD phase = 2,501 PB9 I2C
+  events + the CRL(0x33333333) @line 2507 = the LCD init's GPIOA op;
+  the fills @3556 = 40,960 EFBE; the splash @44,516.
+- SCREEN LAYER [recovered]: the fill 0x0801CD32 (the CS wrap on PC2,
+  0x2C, the 0xEFBE/0x0000 pixel pairs); the blit 0x0801D334 (the CS
+  wrap, 0x2C, len/2 big-endian pairs); the text 0x0801CB60 (VERTICAL
+  advance: FUN_0801CAC0 adds the per-class pitch to y; the wrap
+  FUN_0801C99E per class); the glyph fetch 0x08028F8C (per-class font
+  tables in the internal flash: the bases DAT_080290C8-EC, the strides
+  12/14/16/20/24/36/45/57/64 bytes, (c-0x20) indexing); the cell
+  renderer 0x0801BFB8 (the window x,y,x+6,y+4 for the 5x7 class 0;
+  the per-class fg/bg colors: class 0 (0,0xEFBE), 1 (0x1F,0xEFBE),
+  2 (0,0x8D5E), 3 (0xF800,0xEFBE) red-on-background, 5 (0x13A2),
+  6 (0x58E1); the inverse variants for the highlight param).
+- RECON: splash_data.S (.incbin of the extracted 0xA000-byte asset),
+  display_fill_rect/display_blit_image added, ui_boot_scene() written
+  and wired into ui_task after the task creators. Build issues fixed:
+  the main.c ui_task stub shadowed ui.c's (deleted); the static
+  hw_init un-static'd; the ui.c helper stubs implemented per the
+  recovered shapes.
+- PARITY RESULT (3 s): the recon = 82,090 ODR events vs the original's
+  160,753. **The 0x2FF byte count = 27,940 in BOTH (the splash's white
+  pixels — an EXACT match); the fill = 41,532 recon vs 41k-class orig
+  (the boot fill component byte-exact).** The remaining gap = the
+  original's "RESET WAIT..." glyph cells (12 x 8x16 = ~3k events, the
+  glyph engine = decoded but not yet implemented) and the runtime
+  30 ms UI redraws (~60k events, the state machine).
+- The exact boot EEPROM call site for the pre-LCD traffic (2,501
+  events, no direction switches — a vendor-side read variant) remains
+  an open item.

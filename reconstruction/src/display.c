@@ -181,6 +181,46 @@ void display_draw_text(uint16_t x, uint16_t y, const char *s, uint8_t style)
     }
 }
 
+/* [0x0801CD32 | RECOVERED] full-rect fill: the window then 0x2C, then
+ * rows x cols pixels of the hardcoded background color 0xEFBE (the
+ * high byte first), or 0x0000 when the app-state blank flag
+ * [0x20004E68+0x18] is set. Wraps the transfer with PC2 (CS-ish
+ * control line). The original's lock (FUN_0801D840) is OS-level and
+ * not reproduced here. */
+void display_fill_rect(uint8_t y, uint8_t x, uint8_t cols, uint8_t rows, uint8_t blank)
+{
+    GPIO_BSRR(GPIOC_BASE) = 2u;
+    display_set_window(y, x, (uint16_t)(y + rows - 1), (uint16_t)(x + cols - 1));
+    tft_write_cmd(0x2C);
+    for (uint32_t r = 0; r < rows; r++) {
+        for (uint32_t c = 0; c < cols; c++) {
+            if (!blank) {
+                tft_write_byte(0xEF);
+                tft_write_byte(0xBE);
+            } else {
+                tft_write_byte(0x00);
+                tft_write_byte(0x00);
+            }
+        }
+    }
+    GPIO_BRR(GPIOC_BASE) = 2u;
+}
+
+/* [0x0801D334 | RECOVERED] raw RGB565 image blit: the window then 0x2C,
+ * then len/2 big-endian pixel pairs streamed from the image pointer. */
+void display_blit_image(uint8_t y, uint8_t x, uint8_t rows, uint8_t cols,
+                        const uint8_t *img, uint32_t len)
+{
+    GPIO_BSRR(GPIOC_BASE) = 2u;
+    display_set_window(y, x, (uint16_t)(y + rows - 1), (uint16_t)(x + cols - 1));
+    tft_write_cmd(0x2C);
+    for (uint32_t i = 0; i < (len >> 1); i++) {
+        tft_write_byte(img[i * 2u]);
+        tft_write_byte(img[i * 2u + 1u]);
+    }
+    GPIO_BRR(GPIOC_BASE) = 2u;
+}
+
 /* [0x0802883A | RECOVERED] the 12-bit serial LED-matrix link:
  * data = PB9, clock = PD0, latch = PD1; delay unit = 100 empty iterations
  * [0x080287E0]. Bit 11 out first (MSB order); param_2 rides bit 8. */
