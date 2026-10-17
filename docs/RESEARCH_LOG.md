@@ -2023,3 +2023,23 @@ original's ODR stream byte-identical.**
   a new multi-format cell type), the 128-px cells at the rows 35-50,
   and the periodic update policy — all state-machine driven. The
   primitives = recovered; the SEQUENCE = the next session's work.
+
+**Session 52, part 10 — the frequency display identified (the next
+phase's target).**
+- The 12x20 cells (240 px, 7 per row at the cols 22-106, the rows
+  29-48 and 76-95) = the BIG frequency digits: the pattern matches
+  "000.000" (six '0' glyphs + a '.'), the sim-state VFO = 0. The
+  matching scores = 192/240 — the class-6 render = 20 rows x 12 cols
+  through the SAME column-major scheme, but the exact loop variant
+  (the 20-row = 2 full bands + a 4-row partial band, ~30 of the 36
+  record bytes) needs the follow-up decompile pass.
+- The 8x16 cells @ the cols 108-123 (the rows 35-50 and 82-97) =
+  "00" — the exact 128/128 class-3 matches.
+- The class-4 renderer decoded (16 rows x 10 cols, the 20-byte
+  records, the 2 bands x 10 columns — the same column-major family as
+  the classes 1/3; the class-5 = 16x12/24-byte, the class-6 = 20x12).
+- SESSION 52 FINAL: the ODR parity 51.6% -> 85.0%; every display
+  primitive (the classes 1/3, the fills, the icon, the LED) = byte-
+  verified against the original's stream. The next session = the
+  class-6 loop pass, the small-cell + frequency transcription, and
+  the periodic update policy (Round H phase 3).
