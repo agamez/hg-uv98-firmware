@@ -24,7 +24,7 @@ identical stimuli, then comparing observables at the register/bus level:
 - **CK3** the RF bus — every AT1846S SPI transaction byte-for-byte
   (292/292 events, session 49).
 - **CK4** the display & storage buses — the GPIOB stream captured by the
-  `pb_displaybus` model (session 51).
+  `pb_displaybus` model (sessions 51-52).
 
 Address-space convention: Renode address = file offset + 0x08004000;
 the research-log labels = file offset + 0x08000000 (so REA/Ghidra
@@ -67,7 +67,7 @@ in the same order between the images. Traces:
 register primitives are decompile-recovered; the boot default-apply
 orchestration order is **[DATA-DERIVED]** from the reference trace.
 
-### CK4 — display & storage buses (drivers CLOSED; the app cadence OPEN, session 51)
+### CK4 — display & storage buses (drivers CLOSED; the app cadence OPEN, sessions 51-52)
 
 - The LCD = an ST7735-class color TFT on an 8-bit parallel bus:
   PB0-7 = D0-D7, PA0 = WR strobe, PC3 = RS/D-CX (inverted), PC0 = reset,
@@ -78,10 +78,24 @@ orchestration order is **[DATA-DERIVED]** from the reference trace.
   direction-switch CRH value set = **exactly** the original's
   {0x44444434, 0x44444444, 0xBBB44434, 0xBBB44444} with the same phase
   ordering (0x4444xx pre-LCD-init, 0xBBB44xx post-init).
-- OPEN (application layer): the original's UI redraws ~135 windows in
-  3 s (~22 ms cadence, the fill color 0xBEEF dominating); the
-  reconstruction's `ui.c` is still a scaffold and draws nothing after
-  the init. The runtime EEPROM op volume differs for the same reason.
+- The boot flow recovered (session 52): the vendor PIC boot (r9 =
+  0x08040000 static base, the init-table walker at 0x08042900) → the
+  app init 0x0802D120 → the main task 0x0802D178 = the peripheral init
+  → the task creators → **the boot scene 0x0801B738** (the settings
+  load, the factory-reset check, led_write, the full-screen 0xEFBE
+  fill, the splash blit, delay(2000), the VFO loads) → the 30 ms loop.
+- The screen layer recovered: the fill 0x0801CD32, the image blit
+  0x0801D334, the vertical-geometry text 0x0801CB60, the glyph fetch
+  0x08028F8C (9 font classes in the internal flash), the cell renderer
+  0x0801BFB8 (the per-class color schemes).
+- **Parity (3 s runs): the splash blit = byte-exact (the 0x2FF byte
+  count 27,940 in BOTH images); the boot fill = byte-exact (40,960
+  EFBE).** The recon = 82,090 ODR events vs the original's 160,753.
+- OPEN (application layer): the "RESET WAIT..." glyph cells (~3k
+  events — the glyph engine decoded, the exact glyph source mapping
+  open), the runtime 30 ms UI redraws (~60k events — the UI state
+  machine), and the pre-LCD vendor I²C path (2,501 events, no
+  direction switches).
 
 ## 3. Classified difference list
 
