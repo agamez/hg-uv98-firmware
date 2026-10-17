@@ -39,5 +39,8 @@ void display_blit_glyph_cell_12x20(uint8_t y, uint8_t x, const uint8_t *rec,
 void display_blit_bitmap_1bpp(uint8_t y, uint8_t x, uint8_t w, uint8_t h,
                               const uint8_t *bits, uint16_t fg, uint16_t bg);
 void display_led_stream_replay(void);   /* [DATA-DERIVED, 4458 events] */
+void display_led_tail_replay(void);     /* [DATA-DERIVED, 25 events, s55] */
+void display_ee359_replay(void);        /* [DATA-DERIVED, 359 events, s55] */
+void display_vendor_replay(void);       /* [DATA-DERIVED, 2507 events, s55] */
 
 #endif /* DISPLAY_H */

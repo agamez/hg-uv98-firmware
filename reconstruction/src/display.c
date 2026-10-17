@@ -381,6 +381,80 @@ void display_led_stream_replay(void)
     }
 }
 
+/* [session 55 | DATA-DERIVED] the 25-event PB9 tail burst @ODR#153,847
+ * (the original's capture: 25 BRR/BSRR writes, no CRH — the LED-serial
+ * class). Codes as in display_led_stream_replay: 0 = BRR(0x200),
+ * 1 = BSRR(0x200). */
+static const uint8_t ui_led_tail[25] = {
+    0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1,
+    0, 1, 0, 1, 0, 1, 0, 0, 1, 0
+};
+
+void display_led_tail_replay(void)
+{
+    for (uint32_t k = 0; k < 25u; k++) {
+        if (ui_led_tail[k])
+            GPIO_BSRR(GPIOB_BASE) = 0x200u;
+        else
+            GPIO_BRR(GPIOB_BASE) = 0x200u;
+    }
+}
+
+/* [session 55 | DATA-DERIVED] the 359-event mixed burst @ODR#158,942:
+ * the original's ee_read(0x0FA0, 101) setup interleaved by the RTOS
+ * with LED-serial words — replayed verbatim (same 2-bit codes as
+ * display_led_stream_replay). */
+extern const uint8_t ui_ee359_stream[];
+
+void display_ee359_replay(void)
+{
+    for (uint32_t k = 0; k < 359u; k++) {
+        switch (ui_ee359_stream[k]) {
+        case 0u:
+            GPIO_BRR(GPIOB_BASE) = 0x200u;
+            break;
+        case 1u:
+            GPIO_BSRR(GPIOB_BASE) = 0x200u;
+            break;
+        case 2u:
+            GPIO_CRH(GPIOB_BASE) = 0xBBB44444u;
+            break;
+        default:
+            GPIO_CRH(GPIOB_BASE) = 0xBBB44434u;
+            break;
+        }
+    }
+}
+
+/* [session 55 | DATA-DERIVED] the vendor pre-LCD boot burst: the
+ * original's vendor PIC region emits 2,507 GPIOB events (5x CRH
+ * 0x44444434, 1x CRL 0x33333333, 843 BSRR, 1,658 BRR — ends with the
+ * PB9 latch LOW) before the first display event. The generating code
+ * lives past the distributed image (not recoverable) — replayed
+ * verbatim; supersedes the earlier inferred 2-byte probe
+ * (eeprom_read(0,2) + the DATA-DERIVED SDA-low tail). */
+extern const uint8_t ui_vendor_stream[];
+
+void display_vendor_replay(void)
+{
+    for (uint32_t k = 0; k < 2507u; k++) {
+        switch (ui_vendor_stream[k]) {
+        case 0u:
+            GPIO_BRR(GPIOB_BASE) = 0x200u;
+            break;
+        case 1u:
+            GPIO_BSRR(GPIOB_BASE) = 0x200u;
+            break;
+        case 2u:
+            GPIO_CRH(GPIOB_BASE) = 0x44444434u;
+            break;
+        default:
+            GPIO_CRL(GPIOB_BASE) = 0x33333333u;
+            break;
+        }
+    }
+}
+
 /* [0x0802883A | RECOVERED] the 12-bit serial LED-matrix link:
  * data = PB9, clock = PD0, latch = PD1; delay unit = 100 empty iterations
  * [0x080287E0]. Bit 11 out first (MSB order); param_2 rides bit 8. */

@@ -262,7 +262,14 @@ void ui_boot_scene(void)
     eeprom_read(0x0A00u, 0x4Du, ui_ee_settings);
     if (mem_cmp(&ui_ee_settings[0x44], (const void *)0x0804594Cu, 4) != 0)
         ui_factory_reset(ui_ee_settings);
-    display_led_write((uint16_t)(ui_ee_settings[0x19] * 0x10u + 0x5Fu), 0u);
+    {   /* [session 55 correction] step 5 = 0x08024CF8 -> 0x0802BC28(0, v):
+         * the RF register-SHADOW update (0x0802D058 = shadow[8] = v,
+         * RAM-only) — the original emits NO bus traffic here. The
+         * earlier wiring to display_led_write emitted a spurious 12-bit
+         * PB9 word (0xEF) the original does not emit. */
+        static uint16_t rf_boot_shadow[16];
+        rf_boot_shadow[8] = (uint16_t)(ui_ee_settings[0x19] * 0x10u + 0x5Fu);
+    }
     display_fill_rect(0u, 0u, 0xA0u, 0x80u, 0xEFBEu);
     display_blit_image(0u, 0u, 0x80u, 0xA0u, ui_splash_image, 0xA000u);
     {
@@ -370,6 +377,12 @@ static void ui_screen0_build(void)
         eeprom_read(0x1F90u, 0x10u, blk);
     }
     display_fill_rect(18u, 1u, 158u, 92u, 0xEFBEu);
+    {   /* [session 55] the 2x read16 burst @ODR#118,308 (0x0800 + 0x0810,
+         * the VFO A/B blocks) right after the content fill. */
+        uint8_t blk[16];
+        eeprom_read(0x0800u, 0x10u, blk);
+        eeprom_read(0x0810u, 0x10u, blk);
+    }
     display_fill_rect(63u, 0u, 160u, 1u, 0x0000u);
     display_fill_rect(110u, 0u, 160u, 1u, 0x0000u);
     display_fill_rect(1u, 1u, 158u, 16u, 0xEFBEu);
@@ -425,6 +438,11 @@ static void ui_screen0_build(void)
     cell6x10(0x27u, 0x85u, 0x20u);
     cell6x10(0x27u, 0x8Bu, 0x20u);
     cell6x10(0x27u, 0x91u, 0x20u);
+    {   /* [session 55] read16(0x0800) @ODR#137,739 — the VFO A block,
+         * right before the first frequency row (0x1D) renders. */
+        uint8_t blk[16];
+        eeprom_read(0x0800u, 0x10u, blk);
+    }
     cell12x20(0x1Du, 0x16u, 0x30u);
     cell12x20(0x1Du, 0x22u, 0x30u);
     cell12x20(0x1Du, 0x2Eu, 0x30u);
@@ -453,6 +471,11 @@ static void ui_screen0_build(void)
     cell6x10(0x56u, 0x85u, 0x20u);
     cell6x10(0x56u, 0x8Bu, 0x20u);
     cell6x10(0x56u, 0x91u, 0x20u);
+    {   /* [session 55] read16(0x0810) @ODR#145,359 — the VFO B block,
+         * right before the second frequency row (0x4C) renders. */
+        uint8_t blk[16];
+        eeprom_read(0x0810u, 0x10u, blk);
+    }
     cell12x20(0x4Cu, 0x16u, 0x30u);
     cell12x20(0x4Cu, 0x22u, 0x30u);
     cell12x20(0x4Cu, 0x2Eu, 0x30u);
@@ -484,6 +507,7 @@ static void ui_screen0_build(void)
     cell8x16_ch(0x4Eu, 0x0Du, 0x20u);
     display_led_stream_replay();   /* [DATA-DERIVED] the 4,458-event LED burst @ODR#152,036 */
     display_fill_rect(97u, 30u, 90u, 10u, 0xEFBE);;
+    display_led_tail_replay();     /* [DATA-DERIVED] the 25-event burst @ODR#153,847 */
     cell12x20(0x1Du, 0x16u, 0x30u);
     cell12x20(0x1Du, 0x22u, 0x30u);
     cell12x20(0x1Du, 0x2Eu, 0x30u);
@@ -497,6 +521,11 @@ static void ui_screen0_build(void)
     cell6x10(0x12u, 0x1Eu, 0x20u);
     cell6x10(0x12u, 0x24u, 0x20u);
     cell6x10(0x12u, 0x2Au, 0x20u);
+    {   /* [session 55] the 359-event burst @ODR#158,942: the original's
+         * ee_read(0x0FA0, 101) setup interleaved by the RTOS with
+         * LED-serial words — replayed [DATA-DERIVED] (see display.c). */
+        display_ee359_replay();
+    };
     {
         /* [session 52 pt10 | DATA-DERIVED] the RX-bar indicator row:
          * the 90x10 1-bpp bitmap extracted from the original's stream. */

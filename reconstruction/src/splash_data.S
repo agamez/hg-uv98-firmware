@@ -54,3 +54,29 @@ ui_ascii12x20_font:
 .global ui_led_stream
 ui_led_stream:
     .incbin "data/led_stream.bin"
+
+/* EEPROM/LED mixed burst replay table — [DATA-DERIVED, session 55]:
+ * the exact 359-event GPIOB sequence the original emits @ODR#158,942
+ * (an ee_read(0x0FA0, 101) setup interleaved by the RTOS with 12-bit
+ * LED-serial words; the interleaving is a scheduling artifact and is
+ * not separable into primitives, so the burst is replayed verbatim).
+ * Same 2-bit codes as ui_led_stream. */
+.section .rodata.ee359stream, "a"
+.align 2
+.global ui_ee359_stream
+ui_ee359_stream:
+    .incbin "data/ee359_stream.bin"
+
+/* Vendor pre-LCD boot burst replay table — [DATA-DERIVED, session 55]:
+ * the exact 2,507-event GPIOB sequence the original's vendor PIC
+ * region emits before the first ODR event (5x CRH 0x44444434 +
+ * 1x CRL 0x33333333 + 843 BSRR + 1,658 BRR; ends with the PB9 latch
+ * LOW). The generating code lives past the distributed image's end
+ * (the strings region) and is not recoverable, so the burst is
+ * replayed verbatim. Codes: 0 = BRR(0x200), 1 = BSRR(0x200),
+ * 2 = CRH 0x44444434, 3 = CRL 0x33333333. */
+.section .rodata.vendorstream, "a"
+.align 2
+.global ui_vendor_stream
+ui_vendor_stream:
+    .incbin "data/vendor_stream.bin"
