@@ -127,15 +127,24 @@ wrapper call sites corroborate the same pattern for the local storage).
 
 ### 3.4 Application-layer gaps (open)
 
-- The UI scene renderer / draw cadence (CK4, above).
+- The UI scene renderer / draw cadence (CK4, above): the runtime 30 ms
+  redraws (~60k events/3 s) come from the UI state machine; the recon
+  reproduces the boot scene (the fill + the splash byte-exact) but not
+  the runtime cadence yet.
+- **The ASCII glyphs are computed at runtime by the original** (proven:
+  the rendered bitmaps appear nowhere in the flash, the RAM tables, or
+  a live RAM dump — session 52 pt3). The rendering geometry, the color
+  schemes, the per-class tables and the strides are recovered; the
+  generator algorithm is open.
 - The keyscan path (TIM2 CC1 can never match — the stimulus side).
 - The tone on-branch (RF-adjacent, untested).
 - The `$A09` 4-byte-prefix routing and the stripped tail commands
   ($A10/$A11/$A30/$A31/$D00/$F00/$A50/$A51/$E0x/$F0x, the GB2312
   app-text set) — the original's tail table is in a Ghidra-missed
   region; the recon falls through, documented as unknown.
-- The exact boot EEPROM call sites (the missed region 0x0802CE00+
-  contains them; the recon wires a labeled inferred equivalent).
+- The exact boot EEPROM call site for the pre-LCD traffic (the
+  Ghidra-missed region 0x0802CE00+; the recon wires a labeled inferred
+  equivalent).
 
 ## 4. Workaround register (§7 restated)
 
