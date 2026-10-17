@@ -2297,3 +2297,45 @@ event-by-event identical. ★**
 - ROUND M CLOSED. CK5 §3.4/§4 updated (the workaround register gains
   the [DATA-DERIVED] replay item). Next per the round map: Round N
   (keyscan/TIM2 stimulus) then Round O (tone).
+
+**Session 55, part 2 — Round N opened: the TIM2 keyscan chain recovered
+(the mechanism, first pass).**
+- The vector table (read from the file: IRQ n -> word @ file offset
+  (16+n)*4): ALL IRQ vectors are trampolines `push {r7,lr}; movs r0,#n;
+  bl 0x0802B1A6; pop` (REA addrs; the dispatcher = the RTOS ISR wrapper:
+  OSIntEnter-ish 0x0802C9DC, the nesting counter++, the RAM callback
+  table [0x0802B46C literal] indexed by n, blx, OSIntExit 0x0802C9E4,
+  0x0802B31A). The handlers are RUNTIME-REGISTERED (a RAM function-
+  pointer table) — not baked into the image.
+- TIM2 INIT = 0x0802D528 (REA; label 0x08029528): APB1 clock gate
+  (0x0802BF78 helper), a state word byte set to 0x7D, 0x0802AADE(1,1)
+  (a RAM flag bit-set), TIM2 disable (0x0802C100 = CR1.CEN
+  enable/disable helper), PSC = 0x47 (the literal pool @0x0802D5AC =
+  0x40000028), ARR = 0x7D (the @0x0802D5B0 = 0x4000002C), DIER |= 2 =
+  CC1IE (0x0802C11E = the DIER mask helper @base+0xC), NVIC struct
+  {28,1,0,1} via 0x0802AE26, register_handler(28, 0x0802D5B4) via
+  0x0802AF30, NVIC enable(28) via 0x0802AF1C, then CEN=0/CEN=1.
+- TIM2 IRQ HANDLER = 0x0802D5B4: if (SR & 2) — the CC1IF test via
+  0x0802C16E (reads SR@+0x10 AND DIER@+0xC masked, returns 1 if both
+  non-zero) — clear CC1IF (0x0802C19C = SR &= ~mask) and call the
+  work function 0x0802D4A6.
+- THE WORK FUNCTION 0x0802D4A6 = the PA7/PA8 sampler: reads GPIOA IDR
+  (0x0802375E, the +8 IDR helper; GPIOA = 0x40011000) bit 0x100 (PA8):
+  if it equals the cached byte 0x20005163 -> return. Else cache it,
+  set 0x20005165 = 1 (the change flag), then: if PA7 (0x80) == 1 ->
+  0x20005164 = (PA8 == 0); else 0x20005164 = (PA8 == 1). I.e. two RAM
+  flags: 0x20005165 = "the line changed", 0x20005164 = a computed
+  state bit from the PA7/PA8 pair.
+- INTERPRETATION [probable]: TIM2 CH1 = PA0 input capture (the CC1
+  edge source — matches the standing "TIM2 CC1 can never match on the
+  model" note); on each capture edge the IRQ samples the PA7/PA8 pair
+  (a 2-wire interface — NOT the GPIOC key matrix, which the scanner
+  0x08021000 polls separately). CCMR1/CCER/PA0-GPIO setup NOT yet
+  located (possibly inside 0x0802BF78's TIM2 branch or elsewhere) —
+  open. The consumers of 0x20005164/0x20005165 not yet traced — open.
+- NEXT for Round N (per followup.md §3): (1) find the CCMR1/CCER/PA0
+  config and the 0x20005164/65 consumers; (2) write the model-boundary
+  note (why CC1IF never fires on the Renode TIM2 model); (3) design
+  the stimulus (candidate: a monitor poke of TIM2 SR |= 2 — the real
+  NVIC path — plus a GPIOA IDR value the handler can sample; verify
+  what the stock GPIOA model returns for PA7/PA8 inputs).
