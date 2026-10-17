@@ -1612,3 +1612,28 @@ path now achieves 532/534 byte parity with the original's raw copy.**
   9604 baud.
 - STATUS: R1 CLOSED. Round B (CK2 broadening) and Round C (the typed-field
   parser) are unblocked.
+
+**Session 50, part 2 — Round C: the "typed-field struct" theory RETRACTED;
+the consumption model = the working buffer + lazy field access.**
+- The 0x20004E40..0x20004F80 region is PAYLOAD-INDEPENDENT: 80/80 words
+  identical between the pattern payload (settings[i] = i & 0xFF) and the
+  neutral payload (all 0x00). The '000000' callsign-looking field and the
+  4x0x38 word = the radio's own default state, NOT a copy of the peer's
+  settings. The session-49 note "the parser copies consumed fields into
+  the struct" is retracted.
+- The WORKING buffer (0x20003A84) IS the consumption surface: 510/534
+  bytes = the payload verbatim (the frame lands byte-exact), the header
+  and the 14-B ID are preserved, and the ONLY transform in the entire
+  buffer = frame[28..29] = settings[8..9]: 0x08 0x09 → 0x38 0x39 under
+  the pattern payload; UNCHANGED (00 00) under the neutral payload — so
+  the transform is payload-dependent and not a plain |0x30 ASCII mask.
+  The original's second copy (0x20003B84) never contains the transform.
+  Classified: an in-place field conversion by the original's $A00
+  consumer at settings offsets 8-9 (mechanism not fully identified —
+  open item for the CK5 report; 532/534 parity otherwise).
+- Round C status: the reconstruction's consumption model (rxBuf + rxBuf2
+  clean copies, the ready flag) = 532/534 byte-parity with the original's
+  archive copy. The remaining work = identifying the settings[8..9]
+  consumer (a decompile of the flag-polling task chain) and any further
+  lazy-field consumers, which only manifest under real (non-synthetic)
+  settings content.
