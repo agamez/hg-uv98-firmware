@@ -14,10 +14,10 @@ rebuild -> run -> compare -> log -> commit. Log every claim in
 docs/RESEARCH_LOG.md (append-only), commit at milestones, push to
 main, never stage prompt.md or prompt.md~. When the active round
 closes (or is parked), update THIS kickoff block and §3 before moving
-to the next round. ACTIVE: Round O (tone; opened session 56 pt5 —
-see the log for the reconnaissance); Round P item 1 (host tests) is
-DONE, all conformance tests pass. Round N is CLOSED with a parked
-sub-item (see §3).
+to the next round. ACTIVE: Round B/C (protocol broadening — the $A09
+4-byte-prefix routing first; the key-driven $A01 stays parked on the
+state gate). Rounds N and O are CLOSED; Round P item 1 (host tests)
+is DONE, all conformance tests pass.
 ```
 
 You are continuing a completed reverse-engineering project. The analysis phase is
@@ -78,8 +78,11 @@ G ✅ (boot call graph) | H ✅✅ (display 100%) | E ✅ (drivers) | F ✅ (rep
 re-diagnosed = CCR1 model reset; the stimulus works on both images; the $A01
 acceptance parked-blocked on the app-state gate — Rounds B/C)** |
 | **P ✅ item 1 CLOSED session 56 (the 4 host-test failures re-baselined to
-the session-50 routing, all pass)** | **O — ACTIVE (tone; reconnaissance
-logged session 56 pt5)** |
+the session-50 routing, all pass)** |
+| **O ✅ CLOSED session 57 (the tone wrapper fully decoded; the recon boot
+pair computed from state; CK3 292/292, CK4 100%)** |
+| **B/C — ACTIVE (the $A09 4-byte-prefix routing first; the key-driven
+$A01 parked on the state gate)** |
 L (report maintenance, continuous) | B/C (protocol broadening — now ALSO
 unblocked on the state gate: what clears FLAG_BANK+2 bit2 naturally).
 
@@ -157,46 +160,44 @@ a reboot with:
 (lcd.bin = the distributed original; REA MCP works too — reopen the session per
 burst: `open_binary` raw-binary, entry 0x08004000 — `batch_decompile` needs it).
 
-## 3. Round O — the tone path (THE active work)
+## 3. Round B/C — protocol broadening (THE active work)
 
-Round P item 1 CLOSED in session 56 pt4: the 4 host-test failures were
-session-20-era stale expectations (worktree-proven pre-existing at the
-session-50 state), re-baselined to the session-50 matrix-v2 routing —
-all protocol conformance tests pass; no code change.
+Round O CLOSED in session 57: the tone wrapper 0x0801A91A fully decoded
+— the EEPROM-calibrated state (tick at APP_STATE+0x109, base/scaler at
++0xEC/+0xEA/+0xEF/+0xEE from EEPROM 0x0FCD/0x0FCF/0x1FCD/0x1FCF, tables
+A/B at 0x20005010/0x20005030 from EEPROM 0x0FB0/0x1FB0/0x0F90/0x1F90,
+the band-record gate = bit1 of byte 12 at 0x20004F94+chip*30), the
+0x48/0x49 divider-pair computation, the ON/OFF presets 0x08026C46, the
+12-bit GPIOD serial tail 0x0802883A. The recon's boot pair now
+COMPUTED (was a constant replay); CK3 292/292 byte-identical (harness
+= reconstruction/sim/ck3-recon.resc, hooks nm-derived after every
+rebuild), CK4 100.00%, host tests pass. Full evidence: the research
+log session 57.
 
-**Round O items, in order** (the reconnaissance is logged in the
-session-56 pt5 entry — start there, do not re-derive):
+**Round B/C items, in order:**
 
-1. **Decompile the tone wrapper FUN_0801A91A fully** (REA = lcd.asm
-   0x801a91a): the r0==1 beep branch, the two +16-offset tables
-   (literals @0x801b59c/@0x801b5a0), the 30-stride record bit1 enable
-   gate (@0x801b5a4 + r2*30 + 12), the state words at +0x109/+0xEC/+0xEF
-   of the struct at literal 0x801b594.
-2. **Resolve the enable condition** and the tone-control helper
-   0x08026C46 (writes 0x15/0x1100 to the struct at the 0x80276D0
-   literal, adjacent to the already-decompiled CTCSS/DTMF dispatch
-   0x080276D4/0x08027474).
-3. **Trace the four callers** (0x8016b5c/0x8016b86/0x8016bbe — the
-   cluster near the BCD frequency parser — and 0x801abda) for the args.
-4. **Implement + compare**: scope the comparison channel first — the
-   tone has no GPIOB presence; the observables = the AT1846S SPI bus
-   (the CK3 harness) and/or the RAM tone-state.
-5. **Round L maintenance** at the closure.
+1. **The `$A09` 4-byte-prefix routing mechanics** (§9 item 1): the RX
+   command `$A09\r\n` (the side-key beacon trigger, len>=4 per the
+   protocol notes) — decompile the routing site, drive it via the peer
+   injection (the RX direction is NOT blocked by the keyscan state
+   gate), compare both images (the UART + the beacon effect).
+2. **The key-driven `$A01` write direction** — parked-blocked on what
+   clears FLAG_BANK+2 bit2 naturally (session 56); revisit only if a
+   B/C finding touches the state machine.
+3. **Cross-check the recovered `.data`-structure guesses against live
+   behavior** (§9 item 2) as the B/C passes touch them.
+4. **Round L maintenance** at the closure.
 
-Ground truth for the whole session-56 state (do NOT re-derive): see the
-session-56 pt1/pt2/pt4/pt5 log entries — the keyscan = 3 ADC2 ladders
-(ch14/15/12, tables 0x20001684/6A4/6C4), the TIM2 boundary (CCR1=0xFFFF
-model reset; the sampler = PC7/PC8 via GPIOC 0x40011000), the ADC2_DR
-tag stimulus (`sysbus Tag <0x4001284C 0x4> "ADC2_DR" <value>`, scripts
-ck4-key-{orig,recon}*.resc), the state gate FLAG_BANK+2 bit2 = 0x14 from
-boot (firmware-maintained ≤10 ms — parked, unblocks via B/C), and the
-battery-share constraint (key values < 2851).
+Ground truth for the tone path (do NOT re-derive): the session-57 log
+entry. For the keyscan/state-gate/session-56 ground truth: the
+session-56 pt1/pt2 entries. The addressing convention: REA addrs =
+lcd.asm addrs (the binary @0x08004000).
 
-**When Round O closes:** update CK5 §3/§4, close the round in PLAN.md,
-refresh the KICKOFF block at the top of this file, commit, then the
-next candidates are **Rounds B/C** (the protocol broadening — now ALSO
-waiting on what clears FLAG_BANK+2 bit2 naturally) with **Round L**
-maintenance after every closure.
+**When Round B/C closes:** update CK5 §3/§4, close the rounds in
+PLAN.md, refresh the KICKOFF block at the top of this file, commit,
+then the remaining secondary items (§9: the S-meter sweep, the
+0x20004E40 radio-state region) with **Round L** maintenance after
+every closure.
 
 ## 4. Working rules (added session 54 — anti-loop)
 

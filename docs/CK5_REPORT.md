@@ -188,7 +188,15 @@ wrapper call sites corroborate the same pattern for the local storage).
   write-direction acceptance waits on the state-machine recovery
   (Rounds B/C); the recon's single documented key-cluster divergence =
   0x2000515F (the main-mode keycode copy, gated off in the original).
-- The tone on-branch (RF-adjacent, untested).
+- ~~The tone on-branch (RF-adjacent, untested)~~ — **CLOSED (session 57,
+  Round O)**: the tone wrapper 0x0801A91A fully decoded (the EEPROM-
+  calibrated tables/scalers, the band-record gate, the 0x48/0x49
+  divider-pair computation, the ON/OFF presets 0x08026C46, the 12-bit
+  GPIOD serial tail 0x0802883A). The recon's boot pair is now COMPUTED
+  from state (was a [DATA-DERIVED] constant replay); CK3 292/292
+  byte-identical, CK4 100.00%, host tests pass. The tone's own bus
+  writes (the presets) stay covered positionally by the verified
+  orchestration; the GPIOD word has no comparison channel.
 - The `$A09` 4-byte-prefix routing and the stripped tail commands
   ($A10/$A11/$A30/$A31/$D00/$F00/$A50/$A51/$E0x/$F0x, the GB2312
   app-text set): **RESOLVED as unreachable on the platform** — the

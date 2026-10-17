@@ -197,10 +197,22 @@ dispatch — unblocks via the state-machine/peer recovery (Rounds B/C).
 The recon's single key-cluster divergence = 0x2000515F (the main-mode
 copy, gated off in the original).
 
-## Round O — tone path — after N
-FUN_0801a91a (the tone wrapper): the tone on-branch, the CTCSS/DTMF
+## Round O — tone path — CLOSED session 57
+~~FUN_0801a91a (the tone wrapper): the tone on-branch, the CTCSS/DTMF
 dispatch (0x080276D4, 0x08027474 already decompiled). Trace the enable
-condition, reproduce.
+condition, reproduce.~~ **CLOSED**: the full mechanism decoded (the
+EEPROM-calibrated tick/base/scaler + tables A/B, the band-record gate,
+the 0x48/0x49 divider pair, the ON/OFF presets, the GPIOD serial tail);
+the recon's boot pair upgraded from the [DATA-DERIVED] constants to the
+computed mechanism; CK3 292/292 byte-identical (recreated harness =
+reconstruction/sim/ck3-recon.resc), CK4 100.00%, host tests pass.
+
+## Round B/C — protocol broadening — ACTIVE (after O)
+The concrete first item: the `$A09` 4-byte-prefix routing mechanics
+(§9 of followup.md; the tail commands themselves are
+resolved-unreachable). The $A09 = an RX-side command, testable via the
+peer injection without the keyscan state gate. The key-driven `$A01`
+write direction stays parked-blocked on FLAG_BANK+2 bit2 (session 56).
 
 ## Round P — host-test regression triage — BEFORE O (session 56 finding)
 `make test-host` = 4 failures on the committed session-55 state
