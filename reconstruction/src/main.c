@@ -15,6 +15,7 @@
 #include "uart.h"
 #include "protocol.h"
 #include "display.h"
+#include "eeprom.h"
 #include "rf.h"
 
 /* ---- tasks ---------------------------------------------------------------- */
@@ -140,7 +141,16 @@ static void hw_init(void)
 
     usart1_init();        /* GPS input  [0x0802932C RECOVERED]             */
     usart2_init();        /* APRS/BT link [0x0801F810 RECOVERED]           */
-    display_init();       /* SCAFFOLD                                      */
+    /* EEPROM settings load [session 51]: the original's boot I2C traffic
+     * precedes the LCD init in the pb_stream capture (the PB9 events
+     * before stream line 2508); the settings block = 0x4D bytes (the
+     * save path FUN_0801A6EA writes 0x4D bytes at 0x0A00). The load call
+     * site sits in the Ghidra-missed boot region — wiring inferred. */
+    {
+        static uint8_t ee_settings[0x4D];
+        eeprom_read(0x0A00u, 0x4Du, ee_settings);
+    }
+    display_init();       /* [0x0801BB22 RECOVERED]                        */
     /* RF chip init [0x080227AA call site RECOVERED]: bus GPIO config
      * (0x080267AA, session 49 decompile) then the 50-register AT1846S
      * init table applied to chip 1 then chip 0 (session 49 trace,

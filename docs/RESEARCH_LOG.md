@@ -1718,3 +1718,31 @@ phase achieves 74/74 BYTE-EXACT parity.**
   3022+1875 writes). The recon draws nothing after the init (ui.c = the
   UI state machine = still a scaffold) — the CK4 remaining gap = the UI
   scene renderer cadence + the EEPROM I2C driver, NOT the transport.
+
+**Session 51, part 2 — the EEPROM I2C driver implemented; the recon's
+boot PB9 traffic now structurally matches the original.**
+- eeprom.c added: the full bit-bang driver (start/byte+ack/stop/master-
+  ack/read-byte/write/read) decompiled from 0x0802846A/0x08028448/
+  0x080284F2/0x080285B6/0x08028532/0x08028566/0x08028666/0x080286C0/
+  0x0802873C. Notable recovered details: the SDA data polarity is
+  INVERTED (a '1' bit drives SDA low); the write path retries the
+  double-START + 0xA0 until the ACK; the read path = the write-addressed
+  setup + a restart into 0xA1 + NAK-style phases (0 between the bytes,
+  1 after the last); the stop = SDA high, SCL low, SDA low.
+- The EEPROM wrappers: FUN_0801A3C0(addr,buf,n) = write, FUN_0801A3A8 =
+  read; 23 read / 11 write call sites across the settings/UI code (the
+  lazy per-field access model). FUN_0801A6EA = the 0x4D-byte settings
+  save to 0x0A00. The \$B handler reads 64-byte blocks (the missed
+  region 0x0802D9B6). The boot read call site = in the Ghidra-missed
+  region (open item); the recon wires eeprom_read(0x0A00, 0x4D) into
+  hw_init as an inferred equivalent (labeled in the source).
+- BUG FIXED mid-round: the CRH nibble mask for the PB9 direction switch
+  was 0xF00 (PB10!) — corrected to 0xF0; the recon's CRH values now
+  = 0x44444434 (output) <-> 0x44444444 (input), the same pair the
+  original emits in its early-boot phase.
+- RESULT: the recon's boot stream = 166 CRH + 121 PB9 BRR/BSRR + 74 ODR
+  (the init) = structurally the original's pattern (the original's 3 s
+  stream = larger volume: 4902 CRH + 22k PB9 + 160k ODR — it runs the
+  full UI runtime, and its later CRH writes = 0xBBB444xx because PB13-15
+  are configured open-drain by an init the recon has not located yet —
+  the small remaining gap). The LCD init remains 74/74 byte-exact.

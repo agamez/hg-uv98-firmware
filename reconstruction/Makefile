@@ -17,7 +17,7 @@ CFLAGS   = $(CPUFLAGS) -std=c11 -O2 -g -Wall -Wextra -ffreestanding -nostdlib \
 LDFLAGS  = $(CPUFLAGS) -nostdlib -Wl,--gc-sections -Wl,-T,linker.ld \
            -Wl,-Map=build/hguv98.map
 
-SRC  = src/startup.c src/mem.c src/os_hooks.c src/font.c src/rf.c src/rtos.c src/uart.c src/protocol.c src/display.c src/ui.c src/main.c
+SRC  = src/startup.c src/mem.c src/os_hooks.c src/font.c src/rf.c src/rtos.c src/uart.c src/protocol.c src/display.c src/eeprom.c src/ui.c src/main.c
 KFILES := ucos_ii.c os_dbg_r.c   # ucos_ii.c includes all os_*.c
 KOBJ  = $(addprefix build/k-,$(KFILES:.c=.o))
 POBJ  = build/p-os_cpu_c.o build/p-os_cpu_a.o
