@@ -14,10 +14,10 @@ rebuild -> run -> compare -> log -> commit. Log every claim in
 docs/RESEARCH_LOG.md (append-only), commit at milestones, push to
 main, never stage prompt.md or prompt.md~. When the active round
 closes (or is parked), update THIS kickoff block and §3 before moving
-to the next round. ACTIVE: Round B/C (protocol broadening — the $A09
-4-byte-prefix routing first; the key-driven $A01 stays parked on the
-state gate). Rounds N and O are CLOSED; Round P item 1 (host tests)
-is DONE, all conformance tests pass.
+to the next round. ACTIVE: Round B/C items 2-4 (the key-driven $A01
+stays parked on the state gate; the settings-shadow cross-checks
+continue). Item 1 ($A09) is CLOSED with a parked sub-item; Rounds N
+and O are CLOSED; Round P item 1 is DONE.
 ```
 
 You are continuing a completed reverse-engineering project. The analysis phase is
@@ -176,16 +176,23 @@ log session 57.
 
 **Round B/C items, in order:**
 
-1. **The `$A09` 4-byte-prefix routing mechanics** (§9 item 1): the RX
-   command `$A09\r\n` (the side-key beacon trigger, len>=4 per the
-   protocol notes) — decompile the routing site, drive it via the peer
-   injection (the RX direction is NOT blocked by the keyscan state
-   gate), compare both images (the UART + the beacon effect).
+1. ~~**The `$A09` 4-byte-prefix routing mechanics**~~ — **CLOSED session 58
+   (with a parked sub-item)**: the routing = recovered+tests-locked (the
+   session-50 matrix); the semantics = vendor-source ground truth
+   (UARTX.C: the side-key-2/beacon trigger, settings-gated); the main's
+   side-key executor chain identified (the settings shadow = 0x2000684E,
+   pf1/pf2/top_short at +0x21/0x23/0x25 — the CHIRP offsets verified
+   against the UI task's dispatch); the model behavior = NULL/NULL
+   parity (hook-proven: the injected $A09 does not reach the key path on
+   either image). PARKED sub-item: the frame-ready consumer that would
+   convert the $A09 frame into the key event (three attempts spent —
+   see the session-58 log entry).
 2. **The key-driven `$A01` write direction** — parked-blocked on what
    clears FLAG_BANK+2 bit2 naturally (session 56); revisit only if a
    B/C finding touches the state machine.
 3. **Cross-check the recovered `.data`-structure guesses against live
-   behavior** (§9 item 2) as the B/C passes touch them.
+   behavior** (§9 item 2): the settings-shadow base 0x2000684E + the
+   CHIRP offset match (session 58) = the first such cross-check datum.
 4. **Round L maintenance** at the closure.
 
 Ground truth for the tone path (do NOT re-derive): the session-57 log
@@ -209,8 +216,11 @@ every closure.
 - Never re-run an experiment that already produced a logged number; §2's
   recipes reproduce any of them.
 - The Renode monitor's `python` is **single-line only** (multi-line scripts fail
-  to tokenize); RAM dumps work as a one-liner
-  `python 'open("/tmp/opencode/x.bin","wb").write(bytes(machine["sysbus"].ReadBytes(0x20000000, 0x10000)))'`.
+  to tokenize); RAM dumps work as a one-liner — **and MUST close the file**:
+  `python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/x.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20000000, 0x10000))); f.close()'`
+  (session 58: without `f.close()` the buffer flushes only via GC luck —
+  the earlier `open(...).write(...)` dumps worked by chance and later
+  produced 0-byte files).
 - Scripts abort at the FIRST failing command — a bad mid-script command
   silently truncates the run.
 
