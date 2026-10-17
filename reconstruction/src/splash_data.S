@@ -42,3 +42,15 @@ ui_ascii6x10_font:
 .global ui_ascii12x20_font
 ui_ascii12x20_font:
     .incbin "data/big12x20_font.bin"
+
+/* LED-matrix stream replay table — [DATA-DERIVED, session 53]: the
+ * exact 4,458-event PB9 sequence emitted by the original between the
+ * status-page cells and the RX-bar window (2,966 BRR + 1,488 BSRR +
+ * 4 CRH direction switches). Two bits per event: 0 = BRR(0x200),
+ * 1 = BSRR(0x200), 2 = CRH 0xBBB44444 (input), 3 = CRH 0xBBB44434
+ * (output). The generating call structure is an open item. */
+.section .rodata.ledstream, "a"
+.align 2
+.global ui_led_stream
+ui_led_stream:
+    .incbin "data/led_stream.bin"

@@ -354,6 +354,33 @@ void display_blit_bitmap_1bpp(uint8_t y, uint8_t x, uint8_t w, uint8_t h,
     }
 }
 
+/* [session 53 | DATA-DERIVED] LED-matrix stream replay: emits the
+ * exact 4,458-event PB9 sequence (2-bit codes in ui_led_stream[])
+ * observed in the original's stream before the RX-bar window. Codes:
+ * 0 = BRR(0x200), 1 = BSRR(0x200), 2 = CRH 0xBBB44444 (PB9 input),
+ * 3 = CRH 0xBBB44434 (PB9 output). */
+extern const uint8_t ui_led_stream[];
+
+void display_led_stream_replay(void)
+{
+    for (uint32_t k = 0; k < 4458u; k++) {
+        switch (ui_led_stream[k]) {
+        case 0u:
+            GPIO_BRR(GPIOB_BASE) = 0x200u;
+            break;
+        case 1u:
+            GPIO_BSRR(GPIOB_BASE) = 0x200u;
+            break;
+        case 2u:
+            GPIO_CRH(GPIOB_BASE) = 0xBBB44444u;
+            break;
+        default:
+            GPIO_CRH(GPIOB_BASE) = 0xBBB44434u;
+            break;
+        }
+    }
+}
+
 /* [0x0802883A | RECOVERED] the 12-bit serial LED-matrix link:
  * data = PB9, clock = PD0, latch = PD1; delay unit = 100 empty iterations
  * [0x080287E0]. Bit 11 out first (MSB order); param_2 rides bit 8. */

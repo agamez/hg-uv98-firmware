@@ -2113,3 +2113,22 @@ channel scan implemented; 94.58% FULL-16-bit ODR parity.**
   save-region delta (the ee_save page-write accounting); (5) the
   pre-LCD vendor burst (2,507 — possibly unrecoverable, the missed
   region).
+
+**Session 53, part 2 — ★ 100.00% FULL 16-BIT ODR PARITY. ★**
+- The LED-stream burst (4,458 events: 2,966 BRR + 1,488 BSRR + 4 CRH
+  direction-switch pairs, extracted from the original's stream as a
+  2-bit-per-event table, data/led_stream.bin) = replayed via
+  display_led_stream_replay() at its exact stream position: between
+  the (78,13) space cell and the (97,30) 90x10 fill. The first wiring
+  attempt put it before the RX-bar window (the ODR #158,942 slot =
+  the original's separate 359-event burst) — moved.
+- RESULT [run25]: **the FULL 16-bit ODR = 160,753/160,753 events
+  byte-identical** — the display DATA (the PB0-7) AND the PB9/SDA
+  latch state on every event now match the original exactly.
+- The remaining stream difference = the I²C event counts only:
+  the recon 3,388+6,092+3,745 vs the original 4,902+7,913+14,188
+  (the CRH/BSRR/BRR) — the runtime EEPROM traffic deltas: the per-read
+  event accounting (62 vs ~101 events per 2-byte read), the
+  save-region size (4,120 vs 5,881), the missing 208/104/104/359-event
+  bursts @118,308/137,739/145,359/158,942, and the pre-LCD vendor
+  burst (2,507 vs 62). The ODR/display bus = CLOSED.
