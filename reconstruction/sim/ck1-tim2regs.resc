@@ -1,0 +1,33 @@
+# ck1-tim2regs.resc — Round N probe 2: live TIM2 register state at t=0.5 s
+# (why does CC1IF never fire? CEN? DIER? CCR1? CCMR1/CCER?)
+using sysbus
+mach create "ck4tim2regs"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:00.500"
+echo "---- TIM2 @0.5s ----"
+echo "CR1:"
+sysbus ReadDoubleWord 0x40000000
+echo "DIER:"
+sysbus ReadDoubleWord 0x4000000C
+echo "SR:"
+sysbus ReadDoubleWord 0x40000010
+echo "CCMR1:"
+sysbus ReadDoubleWord 0x40000018
+echo "CCER:"
+sysbus ReadDoubleWord 0x40000020
+echo "CNT:"
+sysbus ReadDoubleWord 0x40000024
+echo "PSC:"
+sysbus ReadDoubleWord 0x40000028
+echo "ARR:"
+sysbus ReadDoubleWord 0x4000002C
+echo "CCR1:"
+sysbus ReadDoubleWord 0x40000034
+quit

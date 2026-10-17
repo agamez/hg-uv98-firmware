@@ -2339,3 +2339,83 @@ event-by-event identical. ★**
   the stimulus (candidate: a monitor poke of TIM2 SR |= 2 — the real
   NVIC path — plus a GPIOA IDR value the handler can sample; verify
   what the stock GPIOA model returns for PA7/PA8 inputs).
+
+### 2026-10-17 — Session 56, part 1: Round N items 1+2 — the keyscan mechanism
+RECOVERED (ADC resistor ladders, not TIM2/EXTI/IDR) + the TIM2 model boundary
+evidenced live.
+
+Verification first (per followup.md §2): both images re-run; the FULL 187,757-
+event GPIOB stream = EVENT-IDENTICAL; ODR 160,753/160,753 = 100.00%; census
+exact both sides (CRH 4,902 / BSRR 7,913 / BRR 14,188 / CRL 1 / ODR 160,753).
+
+**1. THE KEYPAD = 3 ADC RESISTOR LADDERS on ADC2 (0x40012800).**
+- Key decoder = 0x080281A6 (REA; lcd.asm 0x80281a6), polled by key-code fn
+  0x080282FC; the UI key task = 0x08019DCC (calls key_get_code each pass,
+  0x8019dd4); a second caller = the boot/hold loop 0x08023334 (code 18 check).
+- Decoder: first branch consumes the TIM2 sampler flags — if *(0x20005165)==1
+  (PC8 changed): clear it, if *(0x2000687D)!=0 set bit7 of *(0x20009456), set
+  *(0x20005160)=1 and return 1 or 2 by *(0x20005164) (=PC7^PC8) — i.e. the
+  2-wire PC7/PC8 accessory pair INJECTS codes 11/12 through group A.
+- Ladder path: adc_read(ch) via 0x080296CA (mutex 0x200050D4, then 4x raw
+  DR reads 0x0802C37A(handle) = u16 *(0x40012800+0x4C), AVERAGED (sum/4)),
+  EOC spin on SR&2 (0x0802C388) — the existing ADC2_SR=0x2 tag IS this EOC.
+  Three groups, valid windows hi<adc<lo, tables = u32 {lo@+0, hi@+2}:
+  * ch14 -> RAM 0x20005140, flag 0x20005160, table 0x20001684 (8 entries,
+    window 662..3253) -> codes {10,11,12,13,1,2,3,14} for idx 0..7
+    (map @0x802833a-0x8028368)
+  * ch15 -> RAM 0x20005142, flag 0x20005161, table 0x200016A4 (8 entries,
+    SAME windows as ch14) -> codes {4,5,6,0,7,8,9,15} (0x8028392-0x80283c0)
+  * ch12 -> RAM 0x20005144, flag 0x20005162, table 0x200016C4 (3 entries,
+    window 672..1751) -> codes {18,19,20} (0x80283da-0x80283ea)
+  * no match: flags 0x20005160/61/62 cleared, return 0xFF.
+  Key-lock gate: bit0 of *(0x20009458) set -> 0xFF (0x80282fe).
+- Table values (from ram_tables_recovered.bin @0x1684/0x16A4/0x16C4, LO=upper
+  edge, HI=lower edge, match hi<adc<lo):
+  A/B idx0..7 upper/lower: (2431,2231)(2829,2629)(3079,2879)(3253,3053)
+  (2147,1947)(1745,1545)(1371,1171)(861,661); C idx0..2: (1751,1557)
+  (1373,1173)(871,671).
+- RETRACTION of the session-3-era guess "0x08021000 = the GPIOC scanner":
+  no function boundary exists at either 0x08021000 (label) or 0x8021000
+  (REA) in lcd.asm; the keypad is NOT a polled IDR scan. ALSO RETRACTED
+  (session 55 pt2): "the PA7/PA8 pair" — the sampler's port literal at
+  0x802d518 = 0x40011000 = GPIOC: the pair is PC7/PC8 (IDR bits 0x80/0x100
+  through the IDR-test helper 0x0802375E = (IDR & mask)?1:0). The
+  "GPIOA = 0x40011000" note in session 55 pt2 was wrong.
+- BATTERY SHARES ADC2: quantizer 0x08022618 (and 0x8022738) = adc_read(7),
+  thresholds 3429/3357/3155/2851 -> levels 4/3/2/1/0 -> 0x0802815C.
+  Today DR reads 0x0 (SVD fallback) -> battery level 0 on the model.
+  CONSTRAINT for stimulus injection: any DR value < 2851 leaves the
+  battery path unchanged (windows of codes 10,11,1,2,3,14,4,5,7,8,9,15,
+  18,19,20 qualify; codes 12 (2879..3079) and 0 (3053..3253) do NOT).
+- Threshold tables are populated at boot (RAM 0x20001684..) from the
+  decompressed .tables blob — verified present in BOTH images (the recon's
+  ui_ram_tables is the byte-verified blob, sessions 39-42).
+
+**2. THE TIM2 MODEL BOUNDARY — evidenced live (probe ck1-tim2regs.resc).**
+- Live TIM2 state @t=0.5 s in the original: CR1=1 (CEN, CNT=0x64 counting),
+  DIER=2 (CC1IE), SR=1 (UIF only — CC1IF NEVER sets), CCMR1=0 (frozen OC),
+  CCER=0, PSC=0x47, ARR=0x7D, **CCR1=0xFFFF = the Renode STM32_Timer reset
+  default**. The vendor NEVER writes CCR1/CCMR1/CCER (no pool literals
+  0x40000018/20/34 anywhere in the image; init 0x0802D528 fully decompiled:
+  clock gate, shadow *0x20005154=0x7D, flag, CEN=0, PSC=0x47, ARR=0x7D,
+  DIER|=2, NVIC{28,1,0,1}, register_handler(28,0x0802D5B4), enable(28),
+  CEN=0/1 — nothing else).
+- Probe ck1-tim2diag.resc: 0 TIM2IRQ_ENTER and 0 SAMPLER_ENTER hooks at
+  0x0802D5B4/0x0802D4A6 in 500 ms — the CC1->handler->sampler chain is
+  DEAD on the model: CNT (0..0x7D) can never reach the model's CCR1=0xFFFF.
+- Real-HW semantics: CCR1 resets to 0 -> CC1IF every wrap -> the IRQ samples
+  PC7/PC8 at the CC1 rate (the "TIM2 CC1 can never match" note since
+  session 40 is hereby re-diagnosed: it is the MODEL'S CCR1 reset value,
+  not a missing input-capture path; and the timer is an OUTPUT-compare
+  sampler clock, not the keypad).
+- Consequence: the PC7/PC8 accessory codes 11/12 and the sampler flags
+  0x20005163/64/65 stay 0 on BOTH images (the recon never touches TIM2 at
+  all — zero references in the recon tree). Inert for every current
+  comparison channel (GPIOB/UART/RAM flags) — an accepted boundary
+  divergence, listed for CK5 §3.4.
+
+**3. NEXT (stimulus design, item 3):** inject ADC2 DR via a runtime
+`sysbus Tag <0x4001284C,4> "ADC2_DR" <value>` in new ck4-key-*.resc scripts
+(= the same harness mechanism as the ADC2_SR tag; identical command sequence
+for both images). Candidate first key: value 2730 = group A idx1 = code 11
+(<2851, battery-safe).
