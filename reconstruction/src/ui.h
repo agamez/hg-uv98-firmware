@@ -40,9 +40,29 @@
 #define SMETER_SNAPSHOT  0x20004FD0u  /* active-ring snapshot             */
 #define BAND_BYTE        0x20004E68u  /* +0x40 = programmable/band byte   */
 
+/* Key cluster (session 56, Round N — the ADC-ladder keyscan state).
+ * The TIM2 sampler pair and the three ladder groups share this bank. */
+#define KEY_ADC_CH14     0x20005140u  /* last ch14 sample (group A)       */
+#define KEY_ADC_CH15     0x20005142u  /* last ch15 sample (group B)       */
+#define KEY_ADC_CH12     0x20005144u  /* last ch12 sample (group C)       */
+#define KEY_VALID_A      0x20005160u  /* group A match flag (this pass)   */
+#define KEY_VALID_B      0x20005161u  /* group B match flag               */
+#define KEY_VALID_C      0x20005162u  /* group C match flag               */
+#define KEY_CODE_BYTE    0x2000515Eu  /* the UI task's decoded keycode    */
+#define KEY_CODE_COPY    0x2000515Fu  /* main-mode copy (0x8019ff2)       */
+#define KEY_PC8_CACHE    0x20005163u  /* TIM2 sampler: last PC8 sample    */
+#define KEY_PC7XOR8      0x20005164u  /* TIM2 sampler: PC7 ^ PC8 state    */
+#define KEY_PC8_CHANGED  0x20005165u  /* TIM2 sampler: PC8 change flag    */
+#define KEY_LADDER_A     0x20001684u  /* group A threshold table (8)      */
+#define KEY_LADDER_B     0x200016A4u  /* group B threshold table (8)      */
+#define KEY_LADDER_C     0x200016C4u  /* group C threshold table (3)      */
+#define KEYLOCK_BYTE     0x20009458u  /* bit0 = keypad lock (0x80282fe)   */
+
+
 /* Master UI task and screen machine (image labels; flash = label+0x4000). */
 void ui_task(void *p_arg);                 /* 0x08029178, priority 3       */
 void ui_state_set(uint8_t screen);         /* 0x08010530: screen switch    */
+uint8_t key_get_code(void);                /* 0x080282FC: the Round N slice*/
 void ui_list_select(uint8_t a, uint8_t b, uint32_t entry); /* 0x08010D06 */
 
 /* Input policy. */

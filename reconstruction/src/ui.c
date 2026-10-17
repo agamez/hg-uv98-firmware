@@ -75,6 +75,7 @@
 #include <stdint.h>
 
 #include "ui.h"
+#include "hwregs.h"
 #include "eeprom.h"
 #include "display.h"
 
@@ -141,8 +142,7 @@ void key_event(uint8_t key_id, uint8_t src, uint8_t pressed)
 }
 
 /* [0x080241A6 | RECOVERED constants / SCAFFOLD branches] battery level;
- * pending conversions reported as -1 (original: 1/2 handshake). */
-int battery_level_read(void)
+ * pending conversions reported as -1 (original: 1/2 handshake). */int battery_level_read(void)
 {
     enum { TH_FULL = 0xCB5, TH_LOW = 0x6D7 };   /* 3253 / 1751 */
     int adc = battery_adc_read_ch14();
@@ -546,6 +546,127 @@ static void ui_screen0_build(void)
     };
 }
 
+/* ---- Round N (session 56): the keyscan chain [RECOVERED] ----------------
+ * 0x080296CA adc_read(ch): RTOS-mutex-wrapped single ADC2 conversion —
+ * EOC spin on SR&2 (the harness tags SR=0x2), then FOUR u16 DR reads,
+ * averaged (sum/4). The mutex object (0x200050D4) is a no-op here (the
+ * UI task is the only reader in the recon).
+ * 0x080281A6 key_scan(): FIRST consumes the TIM2/PC7-PC8 accessory flags
+ * (0x20005165==1 -> clear it, status bit, 0x20005160=1, return 1|2 by
+ * 0x20005164 = PC7^PC8 — injects codes 11/12; inert on the model: the
+ * Renode STM32_Timer resets CCR1=0xFFFF > ARR=0x7D so CC1IF never sets
+ * and the sampler never runs — session-56 boundary evidence). Then the
+ * three resistor ladders: ch14/group A (table 0x20001684), ch15/group B
+ * (0x200016A4), ch12/group C (0x200016C4); entry = {u16 upper @+0,
+ * u16 lower @+2}, scan gated to 662..3253 (A/B) resp. 672..1751 (C),
+ * match = lower < adc < upper; on match: set the group flag, return the
+ * index; total miss: clear all three flags, return 0xFF.
+ * 0x080282FC key_get_code(): keypad-lock gate (bit0 of 0x20009458), then
+ * scan + the (group,index)->code map:
+ *   A: {10,11,12,13,1,2,3,14}  B: {4,5,6,0,7,8,9,15}  C: {18,19,20}.
+ * The threshold tables live in the byte-verified .tables blob at the
+ * original RAM addresses, so the C reads them in place. */
+#define KEY_ACC_STATE   0x2000687Du  /* active-state byte (0x8019ef0)    */
+#define ACC_STATUS      0x20009456u  /* accessory status (bit7 set)      */
+
+static uint16_t key_adc_read(uint8_t ch)
+{
+    uint32_t sum;
+    ADC2_SQR3 = ch;                      /* 0x0802C268(handle, ch, 1, 1) */
+    while (!(ADC2_SR & ADC_SR_EOC))
+        ;                                /* 0x0802C388 EOC spin          */
+    sum  = (uint16_t)ADC2_DR;            /* 4x 0x0802C37A                */
+    sum += (uint16_t)ADC2_DR;
+    sum += (uint16_t)ADC2_DR;
+    sum += (uint16_t)ADC2_DR;
+    return (uint16_t)(sum / 4u);
+}
+
+static uint8_t key_scan(void)
+{
+    const uint16_t *tbl;
+    uint16_t adc;
+    uint8_t i;
+
+    /* --- the TIM2/PC7-PC8 accessory branch [RECOVERED; inert on the model] */
+    if (REG8(KEY_PC8_CHANGED) == 1u) {
+        REG8(KEY_PC8_CHANGED) = 0u;
+        if (REG8(KEY_ACC_STATE) != 0u)
+            REG8(ACC_STATUS) |= 0x80u;
+        REG8(KEY_VALID_A) = 1u;
+        return (REG8(KEY_PC7XOR8) == 1u) ? 1u : 2u;
+    }
+
+    /* --- group A: ADC ch14, table 0x20001684 ---------------------------- */
+    adc = key_adc_read(14u);
+    REG16(KEY_ADC_CH14) = adc;
+    if (adc >= 662u && adc < 3253u) {
+        tbl = (const uint16_t *)KEY_LADDER_A;
+        for (i = 0u; i < 8u; i++) {
+            uint16_t upper = tbl[i * 2u];
+            uint16_t lower = tbl[i * 2u + 1u];
+            if (lower < adc && adc < upper) {
+                REG8(KEY_VALID_A) = 1u;
+                return i;
+            }
+        }
+    }
+
+    /* --- group B: ADC ch15, table 0x200016A4 ---------------------------- */
+    adc = key_adc_read(15u);
+    REG16(KEY_ADC_CH15) = adc;
+    if (adc >= 662u && adc < 3253u) {
+        tbl = (const uint16_t *)KEY_LADDER_B;
+        for (i = 0u; i < 8u; i++) {
+            uint16_t upper = tbl[i * 2u];
+            uint16_t lower = tbl[i * 2u + 1u];
+            if (lower < adc && adc < upper) {
+                REG8(KEY_VALID_B) = 1u;
+                return i;
+            }
+        }
+    }
+
+    /* --- group C: ADC ch12, table 0x200016C4 ---------------------------- */
+    adc = key_adc_read(12u);
+    REG16(KEY_ADC_CH12) = adc;
+    if (adc >= 672u && adc < 1751u) {
+        tbl = (const uint16_t *)KEY_LADDER_C;
+        for (i = 0u; i < 3u; i++) {
+            uint16_t upper = tbl[i * 2u];
+            uint16_t lower = tbl[i * 2u + 1u];
+            if (lower < adc && adc < upper) {
+                REG8(KEY_VALID_C) = 1u;
+                return i;
+            }
+        }
+    }
+
+    REG8(KEY_VALID_A) = 0u;
+    REG8(KEY_VALID_B) = 0u;
+    REG8(KEY_VALID_C) = 0u;
+    return 0xFFu;
+}
+
+uint8_t key_get_code(void)
+{
+    static const uint8_t map_a[8] = {10u, 11u, 12u, 13u, 1u, 2u, 3u, 14u};
+    static const uint8_t map_b[8] = {4u, 5u, 6u, 0u, 7u, 8u, 9u, 15u};
+    static const uint8_t map_c[3] = {18u, 19u, 20u};
+    uint8_t idx;
+
+    if (REG8(KEYLOCK_BYTE) & 1u)         /* 0x80282fe keypad lock        */
+        return 0xFFu;
+    idx = key_scan();
+    if (REG8(KEY_VALID_A) == 1u)
+        return (idx < 8u) ? map_a[idx] : 0xFFu;
+    if (REG8(KEY_VALID_B) == 1u)
+        return (idx < 8u) ? map_b[idx] : 0xFFu;
+    if (REG8(KEY_VALID_C) == 1u)
+        return (idx < 3u) ? map_c[idx] : 0xFFu;
+    return 0xFFu;
+}
+
 void ui_task(void *p_arg)
 {
     (void)p_arg;
@@ -559,6 +680,26 @@ void ui_task(void *p_arg)
 
     for (;;) {
         os_wait_30_ticks();
+        /* [0x08019DCC | RECOVERED slice] the key poll: every pass decodes
+         * the keypad into 0x2000515E; 0xFF -> the release-ageing tail
+         * ([SCAFFOLD] 0x801a20a — touches no key-cluster byte); a real
+         * key passes the flag gates into the state-gated dispatch. The
+         * gate byte FLAG_BANK+2 bit2 = 1 from boot in the original (the
+         * firmware re-asserts it within 10 ms — session 56), which
+         * swallows every non-side key there; the recon reproduces the
+         * gate read and the main-mode RAM prefix only — the pump/vtable
+         * dispatch itself is the Round B/C machinery. */
+        {
+            uint8_t key = key_get_code();
+            REG8(KEY_CODE_BYTE) = key;
+            if (key != 0xFFu) {
+                if (((REG8(FLAG_BANK + 2u) >> 2u) & 1u) == 0u) {
+                    REG8(FLAG_BANK + 6u) &= 0x7Fu;   /* 0x8019fea */
+                    REG8(KEY_CODE_COPY) = key;       /* 0x8019ff2 */
+                    /* per-key dispatch [Round B/C SCAFFOLD] */
+                }
+            }
+        }
         REG16(APP_STATE + 0x166)++;
         if (REG8(APP_STATE + 0x119) != 0)
             continue;

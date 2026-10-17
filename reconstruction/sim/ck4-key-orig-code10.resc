@@ -1,0 +1,30 @@
+# ck4-key-orig.resc — Round N item 3: the key-event stimulus (ORIGINAL).
+# Mechanism (session 56 pt1): keypad = 3 ADC2 resistor ladders; the decoder
+# 0x080281A6 matches hi<adc<lo against the RAM tables. Injection = a runtime
+# ADC2_DR tag (the same harness mechanism as ADC2_SR). 2330 = table A idx1
+# (2629..2829) = key code 11; battery-safe (<2851, quantizer ch7 unchanged).
+using sysbus
+mach create "ck4key_code10"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+# decoder evidence hooks: one constant log per decoded key code
+cpu AddHook 0x0802833a "self.Log(LogLevel.Info, 'KEYDECODE code10')"
+cpu AddHook 0x08028340 "self.Log(LogLevel.Info, 'KEYDECODE code11')"
+cpu AddHook 0x08028346 "self.Log(LogLevel.Info, 'KEYDECODE code12')"
+cpu AddHook 0x080283da "self.Log(LogLevel.Info, 'KEYDECODE code18')"
+showAnalyzer sysbus.usart2
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+echo "MARK pre-inject t=2.0s"
+emulation RunFor "00:00:01.990"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2330
+echo "MARK key-code10 press (ADC2_DR=2330)"
+emulation RunFor "00:00:00.300"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
+echo "MARK key release (ADC2_DR=0)"
+emulation RunFor "00:00:01.000"
+quit

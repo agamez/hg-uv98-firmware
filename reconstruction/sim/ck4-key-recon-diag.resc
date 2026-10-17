@@ -1,0 +1,15 @@
+# ck4-key-recon-diag.resc — Round N debug: does the recon's keyscan run?
+# Hooks: key_get_code 0x08006e98, ui_task 0x08007148.
+using sysbus
+mach create "ck4keyrecondiag"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+cpu AddHook 0x08007148 "self.Log(LogLevel.Info, 'RECON_UI_TASK')"
+cpu AddHook 0x08006e98 "self.Log(LogLevel.Info, 'RECON_GETCODE')"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:05.000"
+quit

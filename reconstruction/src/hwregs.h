@@ -55,6 +55,16 @@
 #define USART_CR1_RE    (1U << 2)
 #define USART_CR1_RXNEIE (1U << 5)
 
+/* --- ADC (session 56, Round N: the keyscan ladders + the battery quantizer
+ * share ADC2; the vendor's driver polls SR.EOC (bit2, tagged 0x2 by the
+ * harness) then reads DR (0x0802C37A = u16 *(handle + 0x4C)). --- */
+#define ADC2_BASE       0x40012800U
+#define ADC2_SR         REG32(ADC2_BASE + 0x00)
+#define ADC2_SQR3       REG32(ADC2_BASE + 0x34)
+#define ADC2_DR         REG32(ADC2_BASE + 0x4CU)
+#define ADC_SR_EOC      (1U << 1)   /* SR bit1 (the original polls 0x2;
+                                         * the harness tags ADC2_SR = 0x2) */
+
 /* --- NVIC / SysTick / SCB (Cortex-M3 core) --- */
 #define NVIC_ISER0      REG32(0xE000E100U)
 #define NVIC_ISER1      REG32(0xE000E104U)

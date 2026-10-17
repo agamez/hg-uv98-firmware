@@ -1,0 +1,27 @@
+# ck4-key-orig-hookpoke.resc — Round N probe: race-winning poke. The firmware
+# re-asserts bit2 of 0x20005096 within 10 ms (session 56). Hook the UI task
+# entry (0x8019dcc) and clear bit2 on EVERY pass, so the same pass's dispatch
+# reads bit2=0 and takes the main-mode branch. Code 10 (ADC 2330) held 0.5 s.
+using sysbus
+mach create "ck4keyhookpoke"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x08019dcc "from Antmicro.Renode.Peripherals.CPU import RegisterValue; b = self.Machine['sysbus'].ReadByte(0x20005096); self.Machine['sysbus'].WriteByte(0x20005096, b & 0xFB); self.Log(LogLevel.Info, 'HOOKENTRY')"
+cpu AddHook 0x08019fea "self.Log(LogLevel.Info, 'MAINMODE_TAKEN')"
+cpu AddHook 0x0801a1e6 "self.Log(LogLevel.Info, 'V_vtable')"
+cpu AddHook 0x0801a202 "self.Log(LogLevel.Info, 'V_vtable2')"
+showAnalyzer sysbus.usart2
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:01.990"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2330
+echo "MARK press code10 (hook-poke active)"
+emulation RunFor "00:00:00.500"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
+echo "MARK release"
+emulation RunFor "00:00:00.700"
+quit

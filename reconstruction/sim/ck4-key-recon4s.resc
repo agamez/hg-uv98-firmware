@@ -1,0 +1,23 @@
+# ck4-key-recon.resc — Round N item 3: the key-event stimulus on the RECON.
+# Same injection as ck4-key-orig (code 10 = ADC2_DR 2330 @2.0s, 0.5 s hold);
+# mid-hold dump of the key cluster 0x20005140..0x20005166 for the differential
+# vs the original's keydump_rel.bin (session 56).
+using sysbus
+mach create "ck4keyrecon"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:03.990"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2330
+echo "MARK press code10"
+emulation RunFor "00:00:00.500"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/recon_keydump_hold.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20005140, 0x26)))'
+emulation RunFor "00:00:00.500"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
+echo "MARK release"
+emulation RunFor "00:00:00.700"
+quit
