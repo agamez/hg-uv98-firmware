@@ -30,7 +30,11 @@ elif request.IsRead:
     elif request.Offset == 0x04:
         request.Value = crh
     elif request.Offset == 0x08:
-        request.Value = 0x00000000    # IDR: all pins externally low (ACK fix)
+        # IDR: all pins externally low EXCEPT PB9 (SDA-in), which mirrors the
+        # I2C slave's output (EE_SDA_BIT published by p1_gpioa.py; 0 = ACK or
+        # a data 0, 1 = released). The session-47 always-ACK semantics are
+        # preserved: an unaddressed slave leaves bit9 released (0-read).
+        request.Value = ((globals().get('EE_SDA_BIT', 1) & 1) << 9)
     elif request.Offset == 0x0C:
         request.Value = odr
     else:

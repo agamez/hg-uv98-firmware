@@ -2817,3 +2817,51 @@ sql=0 squelch-open defaults; the unlock = the I²C EEPROM slave model.
   p1-flagdump.resc, p1-fbscan*.resc, p1-exitpath.resc, p1-writemap.resc,
   p1-exitcallers.resc, p1-scanoff.resc (the intermediate probes kept for
   the evidence chain).
+
+### 2026-10-17 — Session 59 pt2 (GOAL phase 1): THE 24Cxx I2C SLAVE IMPLEMENTED —
+the first-boot path runs, bit2 = 0 in the main mode, THE KEYS ACT, and the full
+display-stream parity holds through the entire new flow on both images.
+
+- **The harness changes (all in reconstruction/sim/, the workaround register
+  applies):**
+  * `p1_gpioa.py` = a NEW python peripheral REPLACING the stock GPIOA at
+    0x40010800: (1) the faithful register-level GPIOA; (2) the write-forwarder
+    to the REAL GPIO mapped offscreen at 0x50010800 (the repl:
+    gpioPortAReal; the AFIO/timer2 wiring moved to the real port); (3) the
+    bit-bang I2C EEPROM slave (0xA0/0xA1, 2-byte word address, MSB first,
+    sequential read/write, the current-address pointer persists across
+    STOP), driven by the SCL (PA11) edges it sees on its own writes, the
+    SDA sampled from the displaybus ODR via the sysbus; the slave output
+    (the ACK + the read data) = the engine-global EE_SDA_BIT.
+  * `pb_displaybus.py`: the IDR = 0 for every pin EXCEPT bit 9 (SDA-in) =
+    (EE_SDA_BIT & 1) << 9. The session-47 always-ACK semantics = preserved
+    (the unaddressed slave = released = reads 0).
+  * The EE image = /tmp/opencode/ee_image.bin (32 KB, created all-0xFF if
+    absent; the writes persist per byte). All-FF = the erased device →
+    the VENDOR'S OWN first-boot path programs the factory defaults.
+  * The pythonEngine namespace is SHARED between the python peripherals —
+    all the GPIOA-model state = ga_/i2c_-prefixed (the collision avoided).
+- **THE RESULTS (the original, the fresh all-FF EE):**
+  * The first-boot path RUNS: the 3-s display stream = 2,012,661 events
+    (vs 187,757 without the slave) — the factory-reset flow does its
+    massive display work.
+  * **FLAG_BANK+2 bit2 = 0x00 (bit2 CLEAR!) at 3 s** — the main mode!
+  * **The key injection (code 1, the existing ck4-key-orig-code1.resc):
+    +211,725 display events after the common prefix = THE KEYS ACT.**
+    The session-56 "keys swallowed" problem = SOLVED at the root.
+  * The ee_image shows 0 written bytes — the vendor's ee_save path needs
+    the phase-2 write-path audit (the reads clearly work: the first-boot
+    detection = 0xFF).
+- **THE PARITY:** the recon (ck4-recon.resc, the same slave) = **event-identical
+  through the ENTIRE original 3-s capture (2,012,661 events, zero
+  divergences)**. The recon = killed at the wall-timeout mid-RunFor with
+  18.3M events — its post-exit main-mode loop is far busier than the
+  original's (a phase-3 fidelity item) AND the python GPIOA passthrough
+  slows the emulation (the wall-time budgets must grow ~5-10x; the CK4
+  runs = the wall-timeout-prone now).
+- **The design notes for the phase-2 settings work:** the slave = the reads
+  verified (the first-boot detection + the settings load); the write path =
+  to audit (the ee_save = 0 bytes persisted — the addressing/the page-write
+  mode vs my 2-byte model, or the vendor's save = conditional); the sane
+  defaults now come from the VENDOR's own factory-default programming,
+  not harness magic.

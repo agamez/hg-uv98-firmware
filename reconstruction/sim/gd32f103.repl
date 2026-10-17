@@ -54,7 +54,15 @@ nvicInput40: Miscellaneous.CombinedInput @ none
     numberOfInputs: 6
     -> nvic@40
 
-gpioPortA: GPIOPort.STM32F1GPIOPort @ sysbus <0x40010800, +0x400>
+gpioPortA: Python.PythonPeripheral @ sysbus <0x40010800, +0x1C>
+    size: 0x1C
+    initable: true
+    filename: "/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/p1_gpioa.py"
+
+// The REAL GPIOA, mapped offscreen: the p1_gpioa.py passthrough forwards
+// every register write here so pin/EXTI semantics stay real. The AFIO keeps
+// referencing the real port for EXTI edge generation.
+gpioPortAReal: GPIOPort.STM32F1GPIOPort @ sysbus <0x50010800, +0x400>
 
 // GPIOB substitute (session 49): the display bus (PB0 WR, PB8-15 data) as an
 // observable Python model; IDR pinned to 0 keeps the session-47 software-I2C
@@ -75,7 +83,7 @@ gpioPortF: GPIOPort.STM32F1GPIOPort @ sysbus <0x40011C00, +0x400>
 gpioPortG: GPIOPort.STM32F1GPIOPort @ sysbus <0x40012000, +0x400>
 
 afio: GPIOPort.STM32F1AFIO @ sysbus 0x40010000
-    gpioPorts: [gpioPortA, gpioPortA, gpioPortC, gpioPortD, gpioPortE, gpioPortF, gpioPortG]
+    gpioPorts: [gpioPortAReal, gpioPortAReal, gpioPortC, gpioPortD, gpioPortE, gpioPortF, gpioPortG]
     [0-15] -> exti@[0-15]
 
 spi2: Python.PythonPeripheral @ sysbus <0x40003800, +0x10>
@@ -113,7 +121,7 @@ dma1: DMA.STM32G0DMA @ sysbus 0x40020000
 // PC8/PC11; font-flash CS: PD4) are all plain GPIO in this design; the AF
 // crossbar entries below mirror the stock F1 wiring for the pins the model
 // needs for EXTI/timer capture. The keypad/PTT lines enter through EXTI.
-gpioPortA:
+gpioPortAReal:
     0 -> timer2@00
     1 -> timer2@01
     2 -> timer2@02
