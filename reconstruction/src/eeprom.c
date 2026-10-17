@@ -61,15 +61,21 @@ static void i2c_start(void)
 /* [0x080285B6] send one byte MSB first, then the 9th-clock
  * ACK sample. [session 55 correction, re-verified against the
  * disassembly AND the captured stream: the SDA data polarity is
- * NON-INVERTED — bit=1 drives SDA HIGH (BSRR helper 0x08023780),
+ * NON-INVERTED - bit=1 drives SDA HIGH (BSRR helper 0x08023780),
  * bit=0 drives SDA LOW (BRR helper 0x08023788); the captured 0xA0
  * device byte = BSRR,BRR,BSRR,BRR,BRR,BRR,BRR,BRR proves it. The
  * session-51/54 "inverted polarity" note is RETRACTED (it came from
- * misreading the bl targets — 0x08023780=BSRR(+0x10),
+ * misreading the bl targets - 0x08023780=BSRR(+0x10),
  * 0x08023788=BRR(+0x14) stands). The ack tail raises SDA (BSRR)
  * before the direction switch, then one SCL pulse; sets
  * ee_ack_flag = 1 when SDA reads 0. The original's per-byte capture
- * = CRH(out) + 8 SDA writes + BSRR + CRH(in) = 11 events.] */
+ * = CRH(out) + 8 SDA writes + BSRR + CRH(in) = 11 events.]
+ * [session 60 REA decompile correction: the per-bit SCL order is
+ * SDA write (while SCL is LOW) -> SCL BSRR (rise) -> dly(10) -> SCL
+ * BRR (fall) - STANDARD timing, the SDA stable across the rise; the
+ * session-51 order (SCL low -> dly -> SCL high) was a misreading.
+ * The ACK tail = SCL BSRR (the 9th rise) -> dly(10) -> the IDR read
+ * (while SCL is HIGH, 0x08028638) -> ee_ack_flag -> SCL BRR.] */
 static void i2c_send_byte(uint8_t b)
 {
     sda_output();
@@ -78,9 +84,9 @@ static void i2c_send_byte(uint8_t b)
             GPIO_BSRR(GPIOB_BASE) = I2C_SDA_BIT;    /* bit=1 -> SDA high */
         else
             GPIO_BRR(GPIOB_BASE) = I2C_SDA_BIT;     /* bit=0 -> SDA low  */
-        GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;
+        GPIO_BSRR(GPIOA_BASE) = I2C_SCL_BIT;        /* SCL high (rise)   */
         dly(10);
-        GPIO_BSRR(GPIOA_BASE) = I2C_SCL_BIT;
+        GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;         /* SCL low (fall)    */
         b = (uint8_t)(b << 1);
     }
     dly(10);
@@ -88,15 +94,17 @@ static void i2c_send_byte(uint8_t b)
     dly(1);
     sda_input();
     dly(1);
-    GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;
+    GPIO_BSRR(GPIOA_BASE) = I2C_SCL_BIT;            /* the 9th clock rise */
     dly(10);
-    /* the model's IDR = 0 -> the SDA bit reads 0 -> the ACK flag = 1     */
+    /* the ACK is sampled while the SCL is HIGH, after the rise        */
     ee_ack_flag = ((GPIO_IDR(GPIOB_BASE) & I2C_SDA_BIT) == 0u) ? EE_ACK_FLAG : 0u;
-    GPIO_BSRR(GPIOA_BASE) = I2C_SCL_BIT;
+    GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;             /* the 9th clock fall */
 }
 
 /* [0x08028566] the master ack/nack phase: param 0 -> SDA high, non-zero
- * -> SDA low; one SCL low-high pulse around it. */
+ * -> SDA low; one SCL low-high pulse around it.
+ * [session 60 REA decompile: the pulse = SCL BSRR (rise) -> dly(10) ->
+ * SCL BRR (fall); the SDA is set while the SCL is LOW before the pulse.] */
 static void i2c_master_ack(uint8_t val)
 {
     /* [session 53 | 0x08028566 verified] val==0 = the ACK = the SDA LOW;
@@ -107,29 +115,32 @@ static void i2c_master_ack(uint8_t val)
     else
         GPIO_BSRR(GPIOB_BASE) = I2C_SDA_BIT;
     dly(5);
-    GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;
-    dly(10);
     GPIO_BSRR(GPIOA_BASE) = I2C_SCL_BIT;
+    dly(10);
+    GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;
     dly(5);
 }
 
-/* [0x08028666] read one byte MSB first, sampled after the SCL high-low
- * pair; leaves SCL high. */
+/* [0x08028666] read one byte MSB first; per bit: SCL LOW -> dly(10) ->
+ * SCL HIGH (rise) -> sample the IDR (while the SCL is HIGH, after the
+ * rise); leaves SCL LOW after a trailing dly(10) + SCL BRR.
+ * [session 60 REA decompile: the session-51 order (rise -> fall ->
+ * sample) was inverted.] */
 static uint8_t i2c_read_byte(void)
 {
     uint8_t v = 0;
 
     sda_input();
     for (uint32_t i = 0; i < 8u; i++) {
-        GPIO_BSRR(GPIOA_BASE) = I2C_SCL_BIT;
-        dly(10);
         GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;
+        dly(10);
+        GPIO_BSRR(GPIOA_BASE) = I2C_SCL_BIT;
         v = (uint8_t)(v << 1);
         if (GPIO_IDR(GPIOB_BASE) & I2C_SDA_BIT)
             v = (uint8_t)(v + 1u);
     }
     dly(10);
-    GPIO_BSRR(GPIOA_BASE) = I2C_SCL_BIT;
+    GPIO_BRR(GPIOA_BASE) = I2C_SCL_BIT;
     return v;
 }
 

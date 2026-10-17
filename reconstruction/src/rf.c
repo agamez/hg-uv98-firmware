@@ -88,7 +88,14 @@
 #define GPIOA_ODR       (*(volatile uint16_t *)(GPIOA_BASE + 0x0Cu))
 
 #define RF_CLK          0x8000u                 /* PA15 */
-#define RF_DATA         0x0200u                 /* PA9  */
+/* [session 60 REA correction | 0x080267AA + 0x08026712 verified: the radio
+ * DATA pin = GPIOB bit 9 (PB9), NOT PA9 - the init configures GPIOB 0x200
+ * and the byte loop drives it through the GPIOB BSRR/BRR helpers; PA9 is
+ * never touched. PB9 is SHARED with the EEPROM I2C SDA (PA11 clock) - the
+ * vendor's boot order + the retry loop absorb the radio-init collision.]
+ * The session-49 "PA9 DATA" attribution is RETRACTED (Ghidra literal
+ * misread: DAT_0802746C = 0x40010C00 = GPIOB). */
+#define RF_DATA         0x0200u                 /* PB9 (GPIOB!) */
 #define RF_CS0          0x0100u                 /* PA8  */
 #define RF_CS1          0x1000u                 /* PA12 */
 
@@ -112,22 +119,25 @@ void rf_cs_select(int mode)
     GPIOA_ODR = (uint16_t)(GPIOA_ODR & (uint16_t)~clr);
 }
 
-/* [0x08022712 | RECOVERED | session 49 Ghidra pin-exact re-derivation]
- * shift one byte MSB-first; per bit: CLK LOW -> (delay 10) -> DATA by bit
- * -> (delay 10) -> CLK HIGH -> (delay 4). CLK idles HIGH between bits of a
- * byte and the wrapper drives it LOW again after the frame. */
+/* [0x08022712 | RECOVERED | session 49 Ghidra pin-exact re-derivation;
+ * session 60 REA correction: the DATA bit = GPIOB BSRR/BRR 0x200 (PB9) and
+ * the CLK = the GPIOA BSRR/BRR helpers, matching the original's helper
+ * calls (the LR trace: lr=0x802675d/0x802674f GPIOB, 0x8026775/0x802672f
+ * GPIOA). Per bit: CLK LOW -> (delay 10) -> DATA by bit -> (delay 10) ->
+ * CLK HIGH -> (delay 4). CLK idles HIGH between bits of a byte and the
+ * wrapper drives it LOW again after the frame.] */
 static void rf_send_byte(uint8_t b)
 {
     for (int i = 7; i >= 0; i--) {
-        GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_CLK);
+        GPIO_BRR(GPIOA_BASE) = RF_CLK;
         rf_delay(10);
         if ((b >> i) & 1u)
-            GPIOA_ODR = (uint16_t)(GPIOA_ODR | RF_DATA);
+            GPIO_BSRR(GPIOB_BASE) = RF_DATA;
         else
-            GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_DATA);
+            GPIO_BRR(GPIOB_BASE) = RF_DATA;
         b = (uint8_t)(b << 1);
         rf_delay(10);
-        GPIOA_ODR = (uint16_t)(GPIOA_ODR | RF_CLK);
+        GPIO_BSRR(GPIOA_BASE) = RF_CLK;
         rf_delay(4);
     }
 }
