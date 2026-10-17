@@ -1873,3 +1873,28 @@ the color-scheme correction; the boot text identified.**
 - Impact: ~3.5k of the original's 160,753 stream events (2%). The CK4
   census remains: the init 74/74, the fill 40,960/40,960, the splash
   27,940/27,940 white-pixel-exact.
+
+**Session 52, part 4 — Round K RESOLVED: the protocol tail commands are
+UNREACHABLE in simulation — their compare strings live beyond the
+distributed image.**
+- The full ISR dispatch (FUN_08023920, 9,680 pseudocode chars) decodes:
+  after $A00/$A01/$A02/$B/$C/$A08, the tail compares DAT_08023F18/F1C/
+  F20/F24/F28/F2C/F30/F34/F38/F3C/F40/F44 (the 5- and 4-char prefixes).
+  All twelve literals point at 0x08044844-0x0804489C — past the
+  distributed file's end (0x08044691 = 263,313 bytes; the strings sit
+  ~0x1B3-0x12CF bytes beyond, in the vendor flash region that the
+  distribution truncates; the same region holds the boot magic
+  DAT_0804594C).
+- CONSEQUENCE: on the simulator those reads return 0 (unmapped), every
+  tail memcmp fails, and the dispatch falls through to the ring reset —
+  EXACTLY what the reconstruction's fall-through does. The tail's
+  branch actions (the buffer2 copies, the flag toggles at pbVar4[10]/
+  [0xb], the app-state write [0x13B]=2, the len-2 and len-7 copy
+  quirks at F3C/F44, and the 0x14-byte scratch buffer at DAT_08023F48)
+  are documented here for the real-hardware equivalence but CANNOT be
+  stimulated on the platform.
+- The non-$ path is confirmed: flags &= ~1, buffer+index reset.
+- STATUS: the recon's protocol.c needs NO change; the CK5 §3.4 item is
+  reclassified from "unknown" to "unreachable on the platform (the
+  vendor flash beyond the distributed image) — behaviorally matched by
+  the fall-through".
