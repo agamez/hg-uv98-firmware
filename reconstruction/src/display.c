@@ -304,6 +304,56 @@ void display_blit_icon_16x16(uint8_t y, uint8_t x, const uint8_t *rec,
     }
 }
 
+/* [0x0801BFB8 class-6 path | RECOVERED session 52 pt10] 12x20 glyph
+ * cell (the big frequency digits): window (x, y, x+11, y+19), 0x2C,
+ * 240 pixels. The 36-byte record: the bytes 0-11 = the columns of the
+ * rows 0-7, 12-23 = the rows 8-15, 24-35 = the rows 16-19 (the bits
+ * 0-3). Row-major emit, no PC2 wrap. */
+void display_blit_glyph_cell_12x20(uint8_t y, uint8_t x, const uint8_t *rec,
+                                   uint16_t fg, uint16_t bg)
+{
+    display_set_window(x, y, (uint16_t)(x + 11u), (uint16_t)(y + 19u));
+    tft_write_cmd(0x2C);
+    for (uint32_t band = 0; band < 2u; band++) {
+        for (uint32_t r = 0; r < 8u; r++) {
+            for (uint32_t c = 0; c < 12u; c++) {
+                if (rec[band * 12u + c] & (1u << r))
+                    tft_write_data(fg);
+                else
+                    tft_write_data(bg);
+            }
+        }
+    }
+    for (uint32_t r = 0; r < 4u; r++) {           /* the rows 16-19 */
+        for (uint32_t c = 0; c < 12u; c++) {
+            if (rec[24u + c] & (1u << r))
+                tft_write_data(fg);
+            else
+                tft_write_data(bg);
+        }
+    }
+}
+
+/* [session 52 pt10 | DATA-DERIVED] 1-bpp bitmap blit: the window
+ * (x, y, x+w-1, y+h-1), 0x2C, then w*h pixels — the bit (x%8) of the
+ * packed row bytes (the MSB = the leftmost pixel of each byte) selects
+ * fg/bg. Used for the RX-bar indicator row. */
+void display_blit_bitmap_1bpp(uint8_t y, uint8_t x, uint8_t w, uint8_t h,
+                              const uint8_t *bits, uint16_t fg, uint16_t bg)
+{
+    uint32_t rowbytes = ((uint32_t)w + 7u) / 8u;
+    display_set_window(x, y, (uint16_t)(x + w - 1u), (uint16_t)(y + h - 1u));
+    tft_write_cmd(0x2C);
+    for (uint32_t r = 0; r < h; r++) {
+        for (uint32_t cc = 0; cc < w; cc++) {
+            if (bits[r * rowbytes + cc / 8u] & (0x80u >> (cc & 7u)))
+                tft_write_data(fg);
+            else
+                tft_write_data(bg);
+        }
+    }
+}
+
 /* [0x0802883A | RECOVERED] the 12-bit serial LED-matrix link:
  * data = PB9, clock = PD0, latch = PD1; delay unit = 100 empty iterations
  * [0x080287E0]. Bit 11 out first (MSB order); param_2 rides bit 8. */

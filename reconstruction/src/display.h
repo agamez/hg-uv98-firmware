@@ -34,5 +34,9 @@ void display_blit_glyph_cell_6x10(uint8_t y, uint8_t x, const uint8_t *rec,
                                   uint16_t fg, uint16_t bg); /* [cl.1]      */
 void display_blit_icon_16x16(uint8_t y, uint8_t x, const uint8_t *rec,
                              uint16_t fg, uint16_t bg);  /* [pt8 icon]  */
+void display_blit_glyph_cell_12x20(uint8_t y, uint8_t x, const uint8_t *rec,
+                                   uint16_t fg, uint16_t bg); /* [cl.6]   */
+void display_blit_bitmap_1bpp(uint8_t y, uint8_t x, uint8_t w, uint8_t h,
+                              const uint8_t *bits, uint16_t fg, uint16_t bg);
 
 #endif /* DISPLAY_H */

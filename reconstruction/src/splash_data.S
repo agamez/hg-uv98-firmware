@@ -31,3 +31,14 @@ ui_ascii8x16_font:
 .global ui_ascii6x10_font
 ui_ascii6x10_font:
     .incbin "data/ascii6x10_font.bin"
+
+/* ASCII 12x20 glyph table — [RECOVERED-DATA, session 52]: the class-6
+ * font at 0x0803F490 (the base DAT_080290E0), 36 bytes per char. The
+ * column-major bands: the bytes 0-11 = the rows 0-7, 12-23 = the rows
+ * 8-15, 24-35 = the rows 16-19 (the bits 0-3). The big frequency
+ * digits. */
+.section .rodata.font6, "a"
+.align 2
+.global ui_ascii12x20_font
+ui_ascii12x20_font:
+    .incbin "data/big12x20_font.bin"

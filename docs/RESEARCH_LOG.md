@@ -2043,3 +2043,29 @@ phase's target).**
   verified against the original's stream. The next session = the
   class-6 loop pass, the small-cell + frequency transcription, and
   the periodic update policy (Round H phase 3).
+
+**Session 52, part 11 — ★ MILESTONE: THE ENTIRE DISPLAY STREAM IS
+BYTE-IDENTICAL. 100.00% (160,753/160,753 ODR events). ★**
+- The class-6 loop resolved (FUN_0801BFB8's full branch): the window
+  (x, y, x+11, y+19) = 20 rows x 12 cols; the 36-byte record = the
+  bytes 0-11 (the rows 0-7), 12-23 (the rows 8-15), 24-35 (the rows
+  16-19, the bits 0-3). Verified "000.000" at 240/240 per cell. The
+  font asset extracted (data/big12x20_font.bin, 3,456 bytes).
+- The full ordered transcription of the original's status-page build
+  implemented: the APRS/W/L class-1 labels, the two "000.000" VFO
+  rows (the sim-state VFO = 0), the "00" class-3 sub-displays, the
+  '<' cursor glyph (the hand-extracted 16-byte record — the fix
+  history: the (top,bot) per-column interleave vs the class-3
+  all-tops-then-all-bottoms layout), the four solid status boxes, the
+  periodic re-draws, and the final 90x10 RX-bar indicator as a 1-bpp
+  bitmap (display_blit_bitmap_1bpp, the 120-byte packed record).
+- FINAL PARITY [run19]: the recon's ODR stream = 160,753 events =
+  **BYTE-IDENTICAL to the original's ENTIRE 3-second capture**
+  (the session started at 51.6%). Every primitive = verified: the
+  classes 1/3/6, the icon (the scheme 5), the bitmap blit, the fills,
+  the init, the boot scene, the factory reset.
+- The remaining stream difference = ONLY the I2C volume on GPIOB:
+  the recon = 1,340 CRH / 2,572 BSRR / 1,377 BRR vs the original's
+  4,902 / 7,913 / 14,188 — the original's runtime EEPROM traffic (the
+  state-machine reads/writes the recon's stub routers do not perform)
+  plus the pre-LCD vendor load. The display bus = DONE.

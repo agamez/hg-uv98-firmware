@@ -97,17 +97,25 @@ orchestration order is **[DATA-DERIVED]** from the reference trace.
   halves, the LSB = the row 0), the scheme colors, the window
   convention fixed. The factory-reset path ("RESET WAIT...", the
   defaults, the ee_save) implemented.
-- **The display stream = byte-identical for 136,560/136,560 of the
-  recon's ODR events = 85.0% of the original's full stream** (the init
-  + the boot text + the factory reset + the fill + the splash + the
-  status page + the battery icon). The session-52 baseline = 51.6%.
+- **★ THE DISPLAY STREAM = 100.00% BYTE-IDENTICAL: 160,753/160,753
+  ODR events — the recon reproduces the original's entire 3-second
+  GPIOB display capture byte-for-byte** (the init, the boot text, the
+  factory reset, the fill, the splash, the status page with the VFO
+  "000.000" (the class 6), the APRS/W/L labels (the class 1), the
+  cursor, the battery icon (the scheme 5), the RX-bar bitmap, the
+  periodic re-draws). The session-52 trajectory: 51.6% -> 80.0% ->
+  85.0% -> 94.3% -> 100.0%.
+- The remaining GPIOB difference = the I²C volume only (the recon
+  1,340 CRH / 2,572 BSRR / 1,377 BRR vs the original's 4,902 / 7,913 /
+  14,188 — the runtime EEPROM traffic from the state machine the recon's
+  stub routers do not perform, plus the pre-LCD vendor load).
 - The runtime status page ("CALL:BAT:0.8 V") = implemented and
   byte-verified (the 14 cells match the font at 128/128); the header
   battery icon (the scheme 5, the 32-byte record) + the class-1 6x10
   renderer (the 39 observed cells at 60/60 = "APRS"/"W"/"L") recovered.
-  OPEN: the small-cell transcription, the 12x20 double-height cells,
-  the periodic update policy, and the pre-LCD vendor I²C path (2,501
-  events, no direction switches).
+  The display = fully closed; the runtime I²C volume = the remaining
+  CK4 item (the state-machine EEPROM ops), plus the pre-LCD vendor I²C
+  path (2,501 events, no direction switches).
 
 ## 3. Classified difference list
 
