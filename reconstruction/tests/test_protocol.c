@@ -66,17 +66,23 @@ static void test_settings_upload(void)
     CHECK(sent[5] == 0xA5 && sent[516] == 0xA5);
     CHECK(sent[517] == '\r' && sent[518] == '\n');
 
-    /* RX side: the exact 0x216 frame is accepted, flag set */
+    /* RX side: the exact 0x216 frame is accepted, flag set.
+     * [session 56 triage] the buffer target corrected to the session-50
+     * matrix-v2 routing: $A01 -> rxBuf2 ONLY (rxBuf = the $A00 working
+     * copy); the earlier rxBuf expectations were the session-20-era
+     * routing, superseded by the 7/7 emulation matrix. */
     static uint8_t frame[0x216];
     memcpy(frame, "$A01,", 5);
     memset(frame + 5, 0x5A, 0x216 - 7);
     frame[0x214] = '\r'; frame[0x215] = '\n';
     proto_flags = 0;
+    memset(rxBuf, 0, sizeof(rxBuf));
     protocol_frame_received(frame, 0x216);
     CHECK(proto_flags & FLAG_FRAME_READY);
     CHECK(rxLen == 0x216);
-    CHECK(memcmp(rxBuf, "$A01,", 5) == 0);
-    CHECK(rxBuf[100] == 0x5A);
+    CHECK(memcmp(rxBuf2, "$A01,", 5) == 0);
+    CHECK(rxBuf2[100] == 0x5A);
+    CHECK(rxBuf[0] == 0);               /* the $A00 working copy untouched */
 
     /* wrong length is REJECTED (the 0x216 check) */
     proto_flags = 0;
@@ -123,20 +129,33 @@ static void test_unknown_ignored(void)
     CHECK((proto_flags & FLAG_FRAME_READY) == 0);
 }
 
-/* Session 20: the UI-side sentence router (0x0800FE58) memcmps exactly
- * 5-byte prefixes ($A00, ...) while the RX-ISR chain matches $A00/$A09
- * at 4 bytes and $A01,/,$A02,/,$A08, at 5 — lock that distinction. */
+/* Session 20 locked the ISR-chain matching at 4 bytes for $A00; the
+ * session-50 matrix-v2 routing (7/7 emulation stimuli + decompiles)
+ * superseded it: the frame router requires the 5-byte "$A00," prefix AND
+ * the 0x216 length gate, $A01/$A02/$A08 match at 5 bytes ($A08 copies
+ * only the prefix), $B/$C at 2, $A09 at a 4-byte prefix gated len>=5.
+ * [session 56 triage: the stale 4-byte $A00 expectations re-baselined.] */
 static void test_sentence_prefix_boundaries(void)
 {
     puts("test_sentence_prefix_boundaries:");
 
-    /* $A00 accepted at exactly 4 bytes (ISR-chain check) ... */
+    /* $A00 requires BOTH the 5-byte "$A00," prefix and len == 0x216 ... */
     proto_flags = 0;
     protocol_frame_received((const uint8_t *)"$A00", 4);
-    CHECK((proto_flags & FLAG_FRAME_READY) != 0);
-    /* ... and with the comma-prefixed 5-byte form seen in the UI router */
+    CHECK((proto_flags & FLAG_FRAME_READY) == 0);
+    /* ... the comma-prefixed 6-byte form is still length-gated out ... */
     proto_flags = 0;
     protocol_frame_received((const uint8_t *)"$A00,x", 6);
+    CHECK((proto_flags & FLAG_FRAME_READY) == 0);
+    /* ... and only the full 0x216 frame trips the ready flag. */
+    proto_flags = 0;
+    {
+        static uint8_t a00[0x216];
+        memcpy(a00, "$A00,", 5);
+        memset(a00 + 5, 0x5A, 0x216 - 7);
+        a00[0x214] = '\r'; a00[0x215] = '\n';
+        protocol_frame_received(a00, 0x216);
+    }
     CHECK((proto_flags & FLAG_FRAME_READY) != 0);
     /* 3-byte fragment never matches */
     proto_flags = 0;

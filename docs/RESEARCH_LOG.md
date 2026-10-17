@@ -2500,3 +2500,24 @@ NEXT for Round N closure: (a) the Round L maintenance (CK5 §3/§4, PLAN.md,
 followup.md §1/§3); the $A01 write-direction acceptance stays OPEN-BLOCKED
 on the state gate (parked-with-evidence, unblocked by Rounds B/C); Round O
 (tone) next after the host-test triage.
+
+### 2026-10-17 — Session 56, part 4: Round P item 1 — the host-test failures
+triaged and fixed (test-only re-baseline; no code change).
+
+- The 4 failures pre-date session 54: a worktree run at 8665549 (session 50
+  pt3) reproduces the SAME 4; at 6a09e0b (the runtime-tested commit) the
+  suite passes. The break = the session-50 routing rewrite itself (matrix
+  v2, 7/7 emulation stimuli) — the tests were never re-run after it.
+- The 4 stale assertions (all session-20-era expectations superseded by the
+  session-50 emulation-evidenced routing):
+  * test_protocol.c:78/79: $A01 was expected in rxBuf (the $A00 working
+    copy); the recovered routing copies $A01 to rxBuf2 ONLY. Re-baselined
+    to rxBuf2 (+ rxBuf-untouched check).
+  * test_protocol.c:136/140: "$A00" at 4 bytes / "$A00,x" at 6 bytes were
+    expected to trip FLAG_FRAME_READY (the old ISR-chain claim); the
+    recovered routing requires the 5-byte "$A00," prefix AND len == 0x216.
+    Re-baselined: both = not-ready, + a new full-0x216 $A00 ready check.
+- The remaining boundary tests ($A0 3-byte, $A02/$A08 4-byte, $A09 4-byte/
+  5-byte, $B/$C 2-byte) already matched the routing — untouched.
+- `make test-host` = all protocol conformance tests passed. The suite is
+  the Rounds B/C safety net again.
