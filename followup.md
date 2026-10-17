@@ -1,5 +1,21 @@
 # followup.md — the HG-UV98 reconstruction: simulation & differential validation
 
+## KICKOFF — the prompt to give the agent (paste verbatim; keep this block current)
+
+```
+Read followup.md in the repo root and execute it from the top.
+§1 = the current state and round map; §3 = THE ACTIVE ROUND with its
+ordered open items; §4 = the working rules (three attempts max per
+item, then park it with evidence and move on — do not loop). Before
+your first change, reproduce §2's two verification recipes and confirm
+160,753/160,753 ODR events = 100.00%. Work item by item: change ->
+rebuild -> run -> compare -> log -> commit. Log every claim in
+docs/RESEARCH_LOG.md (append-only), commit at milestones, push to
+main, never stage prompt.md or prompt.md~. When the active round
+closes (or is parked), update THIS kickoff block and §3 before moving
+to the next round.
+```
+
 You are continuing a completed reverse-engineering project. The analysis phase is
 **finished**; your mission is the simulation/differential phase: run both the
 original binary and the C reconstruction in Renode, drive them identically, diff
@@ -166,8 +182,9 @@ session-53 pt3 banked the raw 104-event burst decode in the log):
    distributed image (the strings region); possibly a permanent harness
    boundary. Do not sink more than one attempt before classifying it.
 
-**When Round M closes:** update CK5 §3.4/§4, close the round in PLAN.md, commit,
-then move to **Round N** (the keyscan/TIM2: TIM2 CC1 can never match on the
+**When Round M closes:** update CK5 §3.4/§4, close the round in PLAN.md,
+refresh the KICKOFF block at the top of this file, commit, then move to
+**Round N** (the keyscan/TIM2: TIM2 CC1 can never match on the
 model — recover the original's mechanism, document the model boundary, wire the
 key-event stimulus so the `$A01` write-direction observation becomes testable),
 then **Round O** (tone FUN_0801A91A on-branch, CTCSS/DTMF dispatch
