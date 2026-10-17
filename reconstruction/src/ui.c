@@ -209,10 +209,19 @@ extern const uint8_t ui_ascii8x16_font[];   /* 95 chars x 16 B @0x080413CC */
 
 /* [0x0801B2E8(0) | RECOVERED session 52] factory reset: the boot text
  * (scheme 4 = black on 0xEFBE, class 3 = the 8x16 table), the default
- * field list (the offsets/values decompiled), and the EEPROM tail:
- * the 0x0FD0 block read with the first-boot conditional write, then
- * the settings save (FUN_0801A6EA). The VFO-ring init touches RAM
- * only. */
+ * field list (the offsets/values decompiled), and the EEPROM tail.
+ * [session 55, from the @ODR#3,545 capture op map]: the reset path
+ * first writes the 32-byte VFO/default block at 0x0800 (one byte per
+ * transaction, 53 events each), THEN the 0x0FD0 block read with the
+ * first-boot conditional write, then the settings save
+ * (FUN_0801A6EA). The VFO-ring init touches RAM only.] */
+static const uint8_t ui_ee_vfo_defaults[32] = {   /* [DATA-DERIVED session 55] */
+    0x00, 0x25, 0x61, 0x13, 0x00, 0x25, 0x61, 0x13,
+    0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00,
+    0x00, 0x25, 0x01, 0x40, 0x00, 0x25, 0x01, 0x40,
+    0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00
+};
+
 static void ui_factory_reset(uint8_t *st)
 {
     static const char msg[13] = "RESET WAIT...";
@@ -234,6 +243,7 @@ static void ui_factory_reset(uint8_t *st)
     st[0x22] = 2;  st[0x23] = 0;  st[0x24] = 1;  st[0x25] = 2;
     st[0x26] = 1;  st[0x2C] = 1;  st[0x39] = 1;
     st[0x09] = 0;  st[0x08] = st[0x09];
+    eeprom_write(0x0800u, 0x20u, ui_ee_vfo_defaults);    /* [session 55] */
     eeprom_read(0x0FD0u, 0x10u, blk);
     if (blk[0] == 0xFFu) {                    /* first boot only        */
         mem_copy(blk, (const void *)0x08042C48u, 0x10);
