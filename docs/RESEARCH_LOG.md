@@ -2759,3 +2759,61 @@ the dB→bar mapping question resolved.
   on the model = requires the mode-scheduler decode (the ctx+0x76
   writers) + the state-machine unblocking — the same root as the $A01
   parking (the boot state never exits); parked with the evidence.
+
+### 2026-10-17 — Session 59 (GOAL phase 1): THE BOOT-STATE ROOT CAUSE SOLVED —
+bit2 = the RX/scan session flag; the model's eternal sessions = the empty-EEPROM
+sql=0 squelch-open defaults; the unlock = the I²C EEPROM slave model.
+
+- **The GDB watchpoint instrument works** (gdb-multiarch from
+  apt-get download, /tmp/opencode/gdb-ma; Renode StartGdbServer + the
+  hardware watchpoints). Findings: the watchpoints = range-overlap;
+  Renode's watchpoint stops slow the emulation (the tick-gap artifacts:
+  the gdb-halted runs fire the timeout paths the natural runs don't —
+  all gdb-run hits must be re-validated naturally).
+- **The byte-2 (0x20005096) writer map** (the static pool scan: 30
+  literals = 0x20005094; the strb-[r,#2] sites = 23; the natural-run
+  hooks): the boot enter = 0x0802490E (bit2 |= 4; then bfi bits4-5 =
+  band+1 → 0x14); the exit = **0x08024A1A** (calls 0x0802FA4(0)-work,
+  applies the band config via 0x08027BC6, clears the band bits at
+  0x08024A70 (0x14→4), the screens, delay(50), clears bit2 at
+  0x08024C16); the re-setter = **0x0801E14C** ([r5+2] |= 4 in the
+  squelch-open RX entry block 0x0801E106-0x801E15E, which calls the
+  exit at 0x0801E136 and sets the sub-state [ctx+0x114] = 30).
+- **THE MEANING OF BIT2 (retracts the session-56 "menu bit" reading):
+  bit2 = "a signal-task session is active" (the scan OR the RX hold).**
+  The task = 0x080247CC (the S-meter context 0x2000469C!): per band it
+  reads the 0x20004F94 record bytes 3/12/13/17, samples the AT1846S
+  (the SPI reads reg 0x24/0x1C via 0x080260A4 — the chip from RAM),
+  accumulates a FLOAT at [ctx+0x137] vs the threshold 6.15f
+  (0x40C66667), and manages the session. The squelch condition =
+  [ctx+0x84] vs [r4+26]*30: met → the RX entry (the exit + the bit2
+  re-set + the sub-state 30). The band bits (4-5) of byte 2 = band+1.
+- **WHY THE MODEL NEVER EXITS: the boot settings come from the bit-bang
+  I²C EEPROM (PB9=SDA, PA11=SCL, 0xA0/0xA1) — the harness has NO slave
+  model, the displaybus pins IDR=0, so EVERY ee_read returns 0x00.**
+  sql = 0 = the squelch permanently open → the RX sessions re-arm
+  eternally → bit2 = 1 essentially always → everything gated behind it
+  (the main-mode keys, the $A01 acceptance, the $A09 consumer, the
+  S-meter scheduler) = correctly gated FOR AN RX-IN-PROGRESS RADIO.
+  Session-56's "firmware re-asserts bit2 ≤10 ms" = the exit→re-arm
+  cycle, not a maintainer. The 6.15-second mystery of the gdb runs =
+  the exit does complete naturally (~8.5-10.8 s: the band clear) but
+  the re-arm swallows the microscopic bit2=0 window.
+- **THE UNLOCK (the phase-1 exit criterion path): model the 24Cxx I²C
+  slave in the harness (the pb_displaybus.py Python peripheral sees
+  PB9/SDA; the SCL = PA11 via the sysbus read from the model; the SDA
+  data-out = the IDR bit 9 — the slave drives it, preserving the ACK=0
+  workaround semantics) with a preloadable EEPROM image whose settings
+  block has sql > 0 and the scan disabled. Then the squelch stays
+  closed, no RX session re-arms, bit2 = 0, and the main mode unlocks
+  NATURALLY on BOTH images. This also delivers the real settings layer
+  (the channels, the names, the band records) for phase 2.**
+- CORRECTION for the session-58 $A09 hooks: 0x080214E4/0x0801E044 were
+  OLD-base addresses (the current = 0x080254E4 / 0x08022044). The
+  "hook-proven no key-path activation" conclusion = INVALID (the hooks
+  never fired because the addresses were wrong). To redo in phase 4
+  with the corrected addresses. (0x0800FFD0 = verified current-base.)
+- New harness scripts: p1-watch-orig.resc, p1-watch-hunt*.sh, 
+  p1-flagdump.resc, p1-fbscan*.resc, p1-exitpath.resc, p1-writemap.resc,
+  p1-exitcallers.resc, p1-scanoff.resc (the intermediate probes kept for
+  the evidence chain).

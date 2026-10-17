@@ -1,0 +1,403 @@
+# ck2-smeter-poke.resc — Round B/C/§9: S-meter sweep, attempt 1 (proof of life).
+# The updater 0x080203D0 is gated: FLAG_BANK+0 bit6 (caller 0x08014DEA) +
+# FLAG_BANK+0 bit7 (one-shot enable) + FLAG_BANK+2 bit2 == 0 (menu gate).
+# Poke all three per 50 ms slice; hook the RSSI read return (0x08020468,
+# r0 = rf_read raw -> >>8 = dB), the ring write 0x801A8DA, the render 0x801AB36.
+using sysbus
+mach create "ck2smeter"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x08020468 "self.Log(LogLevel.Info, 'SMETER_DB raw=0x' + hex(self.GetRegister(0).RawValue))"
+cpu AddHook 0x0801a8da "self.Log(LogLevel.Info, 'SMETER_RING ts=0x' + hex(self.GetRegister(0).RawValue) + ' tbl=0x' + hex(self.GetRegister(1).RawValue))"
+cpu AddHook 0x0801ab36 "self.Log(LogLevel.Info, 'SMETER_RENDER band=' + str(self.GetRegister(0).RawValue) + ' e1=0x' + hex(self.GetRegister(1).RawValue) + ' e2=0x' + hex(self.GetRegister(2).RawValue) + ' e3=0x' + hex(self.GetRegister(3).RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:01.990"
+cpu AddHook 0x80100aa "self.Log(LogLevel.Info, 'W2 80100aa v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x80108ee "self.Log(LogLevel.Info, 'W2 80108ee v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x8010d54 "self.Log(LogLevel.Info, 'W2 8010d54 v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x801118c "self.Log(LogLevel.Info, 'W2 801118c v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x8015a04 "self.Log(LogLevel.Info, 'W2 8015a04 v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x8015a3c "self.Log(LogLevel.Info, 'W2 8015a3c v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x8017436 "self.Log(LogLevel.Info, 'W2 8017436 v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x8017522 "self.Log(LogLevel.Info, 'W2 8017522 v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x80177ae "self.Log(LogLevel.Info, 'W2 80177ae v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x80178ea "self.Log(LogLevel.Info, 'W2 80178ea v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x8018fb8 "self.Log(LogLevel.Info, 'W2 8018fb8 v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x8018fe0 "self.Log(LogLevel.Info, 'W2 8018fe0 v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x801917c "self.Log(LogLevel.Info, 'W2 801917c v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x80191a4 "self.Log(LogLevel.Info, 'W2 80191a4 v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x801996e "self.Log(LogLevel.Info, 'W2 801996e v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x801a272 "self.Log(LogLevel.Info, 'W2 801a272 v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x801ab98 "self.Log(LogLevel.Info, 'W2 801ab98 v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x801ea70 "self.Log(LogLevel.Info, 'W2 801ea70 v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x801ec88 "self.Log(LogLevel.Info, 'W2 801ec88 v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x8022a4a "self.Log(LogLevel.Info, 'W2 8022a4a v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x8022a6c "self.Log(LogLevel.Info, 'W2 8022a6c v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x8024a70 "self.Log(LogLevel.Info, 'W2 8024a70 v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x80254e2 "self.Log(LogLevel.Info, 'W2 80254e2 v=0x' + hex(self.GetRegister(0).RawValue) + '/' + hex(self.GetRegister(1).RawValue) + '/' + hex(self.GetRegister(2).RawValue))"
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_000.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_001.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_002.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_003.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_004.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_005.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_006.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_007.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_008.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_009.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_010.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_011.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_012.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_013.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_014.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_015.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_016.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_017.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_018.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_019.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_020.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_021.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_022.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_023.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_024.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_025.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_026.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_027.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_028.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_029.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_030.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_031.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_032.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_033.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_034.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_035.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_036.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_037.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_038.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_039.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_040.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_041.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_042.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_043.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_044.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_045.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_046.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_047.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_048.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_049.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_050.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_051.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_052.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_053.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_054.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_055.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_056.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_057.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_058.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_059.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_060.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_061.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_062.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_063.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_064.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_065.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_066.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_067.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_068.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_069.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_070.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_071.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_072.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_073.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_074.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_075.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_076.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_077.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_078.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_079.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_080.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_081.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_082.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_083.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_084.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_085.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_086.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_087.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_088.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_089.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_090.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_091.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_092.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_093.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_094.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_095.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_096.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_097.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_098.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_099.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_100.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_101.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_102.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_103.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_104.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_105.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_106.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_107.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_108.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_109.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_110.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_111.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_112.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_113.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_114.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_115.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_116.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_117.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_118.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+emulation RunFor "00:00:00.250"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/fbscanF_119.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005096, 1))); f.close()'
+
+quit

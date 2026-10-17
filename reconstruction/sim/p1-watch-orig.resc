@@ -1,0 +1,13 @@
+# p1-watch-orig.resc — Phase 1: the flag-bank writer hunt via GDB watchpoints.
+# Original image, GDB server on 3334; the external gdb-multiarch sets the
+# hardware watchpoints on 0x20005094 (byte 0) and 0x20005096 (byte 2).
+using sysbus
+mach create "watchorig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+machine StartGdbServer 3334
+echo "MARK gdb server up"
