@@ -17,8 +17,11 @@ closes (or is parked), update THIS kickoff block and §3 before moving
 to the next round. ACTIVE: Round B/C item 2 remains parked on the
 state gate; the item-3 cross-checks continue opportunistically. The
 $A09 item (1) is CLOSED with a parked consumer sub-item; the routing
-was CORRECTED by the live marker test ($A00 -> rxBuf only). Rounds N
-and O are CLOSED; Round P item 1 is DONE.
+was CORRECTED by the live marker test ($A00 -> rxBuf only). The S-meter
+item is RESOLVED (the integrator + the step table; the live sweep
+parked on the dormant mode scheduler). The remaining §9 item = the
+0x20004E40 radio-state region. Rounds N and O are CLOSED; Round P
+item 1 is DONE.
 ```
 
 You are continuing a completed reverse-engineering project. The analysis phase is
@@ -329,11 +332,19 @@ analysis/                    # gitignored dumps/traces
 
 ## 9. Open items that simulation may resolve (secondary)
 
-- The `$A09` 4-byte-prefix routing mechanics (the tail commands themselves are
-  resolved-unreachable).
-- Cross-check the recovered `.data`-structure guesses against live behavior.
-- The S-meter bar thresholds and the `'M'/'N'` blinker source (a simulated RF
-  level sweep).
+- ~~The `$A09` 4-byte-prefix routing mechanics~~ — CLOSED (the session-58
+  routing + the semantics; the consumer sub-item parked).
+- ~~Cross-check the recovered `.data`-structure guesses against live
+  behavior~~ — the first datum DONE (the session-58 pt2 marker experiment);
+  continue opportunistically.
+- ~~The S-meter bar thresholds and the `'M'/'N'` blinker source~~ — RESOLVED
+  (the session-58 pt3): the bar pipeline = the charge/decay integrator
+  0x080201AA with the step table 0x0801F1C4 {500, 625, 1000, 1250, 2500,
+  5000, 10000} (the §9 "thresholds"), the per-band clamps [0, 99500], the
+  ±100000 full-scale jumps, the ring = the BCD bar-value history (the
+  "timestamp" reading retracted). The 'M'/'N' = the session-28 closure.
+  PARKED: a live RF-level sweep on the model (the mode scheduler
+  [ctx+0x76] = dormant — the same boot-state root as the $A01 parking).
 - The `0x20004E40` radio-state region vs the lazy per-field settings reads
   (CK5 §3.2/§3.3).
 
