@@ -2521,3 +2521,26 @@ triaged and fixed (test-only re-baseline; no code change).
   5-byte, $B/$C 2-byte) already matched the routing — untouched.
 - `make test-host` = all protocol conformance tests passed. The suite is
   the Rounds B/C safety net again.
+
+### 2026-10-17 — Session 56, part 5: Round O opened (the tone path — first
+reconnaissance only; no code changes).
+
+- The tone wrapper FUN_0801A91A (REA = lcd.asm 0x801a91a; a large
+  stmdb {r0,r4-r9,sl,fp,lr} function): r0 = a type arg (==1 = the beep
+  branch), r1/r2 = args; it divides a state word (+0x109) by a literal
+  (@0x801b2e4), subtracts the halfword @+0xEC, divides by the byte
+  @+0xEF, indexes TWO tables via literals @0x801b59c/@0x801b5a0
+  (+16 offsets), and tests a 30-stride record bit1 (@0x801b5a4 + r2*30
+  +12) — the tone-enable gate candidate. On the off-branch it calls
+  0x08026C46(type, 0) (the tone-control helper: writes 0x15, 0x1100 to
+  the struct at the 0x80276D0-literal — ADJACENT to the already-
+  decompiled CTCSS/DTMF dispatch 0x080276D4).
+- Callers of 0x801a91a: 0x8016b5c, 0x8016b86, 0x8016bbe (a cluster
+  inside/next to the BCD frequency-parser region — key-entry beeps?)
+  and 0x801abda.
+- NEXT for Round O: (1) decompile the wrapper fully (the on-branch: the
+  actual tone start — expect the AT1846S reg writes / a GPIO tone line);
+  (2) resolve the enable-gate record (the 30-stride table + bit1); (3)
+  trace the four callers' args; (4) implement + compare (the tone has no
+  GPIOB presence — the observable = the AT1846S SPI bus (CK3 harness)
+  and/or the RAM state; scope the comparison channel first).
