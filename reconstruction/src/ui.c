@@ -252,15 +252,17 @@ static void ui_factory_reset(uint8_t *st)
     eeprom_write(0x0A00u, 0x4Du, st);         /* FUN_0801A6EA the save  */
 }
 
+uint8_t ui_ee_settings[0x4D];   /* the settings image (file scope: the
+                                 * scan-time save writes it too) [s55] */
+
 void ui_boot_scene(void)
 {
-    static uint8_t ee_settings[0x4D];
     static uint8_t ee_buf[16];
 
-    eeprom_read(0x0A00u, 0x4Du, ee_settings);
-    if (mem_cmp(&ee_settings[0x44], (const void *)0x0804594Cu, 4) != 0)
-        ui_factory_reset(ee_settings);
-    display_led_write((uint16_t)(ee_settings[0x19] * 0x10u + 0x5Fu), 0u);
+    eeprom_read(0x0A00u, 0x4Du, ui_ee_settings);
+    if (mem_cmp(&ui_ee_settings[0x44], (const void *)0x0804594Cu, 4) != 0)
+        ui_factory_reset(ui_ee_settings);
+    display_led_write((uint16_t)(ui_ee_settings[0x19] * 0x10u + 0x5Fu), 0u);
     display_fill_rect(0u, 0u, 0xA0u, 0x80u, 0xEFBEu);
     display_blit_image(0u, 0u, 0x80u, 0xA0u, ui_splash_image, 0xA000u);
     {
@@ -276,14 +278,10 @@ void ui_boot_scene(void)
             for (i = 0; i < 7000u; i++)
                 ;
     }
-    eeprom_read(0x0FCDu, 2u, ee_buf);
-    eeprom_read(0x0FCFu, 1u, ee_buf);
-    eeprom_read(0x0FB0u, 16u, ee_buf);
-    eeprom_read(0x0F90u, 16u, ee_buf);
-    eeprom_read(0x1FCDu, 2u, ee_buf);
-    eeprom_read(0x1FCFu, 1u, ee_buf);
-    eeprom_read(0x1FB0u, 16u, ee_buf);
-    eeprom_read(0x1F90u, 16u, ee_buf);
+    /* [session 55] the 8 VFO/config reads MOVED to ui_screen0_build's
+     * scan tail: the original's capture shows them INSIDE the scan
+     * burst (ops 208-215 @ODR#89,225), not at the end of the boot
+     * scene as previously placed. */
 }
 
 /* ---- main screen build (status page) ---------------------------------------
@@ -341,16 +339,35 @@ static void ui_screen0_build(void)
         display_blit_glyph_cell(0x58u, (uint8_t)(0x2Au + i * 8u),
                                 &ui_ascii8x16_font[(uint32_t)(uint8_t)line2[i] * 16u - 0x200u],
                                 0x0000u, 0xEFBEu);
-    /* [0x0801FDDC | RECOVERED session 53] channel-memory scan: 128
-     * two-byte EEPROM reads at 0x02 + 0x10*k, each validated against
-     * the VFO min/max ranges (the RAM-side validation is not
-     * bus-observable). The original's stream shows this as a single
-     * 12,987-event I2C burst between the status text grid and the
-     * content fill. */
+    /* [0x0801FDDC | RECOVERED session 53; session 55 op-map refinement]
+     * The original's scan burst (@ODR#89,225, 12,987 events) =
+     * 1. three 16-byte block reads: 0x0FD0, 0x0800, 0x0810 (the
+     *    validation-range / VFO blocks),
+     * 2. the settings save: 77 one-byte transactions @0x0A00..0x0A4C
+     *    (eeprom_write(0x0A00, 0x4D) — the data = the boot settings,
+     *    unchanged by the sim-state scan),
+     * 3. the 128 two-byte channel reads at 0x02 + 0x10*k,
+     * 4. the 8 VFO/config reads (0x0FCD(2), 0x0FCF(1), 0x0FB0(16),
+     *    0x0F90(16), 0x1FCD(2), 0x1FCF(1), 0x1FB0(16), 0x1F90(16)) —
+     *    moved here from the boot scene (session 55). */
     {
+        uint8_t blk[16];
         uint8_t scanbuf[2];
+
+        eeprom_read(0x0FD0u, 0x10u, blk);
+        eeprom_read(0x0800u, 0x10u, blk);
+        eeprom_read(0x0810u, 0x10u, blk);
+        eeprom_write(0x0A00u, 0x4Du, ui_ee_settings);
         for (uint32_t ch = 1u; ch < 0x81u; ch++)
             eeprom_read((uint16_t)(ch * 0x10u - 0xEu), 2u, scanbuf);
+        eeprom_read(0x0FCDu, 2u, blk);
+        eeprom_read(0x0FCFu, 1u, blk);
+        eeprom_read(0x0FB0u, 0x10u, blk);
+        eeprom_read(0x0F90u, 0x10u, blk);
+        eeprom_read(0x1FCDu, 2u, blk);
+        eeprom_read(0x1FCFu, 1u, blk);
+        eeprom_read(0x1FB0u, 0x10u, blk);
+        eeprom_read(0x1F90u, 0x10u, blk);
     }
     display_fill_rect(18u, 1u, 158u, 92u, 0xEFBEu);
     display_fill_rect(63u, 0u, 160u, 1u, 0x0000u);
