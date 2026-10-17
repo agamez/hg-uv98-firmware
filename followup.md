@@ -14,8 +14,10 @@ rebuild -> run -> compare -> log -> commit. Log every claim in
 docs/RESEARCH_LOG.md (append-only), commit at milestones, push to
 main, never stage prompt.md or prompt.md~. When the active round
 closes (or is parked), update THIS kickoff block and §3 before moving
-to the next round. ACTIVE: Round P (host-test triage) then Round O
-(tone); Round N is CLOSED with a parked sub-item (see §3).
+to the next round. ACTIVE: Round O (tone; opened session 56 pt5 —
+see the log for the reconnaissance); Round P item 1 (host tests) is
+DONE, all conformance tests pass. Round N is CLOSED with a parked
+sub-item (see §3).
 ```
 
 You are continuing a completed reverse-engineering project. The analysis phase is
@@ -75,8 +77,9 @@ G ✅ (boot call graph) | H ✅✅ (display 100%) | E ✅ (drivers) | F ✅ (rep
 | **N ✅ CLOSED session 56 (keyscan = 3 ADC2 ladders; the TIM2 boundary
 re-diagnosed = CCR1 model reset; the stimulus works on both images; the $A01
 acceptance parked-blocked on the app-state gate — Rounds B/C)** |
-**P — ACTIVE (the pre-existing host-test failures: 4, stash-proven)** |
-O (tone) |
+| **P ✅ item 1 CLOSED session 56 (the 4 host-test failures re-baselined to
+the session-50 routing, all pass)** | **O — ACTIVE (tone; reconnaissance
+logged session 56 pt5)** |
 L (report maintenance, continuous) | B/C (protocol broadening — now ALSO
 unblocked on the state gate: what clears FLAG_BANK+2 bit2 naturally).
 
@@ -154,79 +157,46 @@ a reboot with:
 (lcd.bin = the distributed original; REA MCP works too — reopen the session per
 burst: `open_binary` raw-binary, entry 0x08004000 — `batch_decompile` needs it).
 
-## 3. Round P — the host-test regression (THE active work), then Round O
+## 3. Round O — the tone path (THE active work)
 
-Round N CLOSED in session 56 (the keyscan mechanism = 3 ADC2 resistor
-ladders — NOT TIM2/EXTI/an IDR scan; the TIM2 chain = a PC7/PC8 accessory
-sampler dead on the model because the Renode STM32_Timer resets
-CCR1=0xFFFF while the vendor never writes CCR1/CCMR1/CCER; the ADC2_DR
-runtime-tag stimulus decodes keys on BOTH images into identical RAM key
-clusters; the recon keyscan chain implemented [RECOVERED]). PARKED
-sub-item: the original boots with FLAG_BANK+2 bit2 = 1 (firmware-
-maintained, re-asserted ≤10 ms), which swallows every non-side key —
-the `$A01` write-direction acceptance unblocks via Rounds B/C (what
-clears that bit naturally). Full evidence: the research log session 56
-pt1/pt2. Note the session-55-pt2 "PA7/PA8" ground truth was corrected:
-the sampler port = 0x40011000 = GPIOC (PC7/PC8).
+Round P item 1 CLOSED in session 56 pt4: the 4 host-test failures were
+session-20-era stale expectations (worktree-proven pre-existing at the
+session-50 state), re-baselined to the session-50 matrix-v2 routing —
+all protocol conformance tests pass; no code change.
 
-**Round P items, in order:**
+**Round O items, in order** (the reconnaissance is logged in the
+session-56 pt5 entry — start there, do not re-derive):
 
-1. **Triage the 4 host-test failures** (stash-proven pre-existing on the
-   session-55 state): test_protocol.c:78/79 (the `$A01` settings-upload
-   frame memcmp + rxBuf[100]) and :136/140 (FLAG_FRAME_READY, the
-   sentence-prefix boundaries). Find the committing session
-   (git log -p reconstruction/src/protocol.c), fix the regression or
-   re-baseline the test if the behavior change was intended+logged.
-2. **Round O (tone)** — FUN_0801A91A on-branch, the CTCSS/DTMF dispatch
-   0x080276D4/0x08027474 (already decompiled); trace the enable
-   condition, reproduce in the recon, compare.
-3. **Round L maintenance** — CK5 §3/§4 + PLAN.md + this §3 refresh at
-   the closure.
+1. **Decompile the tone wrapper FUN_0801A91A fully** (REA = lcd.asm
+   0x801a91a): the r0==1 beep branch, the two +16-offset tables
+   (literals @0x801b59c/@0x801b5a0), the 30-stride record bit1 enable
+   gate (@0x801b5a4 + r2*30 + 12), the state words at +0x109/+0xEC/+0xEF
+   of the struct at literal 0x801b594.
+2. **Resolve the enable condition** and the tone-control helper
+   0x08026C46 (writes 0x15/0x1100 to the struct at the 0x80276D0
+   literal, adjacent to the already-decompiled CTCSS/DTMF dispatch
+   0x080276D4/0x08027474).
+3. **Trace the four callers** (0x8016b5c/0x8016b86/0x8016bbe — the
+   cluster near the BCD frequency parser — and 0x801abda) for the args.
+4. **Implement + compare**: scope the comparison channel first — the
+   tone has no GPIOB presence; the observables = the AT1846S SPI bus
+   (the CK3 harness) and/or the RAM tone-state.
+5. **Round L maintenance** at the closure.
 
-Ground truth recovered in session 56 (do NOT re-derive; REA addrs =
-lcd.asm addrs, binary loaded @0x08004000):
-- ALL IRQ vectors = trampolines `movs r0,#n; bl 0x0802B1A6` — the RTOS
-  dispatcher calls RUNTIME-registered callbacks `ram_table[n]` (the
-  table pointer literal @0x0802B46C; the registration helper =
-  0x0802AF30(n, fn), the NVIC enable = 0x0802AF1C(n)).
-- TIM2 init = 0x0802D528: PSC=0x47, ARR=0x7D (shadow byte 0x20005154),
-  DIER |= 2 (CC1IE), NVIC {28,1,0,1}, handler = 0x0802D5B4, CEN toggle.
-  **NO CCR1/CCMR1/CCER writes anywhere in the image** (no pool literals
-  0x40000018/20/34). Live model state: CR1=1 CEN, DIER=2, SR=1 (UIF
-  only — CC1IF never), CCR1=0xFFFF = the Renode reset default.
-- Work fn 0x0802D4A6 = the **PC7/PC8** sampler (port literal 0x40011000
-  = GPIOC — the session-55 "GPIOA" note was wrong): IDR-test helper
-  0x0802375E(port, mask) = (IDR & mask)?1:0; bit 0x100 (PC8) vs the
-  cache 0x20005163; on change: 0x20005165 = 1 and 0x20005164 = PC7^PC8.
-- The keypad = the key decoder 0x080281A6 (polled by key_get_code
-  0x080282FC; the UI key task = 0x08019DCC ~167 Hz; the second decoder
-  caller = the boot hold-loop 0x08023334): three ladders — ch14/group A
-  (table 0x20001684, window 662..3253, flags 0x20005140/0x20005160,
-  codes {10,11,12,13,1,2,3,14}), ch15/group B (0x200016A4, same window,
-  0x20005142/0x20005161, codes {4,5,6,0,7,8,9,15}), ch12/group C
-  (0x200016C4, window 672..1751, 0x20005144/0x20005162, codes
-  {18,19,20}); entry = {u16 upper @+0, u16 lower @+2}, match =
-  lower<adc<upper; adc_read = 0x080296CA (mutex 0x200050D4, EOC spin on
-  SR&2 via 0x0802C388, 4x u16 DR reads 0x0802C37A = *(0x40012800+0x4C),
-  averaged). The keypad-lock gate = bit0 of 0x20009458.
-- The battery quantizer SHARES ADC2: 0x08022618 adc_read(7), thresholds
-  3429/3357/3155/2851 -> 4/3/2/1/0 bars. Injection constraint: a key
-  value < 2851 leaves the battery path unchanged.
-- The UI task dispatch: keycode byte 0x2000515E (every pass); the gates
-  FLAG_BANK(=0x20005094)+2 bit7 (inhibit) / bit2 (state); the main-mode
-  branch = 0x8019fea (0x2000515F copy + the 40-poll long-press counters
-  at 0x200046BD == 40); the state branch handles only 18/19/20.
-- The stimulus = `sysbus Tag <0x4001284C 0x4> "ADC2_DR" <value>` at
-  runtime (note `<addr size>` with a SPACE); scripts
-  reconstruction/sim/ck4-key-{orig,recon}*.resc; the differential =
-  the mid-hold key-cluster dumps (orig_keydump_hold.bin vs
-  recon_keydump_hold.bin — the keyscan-owned bytes match).
+Ground truth for the whole session-56 state (do NOT re-derive): see the
+session-56 pt1/pt2/pt4/pt5 log entries — the keyscan = 3 ADC2 ladders
+(ch14/15/12, tables 0x20001684/6A4/6C4), the TIM2 boundary (CCR1=0xFFFF
+model reset; the sampler = PC7/PC8 via GPIOC 0x40011000), the ADC2_DR
+tag stimulus (`sysbus Tag <0x4001284C 0x4> "ADC2_DR" <value>`, scripts
+ck4-key-{orig,recon}*.resc), the state gate FLAG_BANK+2 bit2 = 0x14 from
+boot (firmware-maintained ≤10 ms — parked, unblocks via B/C), and the
+battery-share constraint (key values < 2851).
 
-**When Round P closes:** update CK5 §3/§4, close the round in PLAN.md,
-refresh the KICKOFF block at the top of this file, commit, then move
-to **Round O** (tone FUN_0801A91A on-branch, CTCSS/DTMF dispatch
-0x080276D4/0x08027474), with **Round L** maintenance after every
-closure.
+**When Round O closes:** update CK5 §3/§4, close the round in PLAN.md,
+refresh the KICKOFF block at the top of this file, commit, then the
+next candidates are **Rounds B/C** (the protocol broadening — now ALSO
+waiting on what clears FLAG_BANK+2 bit2 naturally) with **Round L**
+maintenance after every closure.
 
 ## 4. Working rules (added session 54 — anti-loop)
 
