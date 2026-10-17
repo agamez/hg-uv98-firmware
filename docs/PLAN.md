@@ -165,6 +165,29 @@ commands ($A10/$A11/$A30/$A31/$D00/$F00/$A50/$A51/$E0x/$F0x + the GB2312
 app-text set). Disassemble the dispatch tail from the missed region,
 extend protocol.c, and extend the matrix to the tail commands.
 
+## Round M — runtime I²C volume (the last CK4 item) — session 53
+The recon's display stream = 100% but the GPIOB I²C volume differs:
+the recon 1,340 CRH / 2,572 BSRR / 1,377 BRR vs the original 4,902 /
+7,913 / 14,188. The gap = the original's runtime EEPROM ops (the
+state-machine reads/writes the stub routers skip) + the pre-LCD vendor
+load. Plan: (1) segment the original's full-event stream into the I²C
+bursts (the CRH direction-switch pairs), count + locate them relative
+to the display passes; (2) decompile the router cluster
+(0x0800FE58/0x08010302/0x08015DCC + 0x0801FDDC) for the EEPROM ops;
+(3) implement the ops in the recon's routers; (4) re-run, diff the I²C
+volume and positions.
+
+## Round N — keyscan path (TIM2) — after M
+TIM2 CC1 can never match on the model (open since ~session 40).
+Recover the original's keyscan mechanism (the input capture? the EXTI?
+the polled IDR?), document the model boundary, wire the key-event
+stimulus path so the $A01 write-direction observation becomes testable.
+
+## Round O — tone path — after N
+FUN_0801a91a (the tone wrapper): the tone on-branch, the CTCSS/DTMF
+dispatch (0x080276D4, 0x08027474 already decompiled). Trace the enable
+condition, reproduce.
+
 ## Round L — CK5 report maintenance — continuous
 Update docs/CK5_REPORT.md as each round closes: reclassify the
 differences, refresh the parity numbers, and keep the §7 workaround
