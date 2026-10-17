@@ -1,0 +1,39 @@
+# p1-a01-test.resc — Phase 1: the $A01 write-direction acceptance test.
+# Boot (first-boot defaults via the EE slave), then at ~4 s inject the $A01
+# settings-write frame at BOTH lengths (519 B per the vendor source, 534 B per
+# the recon's 0x216 gate) and dump the flag bank + the EE image afterwards.
+using sysbus
+mach create "p1a01"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+showAnalyzer sysbus.usart2
+cpu AddHook 0x08023920 "self.Log(LogLevel.Info, 'ISR_ENTRY')"
+cpu AddHook 0x08023974 "self.Log(LogLevel.Info, 'ISR_DOLLARCHK')"
+cpu AddHook 0x08023994 "self.Log(LogLevel.Info, 'ISR_FLAG9_SET')"
+cpu AddHook 0x08023a0e "self.Log(LogLevel.Info, 'ISR_A01_MATCH')"
+cpu AddHook 0x8023a20 "self.Log(LogLevel.Info, 'ISR_A01_COPY')"
+
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:00.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; [u.WriteChar(ord(c)) for c in chr(36)+'A00,']"
+echo "MARK probe-1s injected"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/cr1_1s.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x40004400, 0x18))); f.close()'
+
+emulation RunFor "00:00:00.500"
+emulation RunFor "00:00:02.500"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; s = '0'*14 + ',' + chr(0xAB) + chr(0)*4 + chr(5) + chr(6) + chr(0)*505; frame = chr(36) + 'A01,' + s + chr(13) + chr(10); assert len(frame) == 534, len(frame); [u.WriteChar(ord(c)) for c in frame]"
+echo "MARK a01-534-id injected"
+emulation RunFor "00:00:01.000"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; s = chr(0xCD) + chr(0)*511; frame = chr(36) + 'A01,' + s + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+echo "MARK a01-534 injected"
+emulation RunFor "00:00:01.000"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/a01_flagbank.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/a01_rxbuf.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20002F74, 0x240))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/cr1_4s.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x40004400, 0x18))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/irqtable.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20000000 + 0, 0x400))); f.close()'
+quit

@@ -2865,3 +2865,43 @@ display-stream parity holds through the entire new flow on both images.
   mode vs my 2-byte model, or the vendor's save = conditional); the sane
   defaults now come from the VENDOR's own factory-default programming,
   not harness magic.
+
+### 2026-10-17 — Session 59 pt3 (GOAL phase 1 close): the main mode STABLE on
+both images; the UART RX-on-demand discovery; the $A01 ISR decode (the length
+gate = WRONG in the recon).
+
+- **bit2 = 0 STABLE 2.25 s -> 50 s on the ORIGINAL with the EE slave**
+  (p1-fbscan-ee.resc): the vendor's own factory defaults (loaded from the
+  modeled EEPROM via the first-boot detection of 0xFF) produce a sane
+  squelch/scan state - NO eternal RX sessions, NO re-arm cycle. The recon
+  = bit2 = 0 too (p1-flagdump-ee-recon.resc). **The phase-1 exit criterion
+  is MET: the state gate clears naturally on both images and the keys act
+  (+211,725 display events, session 59 pt2).**
+- **The ISR decode (the UART frame assembler 0x08023920, current base —
+  the recon's uart.c comment 0x0801F920 = the old base +0x4000):**
+  the per-byte accumulate into the frame buffer 0x2000335C ([0x8023EE0]);
+  the \r\n check; the frame[0]=='$' check; FLAG_BANK+9 bit0 = set (the
+  frame-ready, my earlier guess = the right address); then the prefix
+  dispatch: "$A00," (0x0804481C) = the 534-length-gated copy to
+  0x20003A84 (the buffer1); **"$A01," (0x08044824) = the copy to
+  0x20002F74 (the buffer2) WITH NO LENGTH GATE** (the memcpy of the
+  accumulated idx bytes, unconditional); "$A02," (0x0804482C) = the copy
+  to 0x20004B94 (the buffer3!); the 2-byte prefixes ('$B'/'$C' at
+  0x8023D4C/D50) = the copies to 0x20002F74.
+  **THE RECON'S ROUTING CORRECTION #2: the $A01 branch = drop the
+  0x216 length gate (it belongs ONLY to $A00). The $A02 buffer =
+  0x20004B94 (the recon = the buffer3 = to verify).**
+- **THE UART RX-ON-DISCOVERY: the $A01 injections at 1 s and 4 s were
+  DROPPED by the Renode USART ("Received a character, but the receiver
+  is not enabled") — the CR1.RE = 0 in the first-boot flow, while the
+  CK2 peer handshake runs (the old boot flow) had ZERO drop warnings.**
+  The vendor enables the receiver on-demand around its own $A00
+  handshake (the TX-first protocol: the radio sends $A00, then the
+  response window). THE CORRECT $A01 TEST = the peer flow: the radio's
+  $A00 first, the peer responds, THEN $A01 in the response window.
+  The earlier-session $A00 injections worked because they landed in the
+  boot handshake window. The receiver-enabling site = the next decode
+  target (the CR1 |= 0x4 writer).
+- The EE image = still 0 non-FF after the first-boot: the vendor's
+  ee_save write path = the phase-2 audit (the reads work; the page-write
+  mode/conditional save = to decode).
