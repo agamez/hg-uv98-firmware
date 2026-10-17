@@ -1983,3 +1983,22 @@ original's ODR stream byte-identical.**
   routers draw nothing); the original's remaining 32,218 = the
   small-font elements (the class-0 path), the later cells, and the
   periodic update policy = the UI state machine, OPEN.
+
+**Session 52, part 8 — the boundary mapped.**
+- The recon's stream ends exactly at the original's ODR #128,535 =
+  the END of the header-text fill (the window 25). The original's
+  next elements: a 16x16 glyph cell in the header (the cols 108-115,
+  the rows 1-16 — a 64/128 font match = an ICON, not an ASCII char),
+  more 16x16 fills (the efbe/0000 alternating at the header/bottom
+  rows), four SOLID-black 16x16 cells at the bottom row (the cols
+  6-21/22-37/125-140/141-156 — the status-icon boxes), then the 6x10
+  small-font cells (the class-0 path, the mixed colors).
+- The class-0 small font: the renderer loops = 7 rows x 5 cols (the
+  5x7) from a 10-byte RAM buffer @0x200050A4 filled by FUN_0802BEC8
+  (the fetch — the SPI2 per the model returns 0xFF); the observed
+  cells = 6x10 = the format needs the follow-up (the 10-byte record
+  = the 2 halves again?).
+- The bank state: the 80.0% ODR parity; the remaining = the icon
+  glyphs, the class-0 small font, the bottom status boxes, and the
+  periodic update policy — all state-machine driven, the next
+  session's Round H phase 3.

@@ -116,7 +116,14 @@ call (0x802d200, 0x802bd88, 0x802b3cc, 0x802aac2, 0x8023798, 0x802d5d4,
 main.c/hw_init with the recovered calls; re-verify the CRH/ODR stream
 phases stay byte-identical.
 
-## Round H — UI scene renderer (the CK4 app-layer gap) — session 52+
+## Round H — UI scene renderer — ✅ BOOT + STATUS PAGE CLOSED (session 52)
+The boot display = 100% byte-identical (85,487 ODR: the init, the 13
+"RESET WAIT..." cells, the fill, the splash); the status-page build
+("CALL:BAT:0.8 V" + the fills/lines/borders) pushes the parity to 80.0%
+of the original's full stream (128,535/160,753). The font = the class-3
+table @0x080413CC, the column-major (RETRACTED: not computed). REMAINING
+(phase 3): the header icon glyphs, the class-0 6x10 small font, the
+bottom status boxes, the periodic update policy.
 The original redraws ~135 windows/3 s (~22 ms cadence; the fill color
 0xBEEF dominates, 0xFFFF white second). Recover the draw chain: who
 calls the window setter FUN_0801b9c8 and the fill FUN_0801bd3c (the
@@ -139,7 +146,13 @@ on-branch: the RF-adjacent tone generation, the CTCSS/DTMF dispatch
 (0x080276D4, 0x08027474 already decompiled). Trace the tone enable
 condition and reproduce.
 
-## Round K — the protocol tail (the missed region) — after J
+## Round K — the protocol tail — ✅ RESOLVED (session 52 pt4)
+The twelve tail compare strings live at 0x08044844+ = BEYOND the
+distributed image (the vendor flash the distribution truncates). On the
+simulator every tail memcmp fails and the dispatch falls through to the
+ring reset — exactly the recon's behavior. No code change needed.
+
+## Round K-old — the protocol tail (the missed region) — after J
 The ISR's tail table: $A09 (the 4-byte prefix) routing + the stripped
 commands ($A10/$A11/$A30/$A31/$D00/$F00/$A50/$A51/$E0x/$F0x + the GB2312
 app-text set). Disassemble the dispatch tail from the missed region,
