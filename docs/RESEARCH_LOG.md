@@ -2652,3 +2652,38 @@ parked-with-evidence.
   produced 0-byte files). The working pattern = `f = open(p,"wb");
   f.write(bytes(...)); f.close()` (verified, dumptest3.resc: 32 B).
   All the harness dump lines now use the closed-file pattern.
+
+### 2026-10-17 — Session 58, part 2: Round B/C item 3 — the settings-frame
+cross-check: the rxBuf address LIVE-CONFIRMED, the routing CORRECTED (the
+$A00 = rxBuf only), the two-instance settings model established.
+
+- **The marker experiment** (ck2-set-scan.resc: the $A00 handshake with the
+  settings frame containing 0xAB@settings[0], 0x01@[0x21]=pf1_short=SCAN,
+  0x02@[0x23]=pf2_short=TORCH, then a full 64 KB SRAM scan):
+  * ORIGINAL: exactly ONE frame copy at **0x20003A84** — the recon's
+    documented rxBuf address LIVE-CONFIRMED (the settings land at
+    0x20003A98 = rxBuf+0x14, i.e. the frame's settings block sits 1:1 in
+    the parse surface). rxBuf2 (0x20002F74) = ZERO — the original does
+    NOT copy the $A00 frame to the archive buffer on receipt.
+  * RECON (pre-fix): THREE copies (rxBuf 0x20001CA8 + rxBuf2 0x20001A90 +
+    the uart RX ring 0x2000184C) — the routing double-copied per the
+    session-49 "both buffers" decompile note.
+- **THE ROUTING CORRECTED** (protocol.c): the $A00 branch now copies to
+  rxBuf ONLY (the "both buffers" step belongs to a later consumer-side
+  archive; the live marker = the arbiter over the decompile note).
+  Post-fix recon scan: rxBuf + ring only, rxBuf2 clean. Verified: the
+  host tests pass, the CK2 handshake = 1 TX $A00 per image (no
+  regression), the CK4 FULL stream EVENT-IDENTICAL / ODR 100.00%.
+- **THE TWO-INSTANCE SETTINGS MODEL** (corrects the session-58 pt1
+  "settings shadow" reading): 0x2000684E+ = the MAIN's OWN settings
+  (loaded from the radio's own I²C EEPROM at boot — the markers did NOT
+  land there), NOT a copy of the head's mirror frame; the side-key
+  function bytes (pf1/pf2/top_short at +0x21/0x23/0x25) = the MAIN's
+  local settings, with the SAME structure offsets the CHIRP driver uses
+  for the 0x0A00 block (the cross-check datum). The head's settings
+  (the $A00 frame) live in rxBuf at 0x20003A84.
+- The recon's internal buffer addresses (rxBuf 0x20001CA8, rxBuf2
+  0x20001A90, rxBuf3 0x20001A50) = the recon's own bss layout — the
+  behavioral parse = equivalent, the addresses = the recon's own
+  (only the ORIGINAL-side anchor addresses matter for the RAM-state
+  comparisons; noted for CK5 §3).

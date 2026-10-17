@@ -69,11 +69,14 @@ static uint32_t rxLen;
 
 void protocol_frame_received(const uint8_t *frame, uint32_t len)
 {
-    /* [session 50 matrix | RECOVERED routing] the ISR dispatch copies per
-     * command: $A00 -> buffer1+buffer2 (with the 0x216 length gate);
-     * $A01/$B/$C -> buffer2; $A02 -> buffer3. The recon previously routed
-     * everything except $A00 to rxBuf — corrected to the original's
-     * per-command targets. */
+    /* [session 50 matrix | RECOVERED routing; CORRECTED session 58 — the
+     * live marker test (ck2-set-scan.resc): 2 s after the handshake the
+     * ORIGINAL has the frame ONLY in rxBuf (0x20003A84, the settings at
+     * +0x14 = 0x20003A98); rxBuf2 (0x20002F74) stays zero. The earlier
+     * "copies to BOTH buffers" decompile note conflated the receipt with
+     * a later consumer-side archive step.] the ISR dispatch copies per
+     * command: $A00 -> buffer1 (with the 0x216 length gate);
+     * $A01/$B/$C -> buffer2; $A02 -> buffer3. */
     if (len >= 5 && mem_cmp(frame, "$A01,", 5) == 0) {
         if (len != 0x216)        /* settings upload frame length check   */
             return;              /* original clears the ready flag       */
@@ -97,14 +100,16 @@ void protocol_frame_received(const uint8_t *frame, uint32_t len)
         proto_flags |= FLAG_FRAME_READY;
         return;
     }
-    /* [session 49 decompile 0x08023920]: the $A00 branch requires the 5-byte
-     * prefix "$A00," AND length == 0x216, then copies the frame to BOTH
-     * buffers and clears a UI-refresh flag bit. */
+    /* [session 49 decompile 0x08023920; CORRECTED session 58 — the live
+     * marker test shows the frame lands in rxBuf ONLY (rxBuf2 stays
+     * zero; the "both buffers" step belongs to a later consumer)]: the
+     * $A00 branch requires the 5-byte prefix "$A00," AND length ==
+     * 0x216, then copies the frame to rxBuf and clears a UI-refresh
+     * flag bit. */
     if (len >= 5 && mem_cmp(frame, "$A00,", 5) == 0) {
         if (len != 0x216)        /* settings response length gate          */
             return;              /* original clears the ready flag         */
         mem_copy(rxBuf, frame, len);
-        mem_copy(rxBuf2, frame, len);
         rxLen = len;
         proto_flags |= FLAG_FRAME_READY;
         return;

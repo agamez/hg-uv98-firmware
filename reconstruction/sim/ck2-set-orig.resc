@@ -1,0 +1,25 @@
+# ck2-a09-orig.resc — Round B/C item 1: the $A09 side-key beacon trigger.
+# Protocol: boot 10 ms -> 2 s -> the neutral $A00 handshake (534 B) -> 1 s ->
+# inject "$A09\r\n" (6 B) -> 2 s -> dump the state bytes. The beacon states
+# 'h'/'i'/'j' (0x68/0x69/0x6A) live at UI_STATE_ADDR 0x200050E8.
+using sysbus
+mach create "ck2setorig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+showAnalyzer sysbus.usart2
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:01.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0xAB) + chr(0)*0x20 + chr(1) + chr(0) + chr(2) + chr(0)*476 + chr(13) + chr(10); assert len(frame) == 534, 'frame must be 534 bytes'; [u.WriteChar(ord(c)) for c in frame]"
+echo "MARK a00 injected"
+emulation RunFor "00:00:01.000"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; [u.WriteChar(ord(c)) for c in chr(36)+'A09'+chr(13)+chr(10)]"
+echo "MARK a09 injected"
+emulation RunFor "00:00:02.000"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/setshadow_orig.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x2000684E, 0x40))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/setshadow2_orig.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20006880, 0x40))); f.close()'
+quit
