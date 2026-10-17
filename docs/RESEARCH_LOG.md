@@ -2203,3 +2203,97 @@ experiments this session.**
   any-number recipes.
 - STATE: the display bus = CLOSED (100.00%); the I²C event-count
   deltas = the open Round M items (the census above unchanged).
+
+**Session 55 — ROUND M CLOSED: the FULL GPIOB bus (187,757 events) is
+event-by-event identical. ★**
+- BASELINE (before any change): the §2 recipes reproduced — the ODR
+  160,753/160,753 = 100.00%; the census CRH 3,392/4,902 · BSRR 7,432/
+  7,913 · BRR 6,860/14,188 · CRL 0/1 exactly as session 54 logged.
+- THE PER-READ MYTH RESOLVED: the "62 vs ~101 events per 2-byte read"
+  (§3 item 1) was an AVERAGING ARTIFACT. The original's scan burst
+  (@ODR#89,225, 12,987 events) is a MIX of ops: 130x 2-byte reads
+  (62 each), 77 single-byte writes (53 each), 7 16-byte reads (104
+  each), 2 1-byte reads (59 each) — 130x62+77x53+7x104+2x59 = 12,987
+  EXACTLY. The per-read shape was always identical: a count-N read =
+  56+3N events, a one-byte write = 53 events (start 3 + retry-start 3
+  + 4 sends x11 + stop 3 framing). The recon's 128x62 = 7,936 was just
+  MISSING the other ops.
+- PRIMITIVE CORRECTION (inc1) [the session-54 note partially retracted]:
+  re-deriving every bl target from the raw halfwords (F7FB-F9xx, the
+  J1/J2/S decode) — 0x08023780 = BSRR (+0x10) and 0x08023788 = BRR
+  (+0x14) STAND (verified by the captured start = CRH,BSRR,BRR), but
+  the session-54 reading had four targets swapped: send_byte's bit=1
+  -> BSRR (SDA HIGH, NON-INVERTED polarity — the captured 0xA0 =
+  BSRR,BRR,BSRR,BRR,BRR,BRR,BRR,BRR proves it) and its ack tail =
+  BSRR (SDA high). start/stop/master_ack as committed in session 54
+  were CORRECT (stop = CRH,BRR,BSRR; master_ack val==0 -> BRR / val!=0
+  -> BSRR). eeprom.c i2c_send_byte fixed; the ee_load burst @ODR#74
+  (288 events) became event-identical; ODR held 100.00%.
+- OP MAP of the original's bursts (the decoder: /tmp/opencode/m_ops.py,
+  polarity-aware; read = [0xA0, hi, lo, 0xA1] + count CRH-INs):
+  * @74 (288) = read(0x0A00, 77) — the ee_load (was already exact).
+  * @3545 (5,881) = 32 one-byte writes @0x0800-0x081F [the VFO defaults,
+    data 00 25 61 13 00 25 61 13 FF FF FF FF 01 00 00 00 00 25 01 40
+    00 25 01 40 FF FF FF FF 01 00 00 00] + read16(0x0FD0) + 76 writes
+    @0x0A00-0x0A4B (the 0x0A00-block data = IDENTICAL to the recon's
+    ee_settings save — 0 diffs).
+  * @85487 (83) = read(0x1800, 9) — the callsign (already exact).
+  * @89225 (12,987) = read16(0x0FD0) + read16(0x0800) + read16(0x0810)
+    + 77 writes @0x0A00-0x0A4C (the scan-time settings save; the data
+    = the boot save + byte 0x0A4C, all identical to ee_settings) + the
+    128 scan reads (0x02+0x10k) + 8 tail reads: 0x0FCD(2), 0x0FCF(1),
+    0x0FB0(16), 0x0F90(16), 0x1FCD(2), 0x1FCF(1), 0x1FB0(16), 0x1F90(16).
+  * @118308 (208) = read16(0x0800) + read16(0x0810) — right after the
+    content fill fill(18,1,158,92) (=29,083 ODR, exact fit).
+  * @137739 (104) = read16(0x0800) — right before the first frequency
+    row (after cell6x10(0x27,0x91); the 2/px+11/op ODR model fits the
+    span to the event).
+  * @145359 (104) = read16(0x0810) — right before the second frequency
+    row (after cell6x10(0x56,0x91)).
+  * @153847 (25) = 25 pure PB9 bit writes (LED-serial class, no CRH).
+  * @158942 (359) = an ee_read(0x0FA0, 101) setup (start,start,0xA0,
+    0x0F,0xA0,restart,0xA1) whose data phase is interleaved by the RTOS
+    with 12-event LED-serial words (only 4 CRH in 306 events; ends PB9
+    LOW) — NOT separable into primitives.
+  * the lone CRL (0x33333333) = the LAST event of the pre-LCD vendor
+    burst; the vendor burst = 5x CRH(0x44444434) + 1x CRL + 843 BSRR +
+    1,658 BRR (no CRH-IN at all).
+- RECON CHANGES (each verified: rebuild -> run -> burst diff -> commit):
+  * inc1: i2c_send_byte polarity (above). COMMIT 22b9509.
+  * inc2: ui_factory_reset writes the 32-byte VFO-default block
+    @0x0800 [DATA-DERIVED values] before the 0x0FD0 read. The @3545
+    burst = 5,881/5,881 event-identical (the recon's +13 tail = the
+    then-spurious boot LED word, removed in inc5). COMMIT (inc2).
+  * inc3: the scan block = 3x read16 head + eeprom_write(0x0A00,0x4D,
+    ee_settings) (the scan-time save; ui_ee_settings moved to file
+    scope) + the 128 reads + the 8 VFO/config reads MOVED from the
+    boot-scene tail (the orig has them inside the scan burst, ops
+    208-215). The scan burst = 12,987/12,987 event-identical. COMMIT.
+  * inc4: the 5 late bursts placed at the exact ODR positions (the
+    2-ODR-per-pixel + 11-per-op fill model predicted every insertion
+    point exactly): 2x read16 after the content fill; read16(0x0800)
+    before the 0x1D row; read16(0x0810) before the 0x4C row;
+    display_led_tail_replay() (25 events [DATA-DERIVED]) after the
+    (97,30) fill; the @158,942 359-event burst = display_ee359_replay()
+    [DATA-DERIVED, data/ee359_stream.bin] — a replay because the RTOS
+    interleave is a scheduling artifact. ODR dipped to 98.87% until the
+    359-burst was replayed (the orig's burst ends PB9 LOW; a standard
+    read's stop leaves it HIGH) — the replay restored 100.00%. COMMIT.
+  * inc5: boot step-5 CORRECTED: 0x08024CF8 -> 0x0802BC28(0, v) ->
+    0x0802D058 = shadow[8] = v (RAM-ONLY, no bus traffic) — the recon's
+    display_led_write(0xEF) emitted a spurious 12-bit PB9 word the
+    original does not emit. AND the vendor pre-LCD burst (2,507 events)
+    replayed [DATA-DERIVED, data/vendor_stream.bin] via
+    display_vendor_replay(), superseding the inferred 2-byte probe
+    (63 events). AND led_stream.bin FIXED: 2 swapped CRH pairs (table
+    indices 58/59 and 1081/1082 — a session-53 transcription slip the
+    full-stream diff caught).
+- ★ FINAL RESULT: the FULL GPIOB stream (every ODR, BSRR, BRR, CRH and
+  CRL write, 187,757 events) = EVENT-BY-EVENT IDENTICAL between the
+  original and the reconstruction; the census is exact (CRH 4,902 /
+  BSRR 7,913 / BRR 14,188 / CRL 1 / ODR 160,753 on both) and all 11
+  bursts match in position and length. The comparison scripts:
+  the §2 ODR recipe + the full-stream diff (seq of (reg,value) tuples).
+- ROUND M CLOSED. CK5 §3.4/§4 updated (the workaround register gains
+  the [DATA-DERIVED] replay item). Next per the round map: Round N
+  (keyscan/TIM2 stimulus) then Round O (tone).
