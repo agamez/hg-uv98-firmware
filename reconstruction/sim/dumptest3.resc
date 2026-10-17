@@ -1,0 +1,14 @@
+# dumptest3.resc — the close() fix
+using sysbus
+mach create "dumptest3"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:00.100"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/dumptest3.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x200050E0, 0x20))); f.close()'
+quit

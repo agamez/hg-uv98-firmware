@@ -2609,3 +2609,46 @@ the hook-verified args (0, 5).
 - CK4 display: FULL stream EVENT-IDENTICAL, ODR 160,753/160,753 =
   100.00% (no regression).
 - Host tests: all protocol conformance tests pass.
+
+### 2026-10-17 — Session 58: Round B/C item 1 — the $A09 routing: semantics
+recovered, the model behavior null-parity evidenced, the downstream consumer
+parked-with-evidence.
+
+- **The routing = already recovered and tests-locked** (the session-50
+  matrix-v2: the $A09 4-byte prefix, the len>=5 gate, -> rxBuf +
+  FLAG_FRAME_READY; locked by the re-baselined test suite).
+- **The vendor semantics (the ground truth from the vendored 8051 source,
+  UARTX.C line 212): "$A09\r\n" = Side button to transmit GPS or fixed
+  station beacon -> BEACON_GPS_TXD()** on the 8051; per
+  docs/ARCHITECTURE.md the 8051->main direction = "Side key 2 (PF2)
+  pressed" (the main simulates the remote PF2). The beacon triggers are
+  settings-gated in the vendor source ($A11: if (EEPROM_Buffer[0x03]==1)).
+- **The main's side-key executor chain identified**: the UI task's
+  release handler maps key 18/19/20 -> 0x08021238/0x080214E4/0x0802166C
+  with the function id read from *(0x2000684E + 0x21/0x23/0x25) — the
+  main's SETTINGS SHADOW base = 0x2000684E and the offsets = pf1_short/
+  pf2_short/top_short EXACTLY per the CHIRP driver's settings struct
+  (@0x0A21/0x0A23/0x0A25; PF2_LIST[0] = "BEACON" = the pf2_short=0
+  default). A second key-id sink = 0x0800FFD0 (the per-id switch
+  10/11/12/13/15, function-pointer-dispatched).
+- **The model experiments (both images, the $A00 handshake then the
+  $A09\r\n injection at ~3 s):** (a) NO UART reply on either image;
+  (b) NO state flip in the dumped regions (0x200050E0/0x20005150 — the
+  original's settings shadow pointers present, the screen id 0 on both);
+  (c) hook probe (ck2-a09-hooks.resc): PF2EXEC(0x080214E4)=0, KEYSINK
+  (0x0800FFD0)=0, KEYEVENT(0x0801E044)=0 — the injected $A09 does NOT
+  reach the key path on the original. The behavioral differential on the
+  model = NULL/NULL (trivially identical).
+- **PARKED (the downstream consumer)**: who converts the $A09 frame in
+  rxBuf into the key event — three attempts spent (the UI-task scan: the
+  frame-ready byte[9] bit0 reader not found in the task; the vendor
+  semantics; the hook probe). The unblocking candidates: the flag-pump
+  task identification (the FLAG_BANK+9 bit0 readers), or the settings-
+  layer reconstruction (the side-key assignment bytes) — the natural
+  continuation inside the settings-layer work, not a standalone hunt.
+- **HARNESS FINDING (§6 worthy): the monitor-python file writes MUST be
+  closed** — `open(p,"wb").write(bytes(...))` without close() flushes
+  only via GC luck (the earlier dumps worked by chance; the a09 dumps
+  produced 0-byte files). The working pattern = `f = open(p,"wb");
+  f.write(bytes(...)); f.close()` (verified, dumptest3.resc: 32 B).
+  All the harness dump lines now use the closed-file pattern.

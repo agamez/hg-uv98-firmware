@@ -1,0 +1,24 @@
+# ck2-a09-hooks.resc — Round B/C: does the injected $A09 reach the key path?
+# Hooks on the ORIGINAL: the PF2/beacon executor 0x80214E4, the key sink
+# 0x0800FFD0, key_event 0x0801E044, the $A09 router region entry 0x08023920.
+using sysbus
+mach create "ck2a09hooks"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x080214e4 "self.Log(LogLevel.Info, 'PF2EXEC fn=0x' + hex(self.GetRegister(0).RawValue))"
+cpu AddHook 0x0800ffd0 "self.Log(LogLevel.Info, 'KEYSINK id=0x' + hex(self.GetRegister(0).RawValue))"
+cpu AddHook 0x0801e044 "self.Log(LogLevel.Info, 'KEYEVENT')"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:01.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+echo "MARK a00 injected"
+emulation RunFor "00:00:01.000"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; [u.WriteChar(ord(c)) for c in chr(36)+'A09'+chr(13)+chr(10)]"
+echo "MARK a09 injected"
+emulation RunFor "00:00:02.000"
+quit
