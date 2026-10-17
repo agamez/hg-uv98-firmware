@@ -44,13 +44,20 @@
  * 0x08015DCC zeroes gauge state, seeds bars=10, and triggers redraw
  * 0x080202B8.
  *
- * S-METER (peak-hold history): rf_read(chip, 0x1B) >> 8 = RSSI dB
- * (AT1846S 0x1B[15:8], guide-confirmed); updater 0x080203d0 keeps the
- * peak vs [+0x40] with timestamp [+0x3B]->[+0x12D]; every 5th pass
- * (sub-counter +0x3F): ring write 0x0801A8DA, shift +4 (0x0801D8C0),
- * snapshot 0x1E, and the 3 most recent entries render as bars
- * (0x0801AB36 / 0x0801A7AA / 0x0801E296). Ring entries = BCD-packed
- * peak timestamps (0x0801652C pack / 0x080164DC pair).
+ * S-METER (bar-value integrator; corrected session 58 pt3): rf_read(chip,
+ * 0x1B) >> 8 = RSSI dB (AT1846S 0x1B[15:8], guide-confirmed); updater
+ * 0x080203d0 keeps the peak vs [+0x40]; every 5th pass (sub-counter +0x3F):
+ * ring write 0x0801A8DA, shift +4 (0x0801D8C0), snapshot 0x1E, and the 3
+ * most recent entries render as bars (0x0801AB36 / 0x0801A7AA / 0x0801E296).
+ * Ring entries = BCD-packed BAR-VALUE accumulator [ctx+0x3B] ("timestamp"
+ * was the session-26 misread): the integrator 0x080201AA(mode) does
+ * mode 11: bar += 100000 (the squelch-open flag) or += the per-band step
+ * [ctx+0x2E+band*2]; mode 12: bar += 0xfffe7960 (-100000); clamped per band
+ * to [ctx+0x62+band*4]=0 .. [ctx+0x5A+band*4]=99500 (LIVE boot values).
+ * THE STEP TABLE = 0x0801F1C4: the config byte {0..6} -> {500, 625, 1000,
+ * 1250, 2500, 5000, 10000} (the bar resolution; the boot default = 500).
+ * The mode scheduler ([ctx+0x76] = 11/12) is dormant on the model (the
+ * boot state never exits) — hence the display = RSSI-inert there.
  *
  * INPUT POLICY (key_event 0x0801E044, ~750 B): gates — menu bit
  * (flag+2 bit2), key-lock bytes (+0x10D/+0x10E at 0x200051A1/A2),

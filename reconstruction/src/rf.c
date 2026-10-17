@@ -10,7 +10,9 @@
  *                                used for the trailing select pattern)
  *   rf_send_byte     0x08022712  MSB-first bit bang, CLK toggled per bit
  *   rf_write         0x0802289A  select -> CLK low -> [R/W|addr7, hi, lo]
- *   rf_read          0x0802292E  select -> reg|0x80 -> turnaround 0x080226F6
+ *   rf_read          0x0802692E  select -> reg|0x80 -> turnaround 0x080226F6
+ *                    (the session-25 note "0x0802292E" = the old -0x4000
+ *                    analysis base; corrected session 58 pt3)
  *                                -> clock 16 bits in; callers mask conservatively
  *   at1846s_set_frequency  0x08023200..  (see below)
  *   at1846s_set_band_config 0x08023156    (see below; was set_css)

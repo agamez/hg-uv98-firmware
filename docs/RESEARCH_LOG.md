@@ -2687,3 +2687,75 @@ $A00 = rxBuf only), the two-instance settings model established.
   behavioral parse = equivalent, the addresses = the recon's own
   (only the ORIGINAL-side anchor addresses matter for the RAM-state
   comparisons; noted for CK5 §3).
+
+### 2026-10-17 — Session 58, part 3: §9 S-meter item — the bar pipeline FULLY
+decoded; the "timestamp" misread corrected; the model inertness explained;
+the dB→bar mapping question resolved.
+
+- **ADDRESSING DISCOVERY (affects the old log entries):** the session-25/26/27
+  notes use a base 0x4000 BELOW the current lcd.asm (the REA loaded the image
+  at 0x08000000 then; now 0x08004000). Adding 0x4000 maps them exactly
+  (0x0801C464→0x08020464, rf_read 0x0802292E→0x0802692E). The ui.c comments
+  were already on the new base; the rf.c comment ("rf_read 0x0802292E") is
+  corrected in this commit. All session-52+ entries = the correct base.
+- **The S-meter read site (the corrected address): 0x08020464** =
+  rf_read(ubfx([r5+4],3,1), 0x1B) inside the updater 0x080203D0;
+  0x1B[15:8] = rssi_db ✓ (the session-25 mechanism, re-verified).
+- **The updater 0x080203D0 (full decode):** the pause countdown
+  [0x2000469C+0x112] → FLAG_BANK+2 bit2 (the menu gate) → FLAG_BANK+0
+  bit7 (the one-shot enable, cleared after each render at 0x08020526) →
+  the chip select by FLAG_BANK+4 bit3 (0x08025080 / 0x08024F56) → a
+  16-pass divider ([ctx+0x77]) → the RSSI read → the peak-hold
+  ([ctx+0x40] halfword; the refresh stamps [ctx+0x12D] = [ctx+0x3B]) → a
+  5-pass divider ([ctx+0x3F]) → the ring write 0x0801A8DA → the shift →
+  the snapshot → the render trio 0x0801AB36 / 0x0801A7AA / 0x0801E296
+  (the 3 most recent ring entries passed as args) → the peak state
+  resets. The caller = the S-meter task 0x08014DEA (a 10-tick loop, the
+  pass counter [ctx+0x7C] wraps at 21), gated on FLAG_BANK+0 bit6 (or
+  [FLAG_BANK+3] bit7).
+- **THE "TIMESTAMP" READING WAS WRONG (retracts the session-26/28 "BCD
+  peak timestamps" framing).** The ring entries = the BCD-packed
+  **BAR-VALUE accumulator** ([ctx+0x3B], "%08d"-formatted → 4 bytes):
+  * 0x080201AA(mode) = the integrator: mode 11 = bar += 100000 (the
+    squelch-open flag [x+4] bit2) OR bar += the per-band step
+    [ctx+0x2E+band*2]; mode 12 = bar += 0xfffe7960 = **-100000** (the
+    full-scale fall); then the clamp vs the per-band pair
+    [ctx+0x5A+band*4] (the upper, LIVE = 99500) / [ctx+0x62+band*4]
+    (the lower, LIVE = 0). The bar = the charge/decay integrator in
+    100000 full-scale units.
+  * THE STEP TABLE = 0x0801F1C4: the config byte {0..6} → {500, 625,
+    1000, 1250, 2500, 5000, 10000} — **the S-meter bar thresholds of
+    the §9 question** (the user-configurable bar resolution; the LIVE
+    boot value = 500 for bands 0/1 → the 200-level bar).
+  * The per-band step = written at 0x0801685A from the settings byte
+    ([r6+band+2] → 0x0801F1C4) at runtime; the boot init at 0x0801B858.
+  * 0x0801F3BC = the round-down-to-step + BCD-pack display helper.
+  * The ring write 0x0801A8DA = a GENERIC helper (14 call sites — the
+    earlier 22/40 ring hits = the OTHER indicator rings, not the
+    S-meter).
+- **The model experiments (the poke/bypass series):**
+  1. The flag pokes (bits 6/7 set, bit2 cleared, 20-50 ms slices): the
+     updater = called but never passed the bit2 gate; the ring hits =
+     the sibling features. The flag bank = firmware-computed (the byte
+     0 = rewritten every few ms — the pokes = wiped within one task
+     pass; the bmi reached 797×, the target 0×).
+  2. The full CPU-hook bypass (the branch-feed r0=1 at 0x08014E1C +
+     the re-check at 0x08014EFE + the bit2 patch at 0x080203F8 + the
+     bit7 patch at 0x08020408): **the S-meter pipeline went LIVE** —
+     128 caller hits, 64 updater entries, 8 RSSI reads, 5 renders per
+     run (ck2-smeter-poke8.resc).
+  3. **The sweep (the RSSI override at the rf_read return, db ∈ {16,
+     48, 80, 112}): the GPIOB display streams = BYTE-IDENTICAL across
+     all levels** (and with the render-variant patch at 0x0801E2A0
+     forced). EXPLAINED by the decode: the mode byte [ctx+0x76] = 0 on
+     the model — the rise/fall scheduler never runs, the bar
+     accumulator = untouched, the ring = static, the renders = static.
+     The RSSI on the model = only touches the peak-hold ([ctx+0x40]),
+     which is never rendered in any reachable variant.
+- **The §9 verdict:** "the S-meter bar thresholds" = RESOLVED as the
+  step-table + clamp + full-scale-jump integrator above (no dB→bar
+  lookup table exists). "The 'M'/'N' blinker source" = already closed
+  (the session-28 memory-mode screen sequences). A true RF-level sweep
+  on the model = requires the mode-scheduler decode (the ctx+0x76
+  writers) + the state-machine unblocking — the same root as the $A01
+  parking (the boot state never exits); parked with the evidence.
