@@ -1637,3 +1637,44 @@ the consumption model = the working buffer + lazy field access.**
   consumer (a decompile of the flag-polling task chain) and any further
   lazy-field consumers, which only manifest under real (non-synthetic)
   settings content.
+
+**Session 50, part 3 — Round B: CK2 matrix v2 (the RX dispatch routing
+parity) CLOSED; the recon's per-command buffer routing corrected.**
+- Literal-pool reads of the original (the running image, Renode addr =
+  the REA addr): DAT_08023EEC = 0x20003A84 (the $A00 working copy),
+  DAT_08023EF0 = 0x20002F74 (the $A01/$B/$C archive), DAT_08023EFC =
+  0x20004B94 (the $A02 telemetry buffer), DAT_08023EE4 = 0x20005094 (the
+  flags), DAT_08023F0C = 0x20004E68 (the app-state anchor), DAT_08023F14
+  = 0x2000469C (the app-state). CORRECTION to session 49/50 pt2: the
+  "two raw copies at 0x20003AD0/0x20003BD0" = ONE copy (buffer1) — the
+  second hit was the sawtooth's 256-byte periodicity inside the same
+  buffer. The true second copy lives at 0x20002F74.
+- ROM compare strings read directly: "$A00,", "$A01,", "$A02,", "$A08,"
+  (5-char), "$B", "$C" (2-char), "NO DATA" (the $B +5 marker check).
+- Method: a hook on the original's copy routine (FUN_0801D8C0, logging
+  r0=dest/r2=len; hook args must use {0}/{1} indices — a {2} with two
+  args aborts Renode) captures every dispatch copy; the ISR entry hook
+  counts takes. Findings: "$B00\r\n" -> memcpy(EF0, 6); "$C00\r\n" ->
+  memcpy(EF0, 6); "$A02,XXXXXXXX\r\n" -> memcpy(EFC, 15); "$A08,..." ->
+  memcpy(EF0, **5** — the 5-byte prefix ONLY, then the conditional
+  buf+5 vs a 7-byte marker gated on the app-state byte 0x20004E68+0x38);
+  the $A00 gate re-verified (len != 0x216 -> the flag cleared, no copy).
+  The original's consumer wipes buffer2 within ~2 ms of the copy, so
+  buffer DUMPS always read zero — the hook capture is the only reliable
+  observation (an observation-timing lesson for CK5).
+- DIVERGENCE FIXED: the recon routed $A01/$B/$C/$A02/$A08 all to rxBuf;
+  the original routes $A01/$B/$C -> buffer2, $A02 -> buffer3, $A08 ->
+  buffer2 as a 5-byte prefix. protocol.c rewritten to the original's
+  per-command targets (rxBuf/rxBuf2/rxBuf3 = 0x20003A84/0x20002F74/
+  0x20004B94 analogues; rxBuf3 = 64 B). $A08 now copies exactly 5 bytes
+  (the recon reproduces the original's byte-5 residue behavior).
+- Matrix v2 results (recon, post-fix): $B00 -> rxBuf2 = "$B00\r\n" OK;
+  $C00 -> rxBuf2 = "$C00\r\n" OK; $A02 -> rxBuf3 = "$A02,XXXXXXXX\r\n"
+  OK (rxBuf2 untouched); $A08 -> rxBuf2 = "$A08," + the residue OK;
+  the malformed $A00 (len 120 != 0x216) -> NO copy, both buffers clear
+  (the gate); "HELLO\r\n" (non-$) -> ignored. All seven rows match the
+  original's observed dispatch.
+- Harness note: the 534-byte $A00 needs >= ~0.6 s RunFor after the
+  WriteChar burst (the model paces at 1.04 ms/byte); a 300 ms window
+  silently truncates the frame (no CRLF, no dispatch — the earlier
+  "missing 0x216 copy" in this very run).

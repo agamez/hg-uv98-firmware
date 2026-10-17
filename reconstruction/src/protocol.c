@@ -57,35 +57,39 @@ static const char *const cmd_table[CMD_COUNT] = {
 static volatile uint8_t proto_flags;
 #define FLAG_FRAME_READY 0x01
 
-static char    rxBuf[536];      /* largest confirmed frame: 0x216 = 534 B  */
-static char    rxBuf2[536];     /* [session 49 decompile 0x08023920]: the $A00
-                                 * branch mem_copies the frame to TWO buffers
-                                 * (DAT_08023EEC and DAT_08023EF0 — the two
-                                 * raw copies observed at 0x20003AD0/0x20003BD0
-                                 * in the pattern-payload run)               */
+static char    rxBuf[536];      /* [0x08023EEC -> 0x20003A84] the $A00 working
+                                 * copy — the original's parse surface (its
+                                 * consumer mutates settings[8..9] in place) */
+static char    rxBuf2[536];     /* [0x08023EF0 -> 0x20002F74] the $A01/$B/$C
+                                 * archive buffer */
+static char    rxBuf3[64];      /* [0x08023EFC -> 0x20004B94] the $A02 telemetry
+                                 * buffer (the original's target for the
+                                 * 5-byte-prefix telemetry frames) */
 static uint32_t rxLen;
 
 void protocol_frame_received(const uint8_t *frame, uint32_t len)
 {
-    /* [0x0801F920 chain | RECOVERED]: mem_cmp(prefix, n) per command; on
-     * match copy the frame to the handler buffer. The $A00-style settings
-     * upload requires length == 0x216 (534). */
+    /* [session 50 matrix | RECOVERED routing] the ISR dispatch copies per
+     * command: $A00 -> buffer1+buffer2 (with the 0x216 length gate);
+     * $A01/$B/$C -> buffer2; $A02 -> buffer3. The recon previously routed
+     * everything except $A00 to rxBuf — corrected to the original's
+     * per-command targets. */
     if (len >= 5 && mem_cmp(frame, "$A01,", 5) == 0) {
         if (len != 0x216)        /* settings upload frame length check   */
             return;              /* original clears the ready flag       */
-        mem_copy(rxBuf, frame, len);
+        mem_copy(rxBuf2, frame, len);
         rxLen = len;
         proto_flags |= FLAG_FRAME_READY;
         return;
     }
     if (len >= 2 && mem_cmp(frame, "$B", 2) == 0) {
-        mem_copy(rxBuf, frame, len);
+        mem_copy(rxBuf2, frame, len);
         rxLen = len;
         proto_flags |= FLAG_FRAME_READY;
         return;
     }
     if (len >= 2 && mem_cmp(frame, "$C", 2) == 0) {
-        mem_copy(rxBuf, frame, len);
+        mem_copy(rxBuf2, frame, len);
         rxLen = len;
         /* original additionally checks frame+5 against a 7-byte weather
          * marker ("W," prefix) and routes to a 347 B detail buffer; the
@@ -106,14 +110,18 @@ void protocol_frame_received(const uint8_t *frame, uint32_t len)
         return;
     }
     if (len >= 5 && mem_cmp(frame, "$A02,", 5) == 0) {
-        mem_copy(rxBuf, frame, len);
+        mem_copy(rxBuf3, frame, len);
         rxLen = len;
         proto_flags |= FLAG_FRAME_READY;
         return;
     }
     if (len >= 5 && mem_cmp(frame, "$A08,", 5) == 0) {
-        mem_copy(rxBuf, frame, len);
-        rxLen = len;
+        /* [session 50 decompile] the original copies ONLY the 5-byte
+         * prefix to buffer2 (FUN_0801d8c0(EF0, buf, 5)), then conditionally
+         * processes buf+5 against a 7-byte marker gated on the app-state
+         * byte at 0x20004E68+0x38. */
+        mem_copy(rxBuf2, frame, 5);
+        rxLen = 5;
         proto_flags |= FLAG_FRAME_READY;
         return;
     }
