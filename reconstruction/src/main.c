@@ -141,16 +141,28 @@ static void hw_init(void)
 
     usart1_init();        /* GPS input  [0x0802932C RECOVERED]             */
     usart2_init();        /* APRS/BT link [0x0801F810 RECOVERED]           */
-    /* EEPROM settings load [session 51]: the original's boot I2C traffic
-     * precedes the LCD init in the pb_stream capture (the PB9 events
-     * before stream line 2508); the settings block = 0x4D bytes (the
-     * save path FUN_0801A6EA writes 0x4D bytes at 0x0A00). The load call
-     * site sits in the Ghidra-missed boot region — wiring inferred. */
+    /* EEPROM probe [session 51]: the original's pre-LCD I2C = a tiny
+     * 2-byte access (5 CRH direction switches in the stream head). The
+     * exact call site = in the Ghidra-missed boot region — inferred. */
+    {
+        static uint8_t ee_probe[2];
+        eeprom_read(0x0000u, 2u, ee_probe);
+    }
+    display_init();       /* [0x0801BB22 RECOVERED]                        */
+    /* [0x0802BDF4 boot GPIO init, missed-region disassembly]: PB13-15 =
+     * open-drain output (CRH nibbles 0xB — the backlight/control lines),
+     * PD2 = output low (gpio_init mask 4 mode 3, then BRR). The original
+     * calls this immediately after the LCD init (0x0802D0C6). */
+    GPIO_CRH(GPIOB_BASE) = (GPIO_CRH(GPIOB_BASE) & ~0xFFF00000u) | 0xBBB00000u;
+    GPIO_CRL(GPIOD_BASE) = (GPIO_CRL(GPIOD_BASE) & ~0xF00u) | 0x300u;
+    GPIO_BRR(GPIOD_BASE) = 4u;
+    /* EEPROM settings load [session 51]: the 0x4D-byte settings block at
+     * 0x0A00 (the save path FUN_0801A6EA). The bulk of the original's
+     * I2C traffic (3022+1875 direction switches) happens in this phase. */
     {
         static uint8_t ee_settings[0x4D];
         eeprom_read(0x0A00u, 0x4Du, ee_settings);
     }
-    display_init();       /* [0x0801BB22 RECOVERED]                        */
     /* RF chip init [0x080227AA call site RECOVERED]: bus GPIO config
      * (0x080267AA, session 49 decompile) then the 50-register AT1846S
      * init table applied to chip 1 then chip 0 (session 49 trace,

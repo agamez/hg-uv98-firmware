@@ -1746,3 +1746,25 @@ boot PB9 traffic now structurally matches the original.**
   full UI runtime, and its later CRH writes = 0xBBB444xx because PB13-15
   are configured open-drain by an init the recon has not located yet —
   the small remaining gap). The LCD init remains 74/74 byte-exact.
+
+**Session 51, part 3 — the boot GPIO phase recovered; the recon's CRH
+value set now EXACTLY equals the original's.**
+- The missed-region disassembly at 0x0802BE00: gpio_init(GPIOB,
+  {mask 0xE000, mode 0xB}) = PB13-15 open-drain output — the backlight/
+  control-line config that produces the original's 0xBBB444xx CRH
+  values; then gpio_init(GPIOD, {mask 4, mode 3}) + BRR(GPIOD, 4) = PD2
+  output low. The original calls this (0x0802BDF4) immediately AFTER
+  the LCD init (0x0802D0C2 -> 0x0802D0C6), and BEFORE it only a tiny
+  2-byte-class EEPROM access runs (5 direction switches in the stream
+  head) — the bulk of the I2C traffic (3022+1875 switches) happens in
+  the post-init runtime.
+- The recon's hw_init reordered to match: the 2-byte EEPROM probe ->
+  display_init -> the PB13-15/PD2 config -> the 0x4D-byte settings
+  load. Two nibble-shift bugs fixed along the way (the PB9 mask 0xF00
+  -> 0xF0; the PB13-15 mask 0x0BBB0000 -> 0xBBB00000).
+- RESULT: the recon's CRH value set = exactly the original's
+  {0x44444434, 0x44444444, 0xBBB44434, 0xBBB44444} with the same phase
+  ordering (0x4444xx pre-LCD, 0xBBB44xx post-LCD); the LCD init stays
+  74/74 byte-exact. Remaining CK4 gap = the UI draw cadence (~135
+  window redraws / 3 s in the original; the recon's ui.c = scaffold)
+  and the runtime EEPROM op volume — application-layer, not drivers.
