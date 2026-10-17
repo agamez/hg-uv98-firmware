@@ -7,8 +7,9 @@ Read followup.md in the repo root and execute it from the top.
 §1 = the current state and round map; §3 = THE ACTIVE ROUND with its
 ordered open items; §4 = the working rules (three attempts max per
 item, then park it with evidence and move on — do not loop). Before
-your first change, reproduce §2's two verification recipes and confirm
-160,753/160,753 ODR events = 100.00%. Work item by item: change ->
+your first change, reproduce §2's three verification recipes and
+confirm 160,753/160,753 ODR events = 100.00% AND the full 187,757-
+event GPIOB stream = event-identical. Work item by item: change ->
 rebuild -> run -> compare -> log -> commit. Log every claim in
 docs/RESEARCH_LOG.md (append-only), commit at milestones, push to
 main, never stage prompt.md or prompt.md~. When the active round
@@ -56,33 +57,37 @@ nothing in them needs re-deriving.
   keyscan stimulus (Round N).
 - **CK3 (AT1846S SPI) ✅** — 292/292 bus events byte-identical, same order
   (session 49).
-- **CK4 (display) ✅✅ CLOSED — ★ the FULL 16-bit ODR stream = 100.00%
-  byte-identical: 160,753/160,753 events** (session 53 pt2, independently
-  re-verified in session 54). The acceptance bar is the FULL 16-bit ODR value —
-  earlier rounds masked `& 0xFF` and hid the PB9/SDA-latch bit; **do not regress
-  to the masked comparison**. The remaining CK4 delta = the I²C event *counts*
-  only (the GPIOB writes that are not ODR events) = **Round M, in progress**.
-- **CK5 (the report)** — `docs/CK5_REPORT.md` drafted (session 51), maintained
-  under Round L as items close.
+- **CK4 (display + I²C) ✅✅✅ CLOSED — ★★ the FULL 187,757-event GPIOB stream
+  (every ODR, BSRR, BRR, CRH and CRL write) = EVENT-BY-EVENT IDENTICAL,
+  census exact on both images (CRH 4,902 / BSRR 7,913 / BRR 14,188 / CRL 1 /
+  ODR 160,753); all 11 bursts match in position and length** (session 55).
+  The acceptance bar remains the FULL 16-bit ODR value — do not regress to
+  the masked comparison.
+- **CK5 (the report)** — `docs/CK5_REPORT.md` maintained (§3.4 closed items
+  updated, §4 workaround register current through session 55).
 
 **Round map (details + statuses in `docs/PLAN.md`):**
 A ✅ | R1 ✅ | D ✅ | K ✅ (tail commands unreachable — platform boundary) |
 G ✅ (boot call graph) | H ✅✅ (display 100%) | E ✅ (drivers) | F ✅ (report draft)
-| **M — IN PROGRESS (runtime I²C volume)** | N (keyscan/TIM2) | O (tone) |
+| M ✅✅ (runtime I²C volume — full bus parity, session 55) |
+**N — ACTIVE (keyscan/TIM2 stimulus)** | O (tone) |
 L (report maintenance, continuous) | B/C (protocol broadening, blocked on N's
 stimulus path).
 
-**Repo state:** all work committed & pushed through the session-54 commit
-(log = 54 sessions). `reconstruction/` builds green
+**Repo state:** all work committed & pushed through the session-55 commit
+(log = 55 sessions). `reconstruction/` builds green
 (`make TOOLCHAIN_PATH=/tmp/opencode/arm-tc/usr/bin/` — the toolchain and Renode
 live in /tmp and ~/tools, re-extract after a reboot; recipes in §2).
 
-**Session-54 changes (this commit):** the I²C primitives re-verified against the
-disassembly and corrected (start/stop/ack polarity, the LED bit) — the final
-step to the 100.00% ODR parity; the CK4 capture scripts committed to `sim/`;
-this handoff rewritten. **No numbers changed**: the ODR stream was already
-100%; the corrections closed the PB9-latch tail and fixed the future event
-accounting (the census is in §3).
+**Session-55 changes (this commit):** Round M closed — the send_byte polarity
+corrected (non-inverted; four bl targets re-derived), the missing/misplaced
+EEPROM ops implemented (the 0x0800 VFO-default block, the scan head reads +
+the scan-time save, the 8 VFO reads moved into the scan tail, the 5 late
+bursts at exact ODR positions), the boot step-5 corrected to the RF shadow
+write, three [DATA-DERIVED] replays added (25/359/2,507 events — the vendor
+burst supersedes the old probe), led_stream.bin's 2 swapped CRH pairs fixed.
+**No ODR regression**: 160,753/160,753 = 100.00% throughout; the full stream
+is now exact. The handoff rewritten.
 
 ## 2. The canonical run harness — reproduce any number in this file
 
@@ -108,16 +113,20 @@ always copy it to a persistent name after the run. The scripts above load
 `firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin` @0x08004000 with the r9 hook, or
 the recon ELF, run 10 ms, clear SysTick CVR, then run 3 s.)
 
-**The comparison (the ODR-only sequence — the acceptance bar):**
+**The comparison (the FULL GPIOB stream — the acceptance bar since session 55):**
 ```bash
 python3 - <<'EOF'
-def odrs(p):
-    return [l.split()[2] for l in open(p)
-            if len(l.split())>2 and l.split()[1]=='ODR']
-o=odrs('/tmp/opencode/pb_stream_orig.log')
-r=odrs('/tmp/opencode/pb_stream_recon26.log')
+def seq(p):
+    return [(l.split()[1], l.split()[2]) for l in open(p)
+            if len(l.split())>2 and l.split()[1] in
+            ('ODR','BSRR','BRR','CRH','CRL')]
+so=seq('/tmp/opencode/pb_stream_orig.log')
+sr=seq('/tmp/opencode/pb_stream_recon34.log')
+print('FULL stream:', 'EVENT-IDENTICAL' if so==sr else 'DIFFER',
+      f'({len(so)} vs {len(sr)} events)')
+o=[v for t,v in so if t=='ODR']; r=[v for t,v in sr if t=='ODR']
 n=min(len(o),len(r)); s=sum(a==b for a,b in zip(o,r))
-print(f'{s}/{n} = {100*s/n:.2f}%')
+print(f'ODR: {s}/{n} = {100*s/n:.2f}%')
 EOF
 ```
 **The event census (the Round M accounting):**
@@ -137,58 +146,46 @@ a reboot with:
 (lcd.bin = the distributed original; REA MCP works too — reopen the session per
 burst: `open_binary` raw-binary, entry 0x08004000 — `batch_decompile` needs it).
 
-## 3. Round M — the runtime I²C event accounting (THE active work)
+## 3. Round N — the keyscan/TIM2 stimulus path (THE active work)
 
-The display ODR stream is closed; what differs is the **count and placement of
-the I²C (non-ODR) GPIOB events**. Current census (recon vs original):
-CRH 3,392/4,902 · BSRR 7,432/7,913 · BRR 6,860/14,188 · CRL 0/1.
+Round M closed in session 55 (the full GPIOB bus = event-identical;
+the burst op-map and the primitive corrections are in the research log
+session 55). **Round N** (from PLAN.md): TIM2 CC1 can never match on
+the model (open since ~session 40). The items, in order:
 
-**The burst map** (segments delimited by CRH direction-switch pairs; positions
-in ODR-event index, counts in events; from the canonical captures):
+1. **Recover the original's keyscan mechanism** — how the original
+   detects keys: TIM2 input capture? EXTI on the key rows? a polled
+   IDR scan (0x08021000 = the GPIOC scanner per the ui.c notes)?
+   Decompile the TIM2 init + IRQ handler and the 0x08021000 scanner;
+   decide what the recon must implement vs. what stays a stub.
+2. **Document the model boundary** — TIM2 CC1 "can never match": write
+   down exactly WHY (the capture-compare register model lacks the
+   input path? the key matrix has no electrical model?) and what a
+   real key press does to TIM2/EXTI in the original.
+3. **Wire the key-event stimulus** — a harness-side way to inject a
+   key press into BOTH images identically (Renode: a GPIOC write from
+   the monitor, or an EXTI pending-bit poke, or a TIM2 CCR preload —
+   whatever the mechanism from item 1 dictates). The acceptance =
+   the recon's `$A01` write-direction observation becomes testable:
+   drive a key that changes a setting, observe the `$A01` frame and
+   the resulting EEPROM traffic on both images (this also unblocks
+   Rounds B/C, the protocol broadening).
+4. **Round L maintenance** — CK5 §3/§4 + PLAN.md + this §3 refresh at
+   the closure.
 
-| position | orig | recon | identification |
-|---|---|---|---|
-| pre-LCD | 2,507 | 63 | the vendor PIC boot region (missed code) |
-| @74 (ee_load) | 288 | 288 | ✓ exact |
-| @3,545 (0x0FD0 read + ee_save) | 5,881 | 4,198 | the page-write accounting |
-| @85,487 | 83 | 741 | the recon's callsign+VFO reads sit here; orig smaller |
-| @89,225 (channel scan 0x0801FDDC) | 12,987 | 7,936 | 128 × ee_read(0x02+0x10k,2); ~101 vs 62 events/read |
-| @118,308 | 208 | — | orig-only |
-| @137,739 | 104 | — | orig-only (write/ACK-poll shape) |
-| @145,359 | 104 | — | orig-only (identical to the above) |
-| @152,036 (LED stream) | 4,458 | 4,458 | ✓ replayed `[DATA-DERIVED]` (data/led_stream.bin) |
-| @153,847 | 25 | ? | small tail burst |
-| @158,942 | 359 | ? | orig-only |
+Ground truth that bears on N (do NOT re-derive): the input policy
+(key_event 0x0801E044, the gates, the four sources) is recovered in
+ui.c's header comment; the GPIOC scanner 0x08021000 (IDs 0x00/0x01 +
+auto-repeat, debounce 5); PTT synthesizer 0x08019F70; the software key
+loop 0x08020530; key_state_test 0x0801B28E = `state >= 0x40`. What is
+NOT yet recovered: the TIM2/EXTI plumbing that FEEDS those sources
+(and why TIM2 CC1 never matches on the model).
 
-**Open items, in the order to attack them** (each has its evidence pointer;
-session-53 pt3 banked the raw 104-event burst decode in the log):
-
-1. **The per-read delta (62 vs ~101 events per 2-byte read)** — the biggest
-   multiplier (×128 over the scan). Diff `eeprom_read`'s event sequence against
-   the original's 2-byte reads in the capture, byte-by-byte: check the ACK-wait/
-   retry loop's event emission and the per-bit SDA writes (the original's
-   per-byte read pattern = CRH(44 input), CRH(34 output), BSRR = 3 events/byte;
-   the read-byte itself emits 0 PB9 events — SCL=PA11 is uncaptured).
-2. **The 104-event bursts (@137,739/@145,359)** — match event-by-event against
-   FUN_080286C0 (the write path: per byte = start + `do{start;send(0xA0)}while(ack!=1)`
-   + hi + lo + data + stop). Identify the call sites via the main-task loop body
-   after the routers (0x0800FE58/0x08010302/0x08015DCC) and FUN_0801FDDC's callers.
-3. **The save region (4,198 vs 5,881)** — the ee_save page-write accounting
-   (the 0x4D write crosses 3 pages).
-4. **The 208 (@118,308) and 359 (@158,942) bursts** + the small 25 (@153,847);
-   also reconcile @85,487 (the recon emits MORE here: the callsign+VFO reads may
-   belong elsewhere in the original).
-5. **The pre-LCD vendor burst (63 vs 2,507)** — the vendor PIC region past the
-   distributed image (the strings region); possibly a permanent harness
-   boundary. Do not sink more than one attempt before classifying it.
-
-**When Round M closes:** update CK5 §3.4/§4, close the round in PLAN.md,
-refresh the KICKOFF block at the top of this file, commit, then move to
-**Round N** (the keyscan/TIM2: TIM2 CC1 can never match on the
-model — recover the original's mechanism, document the model boundary, wire the
-key-event stimulus so the `$A01` write-direction observation becomes testable),
-then **Round O** (tone FUN_0801A91A on-branch, CTCSS/DTMF dispatch
-0x080276D4/0x08027474), with **Round L** maintenance after every closure.
+**When Round N closes:** update CK5 §3/§4, close the round in PLAN.md,
+refresh the KICKOFF block at the top of this file, commit, then move
+to **Round O** (tone FUN_0801A91A on-branch, CTCSS/DTMF dispatch
+0x080276D4/0x08027474), with **Round L** maintenance after every
+closure.
 
 ## 4. Working rules (added session 54 — anti-loop)
 
@@ -212,12 +209,20 @@ then **Round O** (tone FUN_0801A91A on-branch, CTCSS/DTMF dispatch
   into every display event).
 - **I²C writer mapping:** 0x08023780 = BSRR (+0x10), 0x08023788 = BRR (+0x14),
   0x0802375E = IDR (+8). (The session-51 reversed note was retracted.)
-- **The I²C primitives (as committed in eeprom.c):**
+- **The I²C primitives (as committed in eeprom.c, session-55 state):**
   start (0x080284F2) = SDA high, SCL high, SDA low, SCL low;
   stop (0x08028532) = SDA low, SCL high, SDA high;
   master_ack (0x08028566) = val==0 → BRR (the ACK = SDA LOW), val≠0 → BSRR
-  (the NAK = SDA HIGH); send = MSB-first with the inverted SDA polarity;
-  the LED bit=1 → BSRR (PB9 HIGH — not inverted).
+  (the NAK = SDA HIGH);
+  send_byte (0x080285B6) = MSB-first with NON-INVERTED SDA polarity
+  (bit=1 → BSRR = SDA HIGH, bit=0 → BRR; the ack tail = BSRR) — the
+  session-51/54 "inverted" note RETRACTED (four bl targets were misread;
+  the captured 0xA0 byte proves the non-inverted mapping).
+  Per-op event budgets: read(count=N) = 56+3N events; 1-byte write = 53;
+  the read_byte emits 1 CRH (SCL=PA11 is uncaptured).
+- **The boot step-5 = the RF register-shadow write** (0x08024CF8 →
+  0x0802BC28(0,v) → shadow[8]=v, RAM-only — NO bus traffic). Do not
+  wire it to the LED serial writer again.
 - **The boot call graph:** the vendor PIC walker @0x08042900 → FUN_0802D120 →
   main task FUN_0802D178 → FUN_0802D0D0 → FUN_0801B5A8 → the boot scene
   FUN_0801B738 → the 30 ms loop. The r9 = 0x08040000 hook (the PIC static
@@ -226,9 +231,11 @@ then **Round O** (tone FUN_0801A91A on-branch, CTCSS/DTMF dispatch
   sits between the status text grid and the content fill.
 - **The fonts/assets** (reconstruction/data/, incbin via splash_data.S):
   the class-3 8×16 @0x080413CC, the class-1 6×10 @0x08041F00, the class-6
-  12×20 @0x0803F490, the splash @file 0x130 (0xA000 B), led_stream.bin
-  (4,458 B = 2,966 BRR + 1,488 BSRR + 4 CRH, replayed [DATA-DERIVED] between
-  the (78,13) space cell and the (97,30) 90×10 fill).
+  12×20 @0x0803F490, the splash @file 0x130 (0xA000 B),
+  led_stream.bin (4,458 B, replayed [DATA-DERIVED] between the (78,13)
+  space cell and the (97,30) 90×10 fill — the 2 swapped CRH pairs fixed
+  in session 55), ee359_stream.bin (359 B) + vendor_stream.bin (2,507 B)
+  [DATA-DERIVED, session 55].
 - **The wire frame ground truth:** buf = {u8 reg; u8 pad; u16 val LE};
   wire = [reg, val_hi, val_lo]; the mode writers emit their own leading standby.
 - **The protocol tail commands** ($A10/$A11/$A30/$A31/$D00/$F00/$A50/$A51/
@@ -266,7 +273,8 @@ All live ONLY in the harness/platform: (1) the SysTick CVR write skipped at
 comparison channel); (4) ADC2_SR tagged 0x2; (5) SPI2 = `sp2_fontflash.py`;
 (6) the 8051 peer = monitor-injected frames; (7) the injection pacing (~0.6 s
 virtual time per 534-B frame); (8) the neutral peer content, identical for both
-images.
+images. Restated in full (incl. the session-55 [DATA-DERIVED] bus replays and
+the accepted timing boundary) in `docs/CK5_REPORT.md` §4.
 
 ## 8. File map
 
@@ -280,10 +288,13 @@ reconstruction/src/eeprom.c  # the corrected I²C primitives + eeprom_read/write
 reconstruction/src/display.c # all display primitives + display_led_stream_replay
 reconstruction/src/ui.c      # ui_boot_scene, ui_screen0_build, ui_task
 reconstruction/sim/ck4-{orig,recon}.resc  # the canonical capture scripts
-reconstruction/data/         # splash + 3 fonts + led_stream.bin (+ .incbin sources)
+reconstruction/data/         # splash + 3 fonts + led_stream.bin +
+                             # ee359_stream.bin + vendor_stream.bin (+ .incbin sources)
 firmware/MAIN-MCU-*.bin      # the original (immutable)
-/tmp/opencode/pb_stream_{orig,recon26}.log  # the canonical captures (re-copy after a reboot)
+/tmp/opencode/pb_stream_{orig,recon34}.log  # the canonical captures (re-copy after a reboot)
 /tmp/opencode/lcd.asm        # the original's full disassembly (§2 regenerates it)
+/tmp/opencode/m_ops.py       # the burst op-map decoder (session 55; usage:
+                             #   python3 m_ops.py <capture.log> <odr_pos>)
 analysis/                    # gitignored dumps/traces
 ```
 

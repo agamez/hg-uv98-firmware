@@ -165,17 +165,20 @@ commands ($A10/$A11/$A30/$A31/$D00/$F00/$A50/$A51/$E0x/$F0x + the GB2312
 app-text set). Disassemble the dispatch tail from the missed region,
 extend protocol.c, and extend the matrix to the tail commands.
 
-## Round M — runtime I²C volume (the last CK4 item) — session 53/54, IN PROGRESS
-The display ODR stream = 100.00% CLOSED (160,753/160,753, the FULL
-16-bit values — session 53 pt2, re-verified session 54). What differs =
-the I²C event counts: the recon 3,392 CRH / 7,432 BSRR / 6,860 BRR vs
-the original 4,902 / 7,913 / 14,188 (CRL 0 vs 1). The I²C primitives
-are corrected and committed (session 54). The full burst map + the
-ordered open items live in followup.md §3: (1) the per-read delta
-(62 vs ~101 events/2-byte read), (2) the 104-event write/ACK-poll
-bursts vs FUN_080286C0, (3) the save region (4,198 vs 5,881), (4) the
-208/359/25-event bursts, (5) the pre-LCD vendor burst (63 vs 2,507 —
-possibly a harness boundary).
+## Round M — runtime I²C volume — session 53-55, ✅✅ CLOSED (session 55)
+The FULL GPIOB bus = event-by-event identical: **187,757/187,757 events
+(every ODR, BSRR, BRR, CRH and CRL write)**; the census is exact (CRH
+4,902 / BSRR 7,913 / BRR 14,188 / CRL 1 / ODR 160,753 on BOTH images)
+and all 11 bursts match in position and length. Resolution: the "62 vs
+~101 events/read" = an averaging artifact (the per-read shape was always
+identical — read = 56+3N events, 1-byte write = 53); the real deltas =
+the send_byte polarity (non-inverted, session 55 correction), missing
+ops (the 0x0800 VFO-default block; the scan head reads + the scan-time
+save; the 8 VFO reads moved into the scan tail), the boot step-5
+correction (the RF shadow write, RAM-only), and three [DATA-DERIVED]
+replays (the 25-event PB9 tail, the 359-event RTOS-interleaved burst,
+the 2,507-event vendor pre-LCD burst). Full evidence: the research log
+session 55; the op-map decoder: /tmp/opencode/m_ops.py convention.
 
 ## Round N — keyscan path (TIM2) — after M
 TIM2 CC1 can never match on the model (open since ~session 40).
