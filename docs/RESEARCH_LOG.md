@@ -1898,3 +1898,44 @@ distributed image.**
   reclassified from "unknown" to "unreachable on the platform (the
   vendor flash beyond the distributed image) — behaviorally matched by
   the fall-through".
+
+**Session 52, part 5 — RETRACTION: the glyphs are STORED, not computed.
+The boot display stream is 100% byte-identical (85,487/85,487 ODR).**
+- RETRACTION of part 3's "the ASCII glyphs are computed at runtime":
+  WRONG. The decisive instrument = the AddHook on FUN_0801BFB8 logging
+  r2 (the glyph pointer) per call: the 13 boot-text calls carry the
+  pointers 0x080413CC + (c-0x20)*0x10 EXACTLY — the class-3 table at
+  0x080413CC inside the distributed image (R=0x080416EC, E=0x0804161C,
+  S=0x080416FC, T=0x0804170C, W=0x0804173C, A=0x080415DC, I=0x0804165C,
+  .=0x080414AC, the space = the base itself). The earlier searches
+  failed because the storage format is COLUMN-MAJOR and I searched for
+  the row-major rendering.
+- FONT FORMAT [decoded from FUN_0801BFB8's class-3 loops]: the 16-byte
+  record = the bytes 0-7 = the columns 0-7 of the top 8 rows, the bytes
+  8-15 = the columns 0-7 of the bottom 8 rows; the pixel (row, col) =
+  the bit (row&7) of the record[col] / the record[8+col] (the LSB =
+  the row 0 of each half). The render = the window (x, y, x+7, y+15)
+  + 0x2C + the 16x8 pixels, the row-major emit, NO PC2 wrap. The
+  scheme 4 = fg 0x0000 on bg 0xEFBE (the 4th draw_text arg = the color
+  scheme selector, not the inverse flag).
+- TWO RECON BUGS FIXED en route:
+  (a) hw_init was called TWICE (main() AND ui_task) — the original's
+      peripheral init runs ONLY inside the main task (FUN_0802D178);
+      the duplicate doubled the init on the stream.
+  (b) the fill/blit set_window calls had (x1, y1) swapped vs the
+      original's FUN_0801B9C8 convention (the 0x2A from the 2nd/4th
+      args = the column axis) — masked until now by the identical
+      pixel COUNTS.
+- BOOT SCENE COMPLETED [0x0801B738 + 0x0801B2E8]: the factory-reset
+  path implemented (the "RESET WAIT..." text, the decompiled default
+  field list, the magic copy from 0x0804594C, the ee_read(0x0FD0, 16)
+  with the first-boot conditional write, the ee_save =
+  eeprom_write(0x0A00, 0x4D)); the LED word = app[0x19]*0x10+0x5F =
+  0x145 after the reset (the digit 9); the ASCII font extracted
+  (1,520 bytes, data/ascii8x16_font.bin).
+- PARITY RESULT [the 3-s runs, run8]: **the recon's ODR stream =
+  85,487 events, byte-IDENTICAL to the original's first 85,487 ODR
+  events** (the init 74 + the 13 glyph cells ~3,400 + the fill 40,960
+  + the splash 40,960). The original's remaining ~75,266 ODR events =
+  the runtime 30 ms UI redraws (the state machine, the open item).
+  All 13 cell bitmaps verified glyph-by-glyph ("RESET WAIT...").

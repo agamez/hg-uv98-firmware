@@ -176,7 +176,10 @@ int main(void)
     /* PendSV lowest-priority setup is performed by the port's
      * OSStartHighRdy (os_cpu_a.S).                                        */
 
-    hw_init();
+    /* [session 52 fix] hw_init is NOT called here: the original's
+     * peripheral init (FUN_0802D0D0) runs INSIDE the main task
+     * (FUN_0802D178), once. The duplicate call doubled the display
+     * init on the CK4 stream. */
 
     /* [session 44 fix | RECOVERED correction] The original's main calls
      * OSInit() before task creation (standard Micrium flow; OSStart at

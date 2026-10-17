@@ -190,7 +190,10 @@ void display_draw_text(uint16_t x, uint16_t y, const char *s, uint8_t style)
 void display_fill_rect(uint8_t y, uint8_t x, uint8_t cols, uint8_t rows, uint8_t blank)
 {
     GPIO_BSRR(GPIOC_BASE) = 2u;
-    display_set_window(y, x, (uint16_t)(y + rows - 1), (uint16_t)(x + cols - 1));
+    /* [session 52 fix] the original's FUN_0801B9C8 writes 0x2A from its
+     * 2nd/4th args (the column axis) and 0x2B from its 1st/3rd (the row
+     * axis); the column extent here = x+cols-1. */
+    display_set_window(x, y, (uint16_t)(x + cols - 1), (uint16_t)(y + rows - 1));
     tft_write_cmd(0x2C);
     for (uint32_t r = 0; r < rows; r++) {
         for (uint32_t c = 0; c < cols; c++) {
@@ -212,13 +215,44 @@ void display_blit_image(uint8_t y, uint8_t x, uint8_t rows, uint8_t cols,
                         const uint8_t *img, uint32_t len)
 {
     GPIO_BSRR(GPIOC_BASE) = 2u;
-    display_set_window(y, x, (uint16_t)(y + rows - 1), (uint16_t)(x + cols - 1));
+    display_set_window(x, y, (uint16_t)(x + cols - 1), (uint16_t)(y + rows - 1));
     tft_write_cmd(0x2C);
     for (uint32_t i = 0; i < (len >> 1); i++) {
         tft_write_byte(img[i * 2u]);
         tft_write_byte(img[i * 2u + 1u]);
     }
     GPIO_BRR(GPIOC_BASE) = 2u;
+}
+
+/* [0x0801BFB8 class-3 path | RECOVERED session 52] ASCII glyph cell
+ * blit: window (x, y, x+7, y+15) then 0x2C, then 16 rows x 8 cols
+ * pixels. The glyph record (16 bytes) is COLUMN-MAJOR: bytes 0-7 =
+ * the columns of the top 8 rows, bytes 8-15 = the bottom 8 rows;
+ * pixel(row, col) = bit (row&7) of record[col] / record[8+col]. The
+ * outer loop = the row, the inner = the column (the window fill
+ * order). No PC2 wrap in this path (unlike fill/blit). The colors =
+ * the caller's scheme pair (r5 = fg, r6 = bg in the original). */
+void display_blit_glyph_cell(uint8_t y, uint8_t x, const uint8_t *rec,
+                             uint16_t fg, uint16_t bg)
+{
+    display_set_window(x, y, (uint16_t)(x + 7u), (uint16_t)(y + 15u));
+    tft_write_cmd(0x2C);
+    for (uint32_t r = 0; r < 8u; r++) {           /* top half  */
+        for (uint32_t c = 0; c < 8u; c++) {
+            if (rec[c] & (1u << r))
+                tft_write_data(fg);
+            else
+                tft_write_data(bg);
+        }
+    }
+    for (uint32_t r = 0; r < 8u; r++) {           /* bottom half */
+        for (uint32_t c = 0; c < 8u; c++) {
+            if (rec[8u + c] & (1u << r))
+                tft_write_data(fg);
+            else
+                tft_write_data(bg);
+        }
+    }
 }
 
 /* [0x0802883A | RECOVERED] the 12-bit serial LED-matrix link:

@@ -84,6 +84,9 @@
 
 /* --- extern hooks (SCAFFOLD; wired in main.c/rtos.c glue) ------------- */
 void hw_init(void);
+void *mem_copy(void *dst, const void *src, unsigned int n);
+void mem_fill(void *dst, unsigned int n, unsigned int v);
+int mem_cmp(const void *a, const void *b, unsigned int n);
 void time_dly(uint32_t ticks);
 int  battery_adc_read_ch14(void);
 void ring_write_bcd(uint32_t peak_ts, uint8_t *ring);
@@ -179,20 +182,65 @@ uint16_t smeter_rssi_db(uint8_t chip)
  * init (hw_init here), the task creators (0x0801B5A8), then this scene:
  *   1. zero the state structs (0x169/0x15B bytes)      [DATA-DERIVED here]
  *   2. ee_read(0x0A00, settings, 0x4D)                 [0x0801A6D8]
- *   3. the magic check at app-state +0x44 vs ROM past the distributed
- *      image (unmapped on the sim -> the defaults path taken)
- *   4. led_write(0x5F + digit*0x10)                    [0x08024CF8]
- *   5. fill(0,0,160,128) = the 0xEFBE background       [0x0801CD32]
- *   6. splash blit 128x160 @0x08004130, 0xA000 bytes   [0x0801D334]
- *   7. the callsign draw at (0x48,0x2A)                [0x0801CB60] — on the
- *      sim the EEPROM reads return 0x00 so the string is empty and no
- *      glyphs are emitted (the glyph engine remains a SCAFFOLD)
- *   8. delay(2000) — the splash hold                   [0x0801BAA4]
- *   9. the VFO/config EEPROM reads: 0x0FCD(2), 0x0FCF(1), 0x0FB0(16),
+ *   3. FUN_0801A700 = a no-op (decompiled)
+ *   4. the magic check: app-state +0x44 vs the ROM word at 0x0804594C -
+ *      the vendor flash BEYOND the distributed image; unmapped on the
+ *      simulator, so the check fails and the factory-reset path runs,
+ *      exactly as observed in the original's stream
+ *   4a. [0x0801B2E8(0)] draw "RESET WAIT..." (13 cells, scheme 4 =
+ *       fg 0x0000 on bg 0xEFBE, class 3), write the default fields,
+ *       ee_read(0x0FD0, 16) + the first-boot conditional write (skipped
+ *       on the sim: the model returns 0x00, not 0xFF), ee_save
+ *       = eeprom_write(0x0A00, 0x4D)
+ *   5. led_write(app[0x19]*0x10 + 0x5F) = 0x145 after the reset
+ *                                                         [0x08024CF8]
+ *   6. fill(0,0,160,128) = the 0xEFBE background         [0x0801CD32]
+ *   7. the splash blit 128x160 @0x08004130, 0xA000 bytes [0x0801D334]
+ *   8. the callsign draw at (0x48,0x2A)                  [0x0801CB60] -
+ *      on the sim the EEPROM reads return 0x00 so the string is empty
+ *      and no glyphs are emitted
+ *   9. delay(2000) - the splash hold                     [0x0801BAA4]
+ *  10. the VFO/config EEPROM reads: 0x0FCD(2), 0x0FCF(1), 0x0FB0(16),
  *      0x0F90(16), 0x1FCD(2), 0x1FCF(1), 0x1FB0(16), 0x1F90(16)
- * Steps 3/7 emit no bus events under the simulator; the rest is
+ * Step 8 emits no bus events under the simulator; the rest is
  * reproduced exactly. */
 extern const uint8_t ui_splash_image[0xA000];
+extern const uint8_t ui_ascii8x16_font[];   /* 95 chars x 16 B @0x080413CC */
+
+/* [0x0801B2E8(0) | RECOVERED session 52] factory reset: the boot text
+ * (scheme 4 = black on 0xEFBE, class 3 = the 8x16 table), the default
+ * field list (the offsets/values decompiled), and the EEPROM tail:
+ * the 0x0FD0 block read with the first-boot conditional write, then
+ * the settings save (FUN_0801A6EA). The VFO-ring init touches RAM
+ * only. */
+static void ui_factory_reset(uint8_t *st)
+{
+    static const char msg[13] = "RESET WAIT...";
+    uint8_t blk[16];
+
+    for (uint32_t i = 0; i < 13u; i++) {
+        const uint8_t *g = &ui_ascii8x16_font[(uint32_t)(uint8_t)msg[i] * 16u - 0x200u];
+        display_blit_glyph_cell(0x30u, (uint8_t)(0x20u + i * 8u), g, 0x0000u, 0xEFBEu);
+    }
+    mem_fill(st, 0x4D, 0x00);
+    mem_copy(&st[0x44], (const void *)0x0804594Cu, 4);   /* the magic word */
+    mem_copy(&st[0x30], (const void *)0x08045954u, 6);
+    st[0x42] = 1;  st[0x41] = st[0x42];
+    st[0x0A] = 2;  st[0x0B] = 0;
+    st[0x06] = 5;  st[0x05] = st[0x06];
+    st[0x19] = 9;  st[0x0C] = 1;  st[0x29] = 1;  st[0x15] = 0;
+    st[0x01] = 0;  st[0x1A] = 6;  st[0x16] = 1;  st[0x17] = 1;
+    st[0x1D] = 2;  st[0x1F] = 1;  st[0x20] = 2;  st[0x21] = 4;
+    st[0x22] = 2;  st[0x23] = 0;  st[0x24] = 1;  st[0x25] = 2;
+    st[0x26] = 1;  st[0x2C] = 1;  st[0x39] = 1;
+    st[0x09] = 0;  st[0x08] = st[0x09];
+    eeprom_read(0x0FD0u, 0x10u, blk);
+    if (blk[0] == 0xFFu) {                    /* first boot only        */
+        mem_copy(blk, (const void *)0x08042C48u, 0x10);
+        eeprom_write(0x0FD0u, 0x10u, blk);
+    }
+    eeprom_write(0x0A00u, 0x4Du, st);         /* FUN_0801A6EA the save  */
+}
 
 void ui_boot_scene(void)
 {
@@ -200,12 +248,16 @@ void ui_boot_scene(void)
     static uint8_t ee_buf[16];
 
     eeprom_read(0x0A00u, 0x4Du, ee_settings);
-    display_led_write(0x5Fu, 0u);          /* app-state digit 0 [DATA-DERIVED] */
+    if (mem_cmp(&ee_settings[0x44], (const void *)0x0804594Cu, 4) != 0)
+        ui_factory_reset(ee_settings);
+    display_led_write((uint16_t)(ee_settings[0x19] * 0x10u + 0x5Fu), 0u);
     display_fill_rect(0u, 0u, 0xA0u, 0x80u, 0u);
     display_blit_image(0u, 0u, 0x80u, 0xA0u, ui_splash_image, 0xA000u);
     {
         uint8_t callsign[9];
         eeprom_read(0x1800u, 9u, callsign);
+        if (callsign[0] == 0xFFu)
+            mem_copy(callsign, "NOCALL-7", 8u);   /* DAT_0801B9B0 [RECOVERED] */
         /* draw_text(0x48, 0x2A, callsign, 0, 3): empty under the sim     */
     }
     {
