@@ -1939,3 +1939,30 @@ The boot display stream is 100% byte-identical (85,487/85,487 ODR).**
   + the splash 40,960). The original's remaining ~75,266 ODR events =
   the runtime 30 ms UI redraws (the state machine, the open item).
   All 13 cell bitmaps verified glyph-by-glyph ("RESET WAIT...").
+
+**Session 52, part 6 — the runtime screen decoded: "CALL:BAT:0.8 V".**
+- The original's post-boot ODR (~75,266 events) = the main-screen
+  build through the SAME verified primitives. Window-by-window:
+  1. a 14-cell glyph grid: "CALL:" (5 cells, the cols 42-81, the rows
+     72-87) + "BAT:0.8 V" (9 cells, the cols 42-113, the rows 88-103)
+     — every cell matches the class-3 font at 128/128 bits (the exact
+     match over all 160 bits per glyph); the scheme = fg 0x0000 on
+     bg 0xEFBE again. This = the status page: "CALL:" + the (empty on
+     the sim) callsign value, "BAT:" + the voltage (the ADC reads 0
+     under the model, formatted as "0.8 V").
+  2. the content fill: the cols 1-158, the rows 18-109 = 14,536 px of
+     0xEFBE (29,072 events).
+  3. the black horizontal lines: the full-width rows 63 and 110
+     (160 px of 0x0000 each).
+  4. the header band: the cols 1-158, the rows 1-16 (2,528 px).
+  5. the border: the row 0, the col 0, the col 159, the row 127 (the
+     1-px frame).
+  6. further elements: 2 glyph cells at the rows 35-50 (the cols
+     108-123), six 6x10 small-font cells at the rows 18-27 (the class-0
+     path), an 899-px window at the cols 30-119/the rows 50-59.
+- The capture carries no wall-clock (the first field = the line
+  number), so the redraw cadence = not extractable from this artifact;
+  the Renode RunFor windows = the only timing control.
+- STATUS: every display primitive = byte-verified; the remaining work =
+  the SEQUENCE driver (which screen when, the string sources, the
+  periodic update policy) = the UI state machine, the main open item.

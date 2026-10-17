@@ -91,11 +91,19 @@ orchestration order is **[DATA-DERIVED]** from the reference trace.
 - **Parity (3 s runs): the splash blit = byte-exact (the 0x2FF byte
   count 27,940 in BOTH images); the boot fill = byte-exact (40,960
   EFBE).** The recon = 82,090 ODR events vs the original's 160,753.
-- OPEN (application layer): the "RESET WAIT..." glyph cells (~3k
-  events — the glyph engine decoded, the exact glyph source mapping
-  open), the runtime 30 ms UI redraws (~60k events — the UI state
-  machine), and the pre-LCD vendor I²C path (2,501 events, no
-  direction switches).
+- **The glyph engine = recovered and byte-verified** (session 52 pt5,
+  retracting pt3's computed-font claim): the class-3 table at
+  0x080413CC, the column-major 16-byte records (the top/bottom 8-row
+  halves, the LSB = the row 0), the scheme colors, the window
+  convention fixed. The factory-reset path ("RESET WAIT...", the
+  defaults, the ee_save) implemented.
+- **The boot display stream = 100% byte-identical: 85,487/85,487 ODR
+  events** (the init + the 13 glyph cells + the fill + the splash).
+- The runtime screen decoded: the status page "CALL:BAT:0.8 V" (the
+  14 glyph cells, all matching the font at 128/128), the content fill,
+  the black lines, the header, the 1-px border — all through the same
+  primitives. OPEN: the sequence driver (the UI state machine) and the
+  pre-LCD vendor I²C path (2,501 events, no direction switches).
 
 ## 3. Classified difference list
 
