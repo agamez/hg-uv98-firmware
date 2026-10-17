@@ -1851,3 +1851,25 @@ the color-scheme correction; the boot text identified.**
   reset path FUN_0801B2E8 (which also writes the 0x4D defaults and
   ee_saves) — 12 cells x 256 events ≈ the observed ~3.5k pre-fill
   events.
+
+**Session 52, part 3 — the glyph source is COMPUTED, not stored.**
+- Definitive negative results (three independent probes): the rendered
+  'R' bitmap (fc 66 66 66 7c 6c 66 66 66 e6, the 10-row MSB-first row
+  encoding, reconstructed from the original's stream) is absent from
+  (a) the whole internal flash (the direct/nibble-shifted/column-major/
+  bit-reversed searches), (b) the recovered RAM tables and the UI
+  strings region, and (c) a live RAM dump of the running original
+  (0x18000 bytes @0x20000000 after 1 s, scanned for the pattern).
+  The sp2_fontflash model returns 0xFF (erased) for the external flash
+  data phase, so the glyphs do not come from there either on the
+  platform.
+- CONCLUSION: the ASCII glyphs are COMPUTED AT RUNTIME by the original
+  (an algorithmic/segment font — the per-class tables at
+  DAT_080290C8..EC hold something other than the final bitmaps, or the
+  fetcher synthesizes). The rendered cells = 10 visible rows in a
+  16-row cell, MSB-first, the pitch 8; "RESET WAIT..." renders
+  correctly as R/E/S/E/T/space/W/A/I/T/././. — the shape decoding is
+  certain; the generator algorithm is an OPEN ITEM.
+- Impact: ~3.5k of the original's 160,753 stream events (2%). The CK4
+  census remains: the init 74/74, the fill 40,960/40,960, the splash
+  27,940/27,940 white-pixel-exact.
