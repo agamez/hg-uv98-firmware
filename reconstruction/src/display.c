@@ -187,7 +187,7 @@ void display_draw_text(uint16_t x, uint16_t y, const char *s, uint8_t style)
  * [0x20004E68+0x18] is set. Wraps the transfer with PC2 (CS-ish
  * control line). The original's lock (FUN_0801D840) is OS-level and
  * not reproduced here. */
-void display_fill_rect(uint8_t y, uint8_t x, uint8_t cols, uint8_t rows, uint8_t blank)
+void display_fill_rect(uint8_t y, uint8_t x, uint8_t cols, uint8_t rows, uint16_t color)
 {
     GPIO_BSRR(GPIOC_BASE) = 2u;
     /* [session 52 fix] the original's FUN_0801B9C8 writes 0x2A from its
@@ -196,15 +196,8 @@ void display_fill_rect(uint8_t y, uint8_t x, uint8_t cols, uint8_t rows, uint8_t
     display_set_window(x, y, (uint16_t)(x + cols - 1), (uint16_t)(y + rows - 1));
     tft_write_cmd(0x2C);
     for (uint32_t r = 0; r < rows; r++) {
-        for (uint32_t c = 0; c < cols; c++) {
-            if (!blank) {
-                tft_write_byte(0xEF);
-                tft_write_byte(0xBE);
-            } else {
-                tft_write_byte(0x00);
-                tft_write_byte(0x00);
-            }
-        }
+        for (uint32_t c = 0; c < cols; c++)
+            tft_write_data(color);
     }
     GPIO_BRR(GPIOC_BASE) = 2u;
 }

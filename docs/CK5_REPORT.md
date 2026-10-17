@@ -97,13 +97,15 @@ orchestration order is **[DATA-DERIVED]** from the reference trace.
   halves, the LSB = the row 0), the scheme colors, the window
   convention fixed. The factory-reset path ("RESET WAIT...", the
   defaults, the ee_save) implemented.
-- **The boot display stream = 100% byte-identical: 85,487/85,487 ODR
-  events** (the init + the 13 glyph cells + the fill + the splash).
-- The runtime screen decoded: the status page "CALL:BAT:0.8 V" (the
-  14 glyph cells, all matching the font at 128/128), the content fill,
-  the black lines, the header, the 1-px border — all through the same
-  primitives. OPEN: the sequence driver (the UI state machine) and the
-  pre-LCD vendor I²C path (2,501 events, no direction switches).
+- **The display stream = byte-identical for 128,535/128,535 of the
+  recon's ODR events = 80.0% of the original's full stream** (the init
+  + the 13 glyph cells + the fill + the splash + the status-page
+  build). The run6 baseline = 51.6%.
+- The runtime status page ("CALL:BAT:0.8 V") = implemented and
+  byte-verified (the 14 cells match the font at 128/128). OPEN: the
+  small-font (class-0) elements, the later state-machine draws, the
+  periodic update policy, and the pre-LCD vendor I²C path (2,501
+  events, no direction switches).
 
 ## 3. Classified difference list
 

@@ -1966,3 +1966,20 @@ The boot display stream is 100% byte-identical (85,487/85,487 ODR).**
 - STATUS: every display primitive = byte-verified; the remaining work =
   the SEQUENCE driver (which screen when, the string sources, the
   periodic update policy) = the UI state machine, the main open item.
+
+**Session 52, part 7 — the status-page build implemented: 80.0% of the
+original's ODR stream byte-identical.**
+- ui_screen0_build() reproduces the observed window sequence: the
+  "CALL:"/"BAT:0.8 V" glyph grid (the scheme 4), the content fill
+  (158x92 @0xEFBE), the black lines (the rows 63/110), the header band
+  (158x16 @0xEFBE), the 1-px border frame (0x0000), the row-17 line +
+  the re-lines, the header text fill (72x16). The string content = the
+  sim-state (the empty callsign, the ADC 0 -> "0.8 V") — DATA-DERIVED.
+- display_fill_rect refactored to the explicit color (the CD32 blank
+  flag = the dynamic app-state; the recon passes the resolved color).
+- RESULT [run9]: the recon = 128,535 ODR events, byte-IDENTICAL to the
+  original's first 128,535 (80.0% of the original's 160,753; the run6
+  baseline = 51.6%). The recon produces no further events (the stub
+  routers draw nothing); the original's remaining 32,218 = the
+  small-font elements (the class-0 path), the later cells, and the
+  periodic update policy = the UI state machine, OPEN.

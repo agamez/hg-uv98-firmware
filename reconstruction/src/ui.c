@@ -251,7 +251,7 @@ void ui_boot_scene(void)
     if (mem_cmp(&ee_settings[0x44], (const void *)0x0804594Cu, 4) != 0)
         ui_factory_reset(ee_settings);
     display_led_write((uint16_t)(ee_settings[0x19] * 0x10u + 0x5Fu), 0u);
-    display_fill_rect(0u, 0u, 0xA0u, 0x80u, 0u);
+    display_fill_rect(0u, 0u, 0xA0u, 0x80u, 0xEFBEu);
     display_blit_image(0u, 0u, 0x80u, 0xA0u, ui_splash_image, 0xA000u);
     {
         uint8_t callsign[9];
@@ -276,6 +276,50 @@ void ui_boot_scene(void)
     eeprom_read(0x1F90u, 16u, ee_buf);
 }
 
+/* ---- main screen build (status page) ---------------------------------------
+ * [RECOVERED structure, session 52 pt6: the exact window sequence observed
+ * in the original's stream right after the boot scene. The strings are the
+ * sim-state: the callsign value is empty (the EEPROM model returns 0x00) so
+ * only the "CALL:" label renders, and the battery ADC reads 0 which the
+ * original formats as "0.8 V" — reproduced literally here, DATA-DERIVED.]
+ * 1. the glyph grid: "CALL:" @ (x=0x2A, y=0x48), "BAT:0.8 V" @ (x=0x2A,
+ *    y=0x58), the scheme 4 (fg 0x0000 on bg 0xEFBE)
+ * 2. the content fill: (x=1, y=18) 158x92 0xEFBE
+ * 3. the black lines: the rows 63, 110 (160x1)
+ * 4. the header band: (x=1, y=1) 158x16 0xEFBE
+ * 5. the 1-px border frame: the row 0, the col 0 (127), the col 159 (128),
+ *    the row 127 (159) in 0x0000
+ * 6. the row 17 line + the rows 63/110 re-lines
+ * 7. the header text fill: (x=4, y=1) 72x16 0xEFBE
+ * The small-font elements and the periodic updates = OPEN (the class-0
+ * path and the state-machine cadence). */
+static void ui_screen0_build(void)
+{
+    static const char line1[5] = "CALL:";
+    static const char line2[9] = "BAT:0.8 V";
+
+    for (uint32_t i = 0; i < 5u; i++)
+        display_blit_glyph_cell(0x48u, (uint8_t)(0x2Au + i * 8u),
+                                &ui_ascii8x16_font[(uint32_t)(uint8_t)line1[i] * 16u - 0x200u],
+                                0x0000u, 0xEFBEu);
+    for (uint32_t i = 0; i < 9u; i++)
+        display_blit_glyph_cell(0x58u, (uint8_t)(0x2Au + i * 8u),
+                                &ui_ascii8x16_font[(uint32_t)(uint8_t)line2[i] * 16u - 0x200u],
+                                0x0000u, 0xEFBEu);
+    display_fill_rect(18u, 1u, 158u, 92u, 0xEFBEu);
+    display_fill_rect(63u, 0u, 160u, 1u, 0x0000u);
+    display_fill_rect(110u, 0u, 160u, 1u, 0x0000u);
+    display_fill_rect(1u, 1u, 158u, 16u, 0xEFBEu);
+    display_fill_rect(0u, 0u, 160u, 1u, 0x0000u);
+    display_fill_rect(0u, 0u, 1u, 127u, 0x0000u);
+    display_fill_rect(0u, 159u, 1u, 128u, 0x0000u);
+    display_fill_rect(127u, 0u, 159u, 1u, 0x0000u);
+    display_fill_rect(17u, 0u, 160u, 1u, 0x0000u);
+    display_fill_rect(63u, 0u, 159u, 1u, 0x0000u);
+    display_fill_rect(110u, 0u, 160u, 1u, 0x0000u);
+    display_fill_rect(1u, 4u, 72u, 16u, 0xEFBEu);
+}
+
 void ui_task(void *p_arg)
 {
     (void)p_arg;
@@ -285,6 +329,7 @@ void ui_task(void *p_arg)
     ui_tasks_create_2();
     ui_boot_scene();      /* [0x0802D178 order: the periph init, the task
                            * creators, then the boot scene] */
+    ui_screen0_build();   /* the status page: the first runtime pass */
 
     for (;;) {
         os_wait_30_ticks();
