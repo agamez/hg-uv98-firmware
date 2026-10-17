@@ -1,0 +1,22 @@
+# ck3-tonediag.resc — Round O: the tone wrapper's boot-instance inputs.
+# Hook the wrapper entry (r0/r1/r2), both index-completion sites (r6), and
+# all four reg-0x49 value sites (r8/fp) in the ORIGINAL.
+using sysbus
+mach create "ck3tonediag"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x0801a91a "self.Log(LogLevel.Info, 'TONEWRAP chip=0x' + hex(self.GetRegister(0).RawValue) + ' type=0x' + hex(self.GetRegister(1).RawValue) + ' code=0x' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x801a954 "self.Log(LogLevel.Info, 'TONEIDX_T1 r6=0x' + hex(self.GetRegister(6).RawValue))"
+cpu AddHook 0x801aa4a "self.Log(LogLevel.Info, 'TONEIDX_OT r6=0x' + hex(self.GetRegister(6).RawValue))"
+cpu AddHook 0x801a9ca "self.Log(LogLevel.Info, 'T49 t1g0 r8=0x' + hex(self.GetRegister(8).RawValue))"
+cpu AddHook 0x801aa22 "self.Log(LogLevel.Info, 'T49 t1g1 r8=0x' + hex(self.GetRegister(8).RawValue))"
+cpu AddHook 0x801aaba "self.Log(LogLevel.Info, 'T49 otg0 r8=0x' + hex(self.GetRegister(8).RawValue))"
+cpu AddHook 0x801ab12 "self.Log(LogLevel.Info, 'T49 otg1 r8=0x' + hex(self.GetRegister(8).RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:03.000"
+quit

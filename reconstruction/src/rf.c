@@ -305,14 +305,81 @@ void at1846s_filter_detect(uint8_t chip)
     rf_write(chip, 0x59, 0x0A8D);
 }
 
-/* [0x0801A91A boot path | RECOVERED session 49] tone register pair at boot:
- * 0x48=0x1E3C (tone1) and 0x49=0x0284 (tone2; the wrapper computes it from
- * the tone tables at DAT_0801B594 with the boot-default state). The full
- * table-driven computation is not exercised at boot. */
-void at1846s_tone_pair_boot(uint8_t chip)
+/* [0x0801A91A | RECOVERED session 56 — the tone wrapper mechanism].
+ * Boot-default pair (chip, type, code): computes the AT1846S tone
+ * registers from the EEPROM-calibrated tone state instead of replaying
+ * magic values.
+ *
+ * State (all EEPROM-calibrated; the model's neutral EEPROM reads 0, so
+ * both images run the same boot-default instance):
+ *   APP_STATE (0x2000469C) +0x109 u32  = the tone tick (recomputed by the
+ *                                        settings-apply fn 0x0801AB36 via
+ *                                        0x0801A8AA);
+ *   +0xEC / +0xEA u16                  = the type-1 / other tick base
+ *                                        (EEPROM 0x1FCD / 0x0FCD);
+ *   +0xEF / +0xEE i8                   = the type-1 / other tick scaler
+ *                                        (EEPROM 0x1FCF / 0x0FCF);
+ *   tableA 0x20005010, tableB 0x20005030: 32 bytes each — [0..15] = the
+ *   other/DTMF half (EEPROM 0x0FB0/0x0F90), [16..31] = the type-1/CTCSS
+ *   half (EEPROM 0x1FB0/0x1F90);
+ *   band record 0x20004F94 + chip*30, byte[12] bit1 = the tone gate.
+ *
+ * Computation (the original's u8-truncated arithmetic):
+ *   idx   = (u8)(tick/100000 - base) sdiv scaler   (SDIV/0 reads 0 on the
+ *           Cortex-M3 — idx 0 with the neutral state);
+ *   cByte = tableA[type==1 ? 16+idx : idx];
+ *   dByte = tableB[type==1 ? 16+idx : idx], &0x7F for type != 1;
+ *   gate  = bit1 of the band record's byte 12;
+ *   0x48  = gate ? 0x162B : 0x1E3C;
+ *   x     = (u8)(code + dByte) + (gate ? (type==1 ? -3 : +1) : 0);
+ *   0x49  = ((x & 0xFF) << 7) | ((x - 1) & 0xFF).
+ *
+ * Boot instance (hook-verified, ck3-tonediag.resc): wrapper(0, 0, 5),
+ * idx = 0, dByte = 0, gate = 0 -> 0x48 = 0x1E3C and
+ * 0x49 = (5<<7)|4 = 0x284 — the CK3 trace pair (ck3_rf_orig.txt
+ * lines 261-263). NOTE: the original also runs the 0x08026C46 preset
+ * block before the pair (covered positionally by the [DATA-DERIVED]
+ * init orchestration in at1846s_boot_default_apply — emitting it here
+ * as well would double-write the shared registers) and ends with the
+ * 0x0802883A 12-bit GPIOD serial word (PD0 clock / PD9 data — no
+ * comparison channel; not emitted by this slice). */
+void at1846s_tone_pair_boot(uint8_t chip, uint8_t type, uint8_t code)
 {
-    rf_write(chip, 0x48, 0x1E3C);
-    rf_write(chip, 0x49, 0x0284);
+    const uint8_t *tblA = (const uint8_t *)0x20005010u;
+    const uint8_t *tblB = (const uint8_t *)0x20005030u;
+    const uint8_t *tickp = (const uint8_t *)(0x2000469Cu + 0x109u);
+    const uint8_t *basep = (const uint8_t *)(0x2000469Cu +
+                             (type == 1u ? 0xECu : 0xEAu));
+    const uint8_t *scalp = (const uint8_t *)(0x2000469Cu +
+                             (type == 1u ? 0xEFu : 0xEEu));
+    const uint8_t *gatep = (const uint8_t *)(0x20004F94u +
+                             (uint32_t)chip * 30u + 12u);
+    uint32_t tick, t;
+    uint16_t base;
+    int scaler, diff, idx, x, gate;
+    uint8_t cByte, dByte;
+
+    tick = (uint32_t)tickp[0] | ((uint32_t)tickp[1] << 8) |
+           ((uint32_t)tickp[2] << 16) | ((uint32_t)tickp[3] << 24);
+    t = tick / 100000u;
+    base = (uint16_t)(basep[0] | ((uint16_t)basep[1] << 8));
+    scaler = (int8_t)scalp[0];
+    diff = (int)(uint8_t)(t - base);
+    /* SDIV by zero = 0 on the Cortex-M3 (no DIV_0_TRP in this image);
+     * reproduce that semantics instead of the C undefined behaviour. */
+    idx = (scaler == 0) ? 0 : (diff / scaler);
+    idx &= 0xFF;
+    cByte = tblA[(type == 1u ? 16u : 0u) + (unsigned)idx];
+    dByte = tblB[(type == 1u ? 16u : 0u) + (unsigned)idx];
+    if (type != 1u)
+        dByte &= 0x7Fu;
+    gate = (*gatep >> 1) & 1;
+
+    rf_write(chip, 0x48, gate ? 0x162Bu : 0x1E3Cu);
+    x = (int)(uint8_t)(code + dByte) + (gate ? (type == 1u ? -3 : 1) : 0);
+    rf_write(chip, 0x49,
+             (uint16_t)((((uint16_t)(uint8_t)x) << 7) |
+                        ((uint16_t)(uint8_t)(x - 1))));
 }
 
 /* [DATA-DERIVED ORCHESTRATION | session 49] The original's power-on default
@@ -328,7 +395,11 @@ void at1846s_boot_default_apply(void)
     at1846s_gpio_reconfig(RF_CHIP_UHF, 0);           /* 0x9AA9            */
     (void)rf_read(RF_CHIP_UHF, 0x30);                /* status poll       */
     at1846s_boot_init_block_b(RF_CHIP_VHF);          /* bank-1 regs 0x06.. */
-    at1846s_tone_pair_boot(RF_CHIP_VHF);
+    /* (chip=0, type=0, code=5) = the hook-verified boot args (session 56,
+     * ck3-tonediag.resc); the type/code normally come from the settings
+     * shadow (APP_STATE+0x10D+screen), which the recon's settings-apply
+     * path does not reconstruct yet. */
+    at1846s_tone_pair_boot(RF_CHIP_VHF, 0u, 5u);
     at1846s_gpio_reconfig(RF_CHIP_VHF, 1);           /* 0x9BA9            */
     at1846s_gpio_reconfig(RF_CHIP_UHF, 0);           /* 0x9AA9            */
 

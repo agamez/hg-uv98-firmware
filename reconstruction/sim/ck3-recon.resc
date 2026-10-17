@@ -1,0 +1,21 @@
+# ck3-recon.resc — Round O: the recon RF trace (recreated from the session-49
+# /tmp scripts). Hooks on rf_write/rf_read (nm-derived after EVERY rebuild).
+# Same protocol as the original's CK3 reference: 10 ms quiet + the neutral
+# $A00 peer frame + 3 s. The (cs, reg, val) triples must stay byte-identical
+# to analysis/traces/ck3_rf_orig.txt (292 events).
+using sysbus
+mach create "ck3recon"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+cpu AddHook 0x08004e4c "self.Log(LogLevel.Info, 'RFW cs=' + str(self.GetRegister(0).RawValue) + ' reg=' + str(self.GetRegister(1).RawValue) + ' val=0x' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x08004ef8 "self.Log(LogLevel.Info, 'RFRD cs=' + str(self.GetRegister(0).RawValue) + ' reg=' + str(self.GetRegister(1).RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:01.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); assert len(frame) == 534, 'frame must be 534 bytes'; [u.WriteChar(ord(c)) for c in frame]"
+echo "MARK frame injected"
+emulation RunFor "00:00:03.000"
+quit

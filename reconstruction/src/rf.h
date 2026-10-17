@@ -31,6 +31,6 @@ void at1846s_gpio_reconfig(uint8_t chip, int band);        /* 0x080272E2: 0x1F =
 void at1846s_gpio_reconfig_plain(uint8_t chip, int band);  /* 0x080272A4: 0x1F = 0x9EA9/0x9AA9 */
 void at1846s_ctcss_off(uint8_t chip);      /* 0x080276D4 off-branch: 0x58/0x4A/0x4D/0x3A/0x5B */
 void at1846s_filter_detect(uint8_t chip);  /* 0x08027474 off-branch: 0x58=0x840D, 0x4E, 0x59 */
-void at1846s_tone_pair_boot(uint8_t chip); /* 0x0801A91A boot defaults: 0x48=0x1E3C, 0x49=0x0284 */
+void at1846s_tone_pair_boot(uint8_t chip, uint8_t type, uint8_t code);
 
 #endif /* RF_H */

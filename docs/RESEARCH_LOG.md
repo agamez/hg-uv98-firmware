@@ -2544,3 +2544,68 @@ reconnaissance only; no code changes).
   trace the four callers' args; (4) implement + compare (the tone has no
   GPIOB presence — the observable = the AT1846S SPI bus (CK3 harness)
   and/or the RAM state; scope the comparison channel first).
+
+### 2026-10-17 — Session 57: Round O CLOSED — the tone path fully decoded and
+the recon's boot pair upgraded from [DATA-DERIVED] to the recovered mechanism.
+
+Baseline reproduced first (both captures fresh): FULL 187,757-event GPIOB
+stream EVENT-IDENTICAL, ODR 160,753/160,753 = 100.00%, census exact.
+
+**The tone wrapper 0x0801A91A(chip, type, code) — the complete mechanism
+(lcd.asm 0x801a91a; REA addrs = lcd.asm addrs):**
+- State: APP_STATE(0x2000469C)+0x109 u32 = the tone tick (recomputed by the
+  settings-apply fn 0x0801AB36 via 0x0801A8AA); +0xEC/+0xEA u16 = the
+  type-1/other tick base; +0xEF/+0xEE i8 = the type-1/other tick scaler —
+  ALL EEPROM-calibrated (0x1FCD/0x1FCF and 0x0FCD/0x0FCF, read by the
+  settings loader 0x801b8xx block via the ee_read helper 0x0801A3A8).
+- Table A = 0x20005010, table B = 0x20005030: 32 bytes each — [0..15] =
+  the other/DTMF half (EEPROM 0x0FB0/0x0F90), [16..31] = the type-1/CTCSS
+  half (EEPROM 0x1FB0/0x1F90). They sit EXACTLY after the four 30-byte
+  band records at 0x20004F94 (the recon's SMETER_RINGS).
+- Computation: idx = (u8)(tick/100000 - base) sdiv scaler (SDIV/0 = 0 on
+  the M3 — idx 0 with the neutral state); cByte = tableA[type1?16+idx:idx];
+  dByte = tableB[type1?16+idx:idx] &0x7F for type!=1; gate = bit1 of
+  bandRecord[chip].byte12; 0x48 = gate?0x162B:0x1E3C;
+  x = (u8)(code+dByte) + (gate ? (type1?-3:+1) : 0);
+  0x49 = ((x&0xFF)<<7) | ((x-1)&0xFF) — a cascaded divider pair.
+- The internal preset call 0x08026C46(chip, gate): the 12-register tone
+  ON preset (0x15=0x1100, 0x32=0x4495, 0x3A=0x40C3, 0x3C=0x0407,
+  0x3F=0x28D0, 0x48=0x162B, 0x59=0x0A50...) vs OFF preset (0x15=0x1F00,
+  0x32=0x7564, 0x3A=0x44C3, 0x3C=0x1930, 0x3F=0x29D2, 0x48=0x1E3C,
+  0x59=0x0A50, 0x60, 0x62, 0x65, 0x66, 0x7F=1...); its tail also drives
+  the bank-apply block (the trace shows preset -> bank 0x06..0x12 ->
+  0x7F=0 -> the pair). The frame buffer = the shared 0x20005134
+  {u8 reg; u8 pad; u16 val LE}; the AT1846S writer = 0x0802689A (GPIOA
+  bit-bang, PA15 CS/PA9 data/PA8 clk per the rf.c map).
+- The wrapper's tail = 0x0802883A(type, cByte): a 12-bit serial word
+  (type | (cByte?0x100)) shifted LSB-first on GPIOD (PD0 clock, PD9
+  data, delay(5) per edge, 13 pre-delay) — NOT on GPIOB: invisible to
+  every current comparison channel.
+- Callers: the boot/settings-apply fn 0x0801AB36 (0x801abda) and the
+  frequency-parser cluster 0x8016b5c/0x8016b86/0x8016bbe — the per-key
+  entry tones (r2 = a code computed from the entered digit, r1 = a
+  per-site type constant, r0 = *(0x2000688E)-ish band byte).
+- BOOT INSTANCE (hook-verified, ck3-tonediag.resc): wrapper(chip=0,
+  type=0, code=5), idx=0, dByte=0, gate=0 -> 0x48=0x1E3C and
+  0x49=(5<<7)|4=0x284 — exactly the CK3 trace pair (ck3_rf_orig.txt
+  lines 261-263; the earlier session-49 [DATA-DERIVED] 0x1E3C/0x0284
+  replay = now explained by the mechanism).
+
+**Implementation (rf.c):** at1846s_tone_pair_boot(chip, type, code)
+replaced — the magic 0x1E3C/0x0284 constants are now COMPUTED from the
+state (the tick, base/scaler, tables A/B, the band-record gate) with the
+original's u8-truncated arithmetic and the SDIV/0=0 semantics note.
+The preset block and the GPIOD serial word are NOT emitted by this
+slice: the preset is covered positionally by the [DATA-DERIVED] init
+orchestration (emitting it again would double-write the shared regs),
+and the GPIOD word has no comparison channel. The boot call site passes
+the hook-verified args (0, 5).
+
+**Verification (all channels):**
+- CK3 RF: the recreated harness (reconstruction/sim/ck3-recon.resc, hooks
+  on rf_write 0x08004E4C / rf_read 0x08004EF8 after the rebuild) = 292
+  events, 292/292 BYTE-IDENTICAL to ck3_rf_orig.txt; event #128's
+  0x49=0x284 now computed from state.
+- CK4 display: FULL stream EVENT-IDENTICAL, ODR 160,753/160,753 =
+  100.00% (no regression).
+- Host tests: all protocol conformance tests pass.
