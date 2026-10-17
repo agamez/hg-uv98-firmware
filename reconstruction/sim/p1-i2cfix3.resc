@@ -1,0 +1,19 @@
+# p1-i2cfix3.resc - session 60: the LR-trace. Hook the GPIO BSRR/BRR helpers
+# (0x8023780/0x8023788) + the GPIO config helper (0x8023678) with LR logging:
+# every GPIO write in the system is attributed to its caller. Answers WHO
+# writes PB9 concurrently with the I2C task.
+using sysbus
+mach create "i2cfix3"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x08023780 "self.Log(LogLevel.Info, 'BSRR port=0x' + hex(self.GetRegister(0).RawValue) + ' v=0x' + hex(self.GetRegister(1).RawValue) + ' lr=0x' + hex(self.GetRegister(14).RawValue))"
+cpu AddHook 0x08023788 "self.Log(LogLevel.Info, 'BRR  port=0x' + hex(self.GetRegister(0).RawValue) + ' v=0x' + hex(self.GetRegister(1).RawValue) + ' lr=0x' + hex(self.GetRegister(14).RawValue))"
+cpu AddHook 0x08023678 "self.Log(LogLevel.Info, 'CFG  port=0x' + hex(self.GetRegister(0).RawValue) + ' lr=0x' + hex(self.GetRegister(14).RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:01.990"
+quit

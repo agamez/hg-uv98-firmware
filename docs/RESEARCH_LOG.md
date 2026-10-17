@@ -2959,3 +2959,88 @@ turn ends mid-fix; the next session resumes here).
   ee_save completion (EE_WRITEPAGE > 0); (3) the power-cycle flow
   (the AIRCR reset) for the second boot with the persisted defaults;
   (4) redo the main-mode validation (bit2, keys, $A01 via the peer flow).
+
+### 2026-10-17 - Session 60 (GOAL phase 1, continued): BUG 5 SOLVED - the I2C
+slave works, the boot escapes the ee_save hang, the vendor programs its
+defaults. Six defects fixed in the harness slave; two recon bugs found via
+the REA MCP decompiles (the evidence for every fix below).
+
+- **METHOD SHIFT: the REA MCP (Ghidra) decompiles replaced the hand-decoding.**
+  Key decompletes: i2c_send_byte 0x080285B6, i2c_read_byte 0x8028666,
+  eeprom_read 0x802873C, eeprom_write 0x80286C0, sda_output/in 0x802846A/448,
+  the GPIO helpers 0x8023678/8023780/8023788/802375E, the radio init
+  0x80267AA + its byte loop 0x8026712, the 12-bit serial driver 0x802883A +
+  its init 0x80287F6. procedure_callers sweeps on the helpers found the two
+  extra PB9 writers (see below). Evidence: the REA session on
+  MAIN-MCU-HG-UV98-V1.0.1-190416.bin (sha256 73361601...b66b2, raw-binary arm
+  @ 0x08004000).
+- **RECON BUG (eeprom.c): the per-bit SCL order was wrong.** The original's
+  loop = SDA write (while SCL LOW) -> SCL BSRR (rise) -> dly(10) -> SCL BRR
+  (fall): STANDARD timing, SDA stable across the rise. The recon had SCL low
+  -> dly -> SCL high (leaving SCL high at the loop end). The "vendor's
+  non-standard SDA-while-SCL-high timing" premise of session 59 pt4 =
+  RETRACTED: only i2c_start's START-fall and i2c_stop's STOP-rise change SDA
+  while SCL is high - the event channel is genuinely clean.
+- **BUG 5 ROOT CAUSE (the slave): the event-consumption block RETURNED before
+  the scl_prev update.** The START lands on the start's SCL-fall tick; the
+  return left scl_prev=1; the attempt's first data rise hit the
+  scl==scl_prev early-return and the MSB was NEVER sampled; every sample
+  shifted one slot and the 8th slot captured the ack-tail's SDA=1: 0xA0
+  (1,0,1,0,0,0,0,0) assembled as 0x41 (0,1,0,0,0,0,0,1) - exactly the
+  session-59 EDGE trace. Fix: consume the event and FALL THROUGH to the edge
+  handling.
+- **THE ACK-SPIN ROOT CAUSE (the slave): the ACK released one edge early.**
+  The master reads the ACK AFTER the 9th rise (BSRR 0x08028626 -> dly(10) ->
+  the IDR read 0x08028638, while SCL is HIGH); the old slave released
+  EE_SDA_BIT AT the 9th rise -> the master read 1 = NACK forever (the 5,873
+  retry storm). Fix: hold the ACK low through the 9th rise, release at the
+  9th fall (i2c_ack_release).
+- **THE READ CADENCE (the slave): publish data bits AT the SCL rise.** The
+  master's read_byte samples the IDR after the rise (fall -> dly -> rise ->
+  read, 0x802869c). Old model shifted at the falls and lost 2 bits per byte
+  (the tail fall + the master-ack fall). Fix: publish at the rise, skip
+  exactly one rise after each 8-bit group (the master-ack clock).
+- **THE DIRECTION GATING (the displaybus): publish 0x2000F801 only on actual
+  PB9-nibble transitions.** The display scan rewrites the same CRH
+  (nibble 3 -> 3) constantly; the old unconditional publish flipped the
+  direction back to "master out" DURING the I2C input phases so the resolver
+  returned the master's stale ODR instead of the slave's ACK.
+- **THE CROSS-PERIPHERAL READ LAG: the GPIOA->GPIOB sysbus read returned
+  STALE values** (observed: sample=1 after a BRR wrote 0 and sample=0 after
+  a BSRR wrote 1, at the exact write indices via the shared write counter
+  0x2000F810). Fix: the scratch mirrors - the displaybus publishes its SDA
+  level to 0x2000F804 and the GPIOA publishes its SCL (PA11) level to
+  0x2000F805 inside their own write handlers; both consumers read the
+  scratch (the proven cross-engine path).
+- **THE DEDUPE DEFECT (the displaybus): the late-era slave deafness.** The
+  dedupe compared against the last PUBLISHED level, but the ack-tail's
+  SDA=1 write happens while SCL is LOW (never published) - so the NEXT
+  START's 1->0 looked like no change and no START ever fired again (the
+  late window: state=IDLE at every edge). Fix: track the master-driven SDA
+  level on EVERY master-driven write; publish only on real level changes
+  while SCL is high.
+- **THE PB9 SHARING DISCOVERY (REA): the RADIO's 3-wire serial bus =
+  CLK=PA15 (0x8000), DATA=PB9 (0x200), CS=PA8/PA12** (the radio init
+  0x80267AA configures GPIOB 0x200 + GPIOA 0x8000/0x100/0x1000; its byte
+  loop 0x8026712 = clock-low-first, 8 bits). **THE RECON rf.c SAYS RF_DATA
+  = PA9 - WRONG: the original drives GPIOB (PB9), the same pin as the
+  EEPROM SDA.** The radio's boot-init burst (~300 bytes = the observed
+  2,400 PB9 writes in the LR trace) OVERLAPS the first I2C attempts - the
+  vendor's own retry loop absorbs the collision; the later attempts are
+  clean (the late EDGE window = clean data bits).
+- **THE PHASE-1 MYSTERY SOLVED (REA): the pre-display GPIOB traffic = a
+  12-bit serial bus: CLK=PD0 (DAT 0x80288E8 = 0x40011400), DATA=PB9,
+  STROBE=PD1 (bit 1 pulse after the frame), one-time init 0x80287F6,
+  called from the display render path (0x801A91A inside the SMETER_RENDER
+  function 0x801AB36).** Not I2C; the slave (PA11-gated) correctly ignores
+  it. Its per-call volume explains the old "phase 1" SDA runs.
+- **RESULT (p1-i2cfix7 run, 10 s guest): EE_READ=149, EE_WRITEPAGE=9 (the
+  first-boot defaults save ran - was 0 forever), I2C_BYTE=2147 (no storm),
+  the ee_image programmed with 141 bytes of real settings (tables with
+  flash pointers 0x40012500/0x40016113, erased 0xFF elsewhere), the boot
+  proceeds past the settings load.** The IronPython note: the in-run
+  `sum(1 for b in str)` counts chars not bytes - the in-run EE_NONFF=32768
+  print is void; the host-side count = 141.
+- NEXT: the main-mode validation on both images (bit2 transitions, keys,
+  $A01 via the peer flow), the power-cycle flow, then the recon rf.c PB9 fix
+  + eeprom.c SCL-order fix + protocol.c correction #2 + the host tests.

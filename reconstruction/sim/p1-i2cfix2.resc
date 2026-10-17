@@ -1,0 +1,18 @@
+# p1-i2cfix2.resc - session 60 debug: short run for the write-level alignment
+# trace (the shared write counter at 0x2000F810 aligns pb_stream.log with the
+# slave's EDGE log).
+using sysbus
+mach create "i2cfix2"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x080284f2 "self.Log(LogLevel.Info, 'I2C_START')"
+cpu AddHook 0x080285b6 "self.Log(LogLevel.Info, 'I2C_BYTE v=0x' + hex(self.GetRegister(0).RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:01.990"
+python 'd = open("/tmp/opencode/ee_image.bin","rb").read(); nz = sum(1 for b in d if b != 0xFF); print("EE_NONFF=" + str(nz))'
+quit

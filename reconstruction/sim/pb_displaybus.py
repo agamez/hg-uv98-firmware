@@ -21,6 +21,7 @@ if request.IsInit:
     crh = 0x44444444
     odr = 0x0000
     seq = 0
+    i2c_last_lvl = 1      # the SDA level at the last published event (idle high)
     f = open('/tmp/opencode/pb_stream.log', 'w')
     f.write('# seq CRL CRH ODR BSRR BRR  (values after the write)\n')
     f.flush()
@@ -42,50 +43,80 @@ elif request.IsRead:
         request.Value = 0x00000000    # LCKR etc.
 elif request.IsWrite:
     v = request.Value
+    m = emulationManager.CurrentEmulation.Machines[0]
+    globals()['pb_wseq'] = globals().get('pb_wseq', 0) + 1
+    m['sysbus'].WriteByte(0x2000F810, globals()['pb_wseq'] & 0xFF)
     if request.Offset == 0x00:
         crl = v
         seq += 1
-        f.write('%d CRL %08x\n' % (seq, crl))
+        f.write('%d CRL %08x w%d\n' % (seq, crl, pb_wseq))
     elif request.Offset == 0x04:
+        # publish the PB9 direction for the I2C slave in p1_gpioa.py ONLY on
+        # an actual nibble transition [session 60 fix]: the PB9 CRH nibble =
+        # bits 4-7 of CRH (the pin (9-8) * 4): 0x3 = the master output
+        # (push-pull), anything else (0x4 = the floating input) = the master
+        # released the line and the slave's EE_SDA_BIT is the line state.
+        # The display scan rewrites the same CRH (nibble 3 -> 3) constantly;
+        # the old unconditional publish let a scan write flip 0x2000F801 back
+        # to 1 DURING the I2C input phases (the ACK clock), so the resolver
+        # returned the master's stale ODR instead of the slave's ACK.
+        new_nib = (v >> 4) & 0xF
+        old_nib = (crh >> 4) & 0xF
         crh = v
-        # publish the PB9 direction for the I2C slave in p1_gpioa.py:
-        # the PB9 CRH nibble = bits 4-7 of CRH (the pin (9-8) * 4):
-        # 0x3 = the master output (push-pull), anything else (0x4 = the
-        # floating input) = the master released the line and the slave's
-        # EE_SDA_BIT is the line state.
-        m = emulationManager.CurrentEmulation.Machines[0]
-        m['sysbus'].WriteByte(0x2000F801, 1 if ((v >> 4) & 0xF) == 0x3 else 0)
+        if new_nib == 0x3 and old_nib != 0x3:
+            m['sysbus'].WriteByte(0x2000F801, 1)
+        elif new_nib != 0x3 and old_nib == 0x3:
+            m['sysbus'].WriteByte(0x2000F801, 0)
         seq += 1
-        f.write('%d CRH %08x\n' % (seq, crh))
+        f.write('%d CRH %08x w%d\n' % (seq, crh, pb_wseq))
     elif request.Offset == 0x0C:
         odr = v & 0xFFFF
         seq += 1
-        f.write('%d ODR %04x\n' % (seq, odr))
+        f.write('%d ODR %04x w%d\n' % (seq, odr, pb_wseq))
         i2c_sda_event(m)
     elif request.Offset == 0x10:
         odr = (odr | (v & 0xFFFF)) & ~((v >> 16) & 0xFFFF) & 0xFFFF
         seq += 1
-        f.write('%d BSRR %08x %04x\n' % (seq, v, odr))
+        f.write('%d BSRR %08x %04x w%d\n' % (seq, v, odr, pb_wseq))
         i2c_sda_event(m)
     elif request.Offset == 0x14:
         odr = odr & ~(v & 0xFFFF) & 0xFFFF
         seq += 1
-        f.write('%d BRR %04x %04x\n' % (seq, v, odr))
+        f.write('%d BRR %04x %04x w%d\n' % (seq, v, odr, pb_wseq))
         i2c_sda_event(m)
+    # [session 60 fix] the master-out SDA mirror for the I2C slave's
+    # resolver: published INSIDE this write handler (same engine, same
+    # ordering as the odr update) - the slave reads 0x2000F804 instead of
+    # the lagging cross-peripheral ODR read.
+    m['sysbus'].WriteByte(0x2000F804, (odr >> 9) & 1)
     f.flush()
 
 def i2c_sda_event(m):
-    """The SDA changed (this write): if SCL (PA11, bit 11) is HIGH this is an
-    I2C START (SDA=0) or STOP (SDA=1). Publish to the bridge scratch:
-    0x2000F802 = the SDA level, 0x2000F803 = the event pending flag."""
-    # only meaningful while the MASTER drives PB9 (the output mode); during
-    # the ACK/read phases the master released the line and the stale ODR is
-    # not the line state.
-    if m['sysbus'].ReadByte(0x2000F801) == 1 and (m['sysbus'].ReadDoubleWord(0x4001080C) >> 11) & 1:
-        m['sysbus'].WriteByte(0x2000F802, (odr >> 9) & 1)
-        m['sysbus'].WriteByte(0x2000F803, 1)
-        globals()['i2c_ev_n'] = globals().get('i2c_ev_n', 0) + 1
-        if globals()['i2c_ev_n'] < 40:
-            df = open('/tmp/opencode/i2c_ev.log', 'a')
-            df.write('EVENT n=%d sda=%d odr=%04x\n' % (globals()['i2c_ev_n'], (odr >> 9) & 1, odr))
-            df.close()
+    """Track the master-driven SDA level and publish I2C START/STOP events:
+    a START (SDA 1->0) or a STOP (SDA 0->1) is a level change while the SCL
+    is HIGH. Published to the bridge scratch: 0x2000F802 = the SDA level,
+    0x2000F803 = the event pending flag.
+    [session 60] the level tracking must run on EVERY master-driven write
+    regardless of the SCL: the ack-tail's SDA=1 write happens while the SCL
+    is LOW (not a STOP), and if it is not tracked the NEXT START's 1->0
+    looks like no change and the slave goes deaf (the observed late-era
+    state=IDLE-forever defect).
+    [session 60 fix] the SCL level = the GPIOA's scratch mirror at
+    0x2000F805 (published inside the GPIOA's own write handler) - the old
+    direct cross-peripheral read of 0x4001080C lags the GPIOA state."""
+    if m['sysbus'].ReadByte(0x2000F801) != 1:
+        return          # the input phase: the master's ODR = not the line
+    lvl = (odr >> 9) & 1
+    prev = globals().get('i2c_last_lvl')
+    globals()['i2c_last_lvl'] = lvl
+    if prev == lvl:
+        return          # no level change: no START/STOP possible
+    if not (m['sysbus'].ReadByte(0x2000F805) & 1):
+        return          # the level changed while the SCL was LOW: a data bit
+    m['sysbus'].WriteByte(0x2000F802, lvl)
+    m['sysbus'].WriteByte(0x2000F803, 1)
+    globals()['i2c_ev_n'] = globals().get('i2c_ev_n', 0) + 1
+    if globals()['i2c_ev_n'] < 120:
+        df = open('/tmp/opencode/i2c_ev.log', 'a')
+        df.write('EVENT n=%d sda=%d\n' % (globals()['i2c_ev_n'], lvl))
+        df.close()

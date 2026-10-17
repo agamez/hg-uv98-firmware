@@ -1,0 +1,29 @@
+# p1-i2cfix1.resc — session 60: verify the I2C slave fixes (bug 5 root cause:
+# the event-consumption return skipped the scl_prev update -> the MSB was
+# never sampled -> 0xA0 assembled as 0x41 -> the eternal retry spin; plus the
+# ACK held through the 9th rise, the read cadence publish-at-rise, the
+# displaybus direction-transition gating).
+# Expectation: EE_READ completes with NO retry storm, EE_WRITEPAGE > 0 (the
+# vendor's first-boot defaults save), the ee_image programmed.
+using sysbus
+mach create "i2cfix1"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x080284f2 "self.Log(LogLevel.Info, 'I2C_START')"
+cpu AddHook 0x080286c0 "self.Log(LogLevel.Info, 'EE_WRITEPAGE')"
+cpu AddHook 0x0802873c "self.Log(LogLevel.Info, 'EE_READ')"
+cpu AddHook 0x080285b6 "self.Log(LogLevel.Info, 'I2C_BYTE v=0x' + hex(self.GetRegister(0).RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:01.990"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/flagdump_fix1.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/ackflag_fix1.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005150, 0x20))); f.close()'
+emulation RunFor "00:00:08"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/flagdump_fix1b.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; d = bytes(m["sysbus"].ReadBytes(0x20005090, 0x20)); print("BIT2_5096=" + str((d[6] >> 2) & 1))'
+python 'd = open("/tmp/opencode/ee_image.bin","rb").read(); nz = sum(1 for b in d if b != 0xFF); print("EE_NONFF=" + str(nz) + " EE_FIRST16=" + d[:16].hex())'
+quit
