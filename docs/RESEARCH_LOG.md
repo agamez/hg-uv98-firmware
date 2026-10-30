@@ -3127,3 +3127,43 @@ the REA MCP decompiles (the evidence for every fix below).
 - NEXT: implement the recon's app state machine (the session manager, the
   PTT handler, the key dispatch 0x8019DCC behavior) to the point the exit
   sequence matches; then the p1-exit-sequence task closes on both images.
+
+## Session 61 (cont.) - the recon's app state machine implemented; the p1-exit-sequence criterion met on BOTH images
+
+- The recon ui.c/ui_task implementation (the commit after 74936b1):
+  * the session-enter equivalent: FLAG_BANK+2 = 0x16 after ui_screen0_build
+    (the original's enter 0x802490e: the bit2 + the band bits4-5 = idx+1;
+    the bit1 from the earlier boot code = the observed 0x16);
+  * the PTT-poll exit equivalent: every ui_task pass reads PA10
+    (GPIO_IDR(GPIOA_BASE) & 0x400 - the harness bridge drives it high =
+    the released idle) and on release applies the exit mask 0xCB
+    (= the original's 0x8024a6a &= 0xcf then 0x8024c16 &= 0xfb), leaving
+    the observed idle byte 0x02;
+  * the key action = EDGE-TRIGGERED (the press-edge tracker): with the
+    session bit2 == 0 the key change applies the 0x8019fea slice
+    (FLAG_BANK+6 &= 0x7f, KEY_CODE_COPY = key) and repaints the status
+    page. The first attempt re-rendered every pass (a held key poured
+    4,956,083 stream lines) - the original renders once per action, so
+    the edge trigger = the faithful semantics.
+- THE DIFFERENTIAL RESULT (the same scripted stimulus p1-exitseq /
+  p1-exitseq-recon: the PTT-released bridge + the $A00 window + the $A01
+  cadence + the ADC2_DR = 2000 tag at 10 s):
+  * ORIGINAL: T7 b2=00 b6=02 L=289,221; T12 L=347,255 (+58,034 = the
+    key-1 repaint); stable T15/T20; no session re-enter.
+  * RECON: T7 b2=00 b6=02 L=195,582; T12 L=289,093 (+93,511 = the single
+    edge-triggered repaint); stable T15/T20.
+  * MATCH: the bit2 1->0 flip on both images (the same scripted
+    sequence), the post-transition key behavior = one stable repaint on
+    both, the session stays cleared on both, the $A00/$A01 frames are
+    consumed on both (the recon's protocol.c acceptance = the earlier
+    p1-a01-path evidence). The absolute stream magnitudes differ (the
+    full UI screen tree = the phase-3 scope; the display content, not
+    the state behavior, is the remaining delta).
+- The recon build: green, 107,115 text (+12 vs the pre-edit 107,103);
+  the only warnings = pre-existing (the REG8 redefines, the two unused
+  vars in the ui_boot_scene region).
+- p1-exit-sequence = COMPLETE: the boot past the old "blocker" was
+  already solved (the RTOS runs; the freeze = the idle renderer + the
+  session semantics), the bit2 transition happens naturally on both
+  images under the same harness script, the sequence is locked into
+  reconstruction/sim/p1-exitseq.resc + p1-exitseq-recon.resc.

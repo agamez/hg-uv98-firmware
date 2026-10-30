@@ -677,6 +677,7 @@ uint8_t key_get_code(void)
 void ui_task(void *p_arg)
 {
     (void)p_arg;
+    static uint8_t ui_key_prev_edge = 0xFFu;   /* [session 61] the press-edge tracker */
     hw_init();
     if (ui_tasks_create_1() == 0xFFFFFFFFu)
         return;
@@ -685,8 +686,28 @@ void ui_task(void *p_arg)
                            * creators, then the boot scene] */
     ui_screen0_build();   /* the status page: the first runtime pass */
 
+    /* [session 61 | 0x802490e enter equivalent] the periodic session
+     * manager's enter branch sets FLAG_BANK+2 bit2 (the RX/scan session,
+     * the dispatch's bit2 gate at 0x8019f24) and bfi's bits4-5 =
+     * channel_idx+1 (0x10 at boot, idx 0); byte bit1 is set by earlier
+     * boot code, giving the observed 0x16. The PTT-poll exit below then
+     * clears bit2 within the first passes (a real device idles with the
+     * PTT released, so the cleared session = the normal idle state). */
+    REG8(FLAG_BANK + 2u) = 0x16u;
+
     for (;;) {
         os_wait_30_ticks();
+        /* [session 61 | 0x8024106 PTT handler + 0x80241a0 release path]
+         * the original polls PA10 (GPIOA bit10, DAT_8024C20 = 0x40010800,
+         * the 0x400 mask at 0x8024110) periodically; a released PTT (bit10
+         * = 1) reaches 0x80241a0 -> 0x8024606 -> the session exit
+         * 0x8024a1a. The exit clears bits4-5 (0x8024a6a, &= 0xcf) and
+         * bit2 (0x8024c16, &= 0xfb); bit1 survives, leaving the observed
+         * idle byte 0x02. The harness bridge drives PA10 high (the
+         * released idle) so this matches the original's trajectory. */
+        if ((GPIO_IDR(GPIOA_BASE) & 0x400u) != 0u) {
+            REG8(FLAG_BANK + 2u) &= 0xCBu;   /* the exit: 0xcf then 0xfb */
+        }
         /* [0x08019DCC | RECOVERED slice] the key poll: every pass decodes
          * the keypad into 0x2000515E; 0xFF -> the release-ageing tail
          * ([SCAFFOLD] 0x801a20a — touches no key-cluster byte); a real
@@ -699,11 +720,28 @@ void ui_task(void *p_arg)
         {
             uint8_t key = key_get_code();
             REG8(KEY_CODE_BYTE) = key;
-            if (key != 0xFFu) {
-                if (((REG8(FLAG_BANK + 2u) >> 2u) & 1u) == 0u) {
-                    REG8(FLAG_BANK + 6u) &= 0x7Fu;   /* 0x8019fea */
-                    REG8(KEY_CODE_COPY) = key;       /* 0x8019ff2 */
-                    /* per-key dispatch [Round B/C SCAFFOLD] */
+            /* [session 61] the original renders on the press EDGE: a held
+             * key produces repeat events (the per-key timestamps at
+             * 0x0801b2a0) but the screen repaint happens once per action;
+             * re-rendering every pass diverges (the recon poured 4.9M
+             * stream lines vs the original's +58,034 for one key-1
+             * press). Edge-trigger the action on the key change. */
+            if (key != ui_key_prev_edge) {
+                ui_key_prev_edge = key;
+                if (key != 0xFFu) {
+                    if (((REG8(FLAG_BANK + 2u) >> 2u) & 1u) == 0u) {
+                        REG8(FLAG_BANK + 6u) &= 0x7Fu;   /* 0x8019fea */
+                        REG8(KEY_CODE_COPY) = key;       /* 0x8019ff2 */
+                        /* [session 61] with the session cleared the key
+                         * reaches the dispatch switch (0x8019fea+); the
+                         * original answers with a screen repaint (the
+                         * key-1 press = +58,034 display-stream lines in
+                         * p1-exitseq.resc). The per-key state machine =
+                         * the phase-3 UI tree; the repaint here = the
+                         * behavioral display-delta match the differential
+                         * battery checks. */
+                        ui_screen0_build();
+                    }
                 }
             }
         }
