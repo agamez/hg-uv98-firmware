@@ -1,0 +1,25 @@
+# p3-key6.resc - session 61: the key-6 (the B-ladder entry 0, the adc 2300)
+# = the RX/RF-active toggle? The observable = the band byte 0x200050E8
+# ('g' = 0x67?) + the radio-on effects.
+using sysbus
+mach create "p3k6rec"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+# no r9 hook for the recon
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:05.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('PRE scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+echo "=== key-6 tag (2300) ==="
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2300
+emulation RunFor "00:00:01"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('P1 scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+emulation RunFor "00:00:02"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('P3 scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
+emulation RunFor "00:00:02"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('REL scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+quit

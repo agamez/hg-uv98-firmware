@@ -1,0 +1,27 @@
+# p3-key1b.resc - session 61: the key-1 gate test - the PTT press (the TX
+# state) should set the band byte 0x200050E8 = 'g' (0x67, the RF-active
+# screen), opening the key-1 hold gate -> the screen 0x83.
+using sysbus
+mach create "p3k1b"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:05.990"
+echo "=== PTT press (PA10 low) ==="
+python "m = emulationManager.CurrentEmulation.Machines[0]; m['sysbus'].WriteByte(0x2000F80A, 0)"
+emulation RunFor "00:00:01"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('TX scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+echo "=== key-1 tag on (held) ==="
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2000
+emulation RunFor "00:00:02"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('HELD scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
+python "m = emulationManager.CurrentEmulation.Machines[0]; m['sysbus'].WriteByte(0x2000F80A, 1)"
+emulation RunFor "00:00:02"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('REL scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+quit

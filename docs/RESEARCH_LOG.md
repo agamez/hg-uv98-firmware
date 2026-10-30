@@ -3295,3 +3295,38 @@ the REA MCP decompiles (the evidence for every fix below).
   the ~145 IDs with the 115 menu edges + the key transitions.
 - The p3-screen-map = COMPLETE (the map = this entry + MENU_TREE.md +
   the vtable).
+
+## Session 61 (cont. 5) - p3-screens slice 1: the key-1 hold and the menu-key (the code 10) screen transition
+
+- THE KEY-1 DECODE (0x801A13A): the keys 1/2 have NO short-press action;
+  they increment the hold counter [r5+0x21] per dispatch pass and at 40
+  the original switches to the screen 0x83 (FUN_08014530(0x83), the
+  sub-state [r5+0x168] = the key; the key 2 also calls 0x801B15C(4,1,1)).
+  THE GATE: the whole branch requires the band byte 0x200050E8 == 'g'
+  (the RF-active screen) - in the model the band stays 0x00 (the PTT
+  press does not open it either), so the key-1 slice is PARKED on the
+  band-state machine (the RSSI-task screen scheduler 0x801B738 = the
+  radio-on init, called from the boot 0x802D18A and the vtable[10]-family
+  handlers; FUN_08014530 decoded: the screen byte = 0x200050E8, the VFO
+  index = the ctx+0x40, the 0x1E ring snapshot).
+- FUN_08014530 = the real ui_state_set (the REA decompile): [0x200050E8]
+  = the screen param, the VFO idx = [0x20004E68+0x40], the 0x1E-byte
+  memcpy = the ring snapshot 0x20004F94+idx*0x1E -> 0x20004FD0, the flag
+  [0x200050E9] = 1. The recon's ui_state_set = the faithful shape.
+- THE MENU KEY = THE CODE 10 (not 6!): the tag 2300 = the A-ladder entry
+  0 -> the A-map[0] = 10; the vtable[10] = {press 0x08018ED4, release
+  0x08018F1A, cat 1}. The observed transition (p3-key6.log): the press =
+  the screen 0x35 (+49,648 lines), the stable hold, the release = the
+  idle 0x00 (+65,223).
+- THE RECON IMPLEMENTATION: the hold-counter machinery (ui_key_hold, the
+  edge resets per 0x8019DE2; the keys 1/2 -> the 0x83 at 40 passes, the
+  gate left open for the band machine), the menu key (the code 10) =
+  ui_state_set(0x35) + the repaint at the press, the idle restore at the
+  release.
+- THE DIFFERENTIAL (p3-key6.resc / p3-key6-recon.resc, the tag 2300):
+  the ORIGINAL scr 00 -> 35 -> (stable) -> 00; the RECON scr 00 -> 35 ->
+  (stable) -> 00 - IDENTICAL state trajectory, one render per edge on
+  both. The magnitudes differ (+49,648/+65,223 vs +93,511/+93,511) = the
+  documented §7(c) screen-content delta (the 0x35 screen's own render =
+  the next per-screen slice).
+- Build 107,543 text.

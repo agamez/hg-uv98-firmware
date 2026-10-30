@@ -1,0 +1,24 @@
+# p3-key1.resc - session 61: the key-1 hold -> screen 0x83 differential
+# (the ORIGINAL). The tag 2000 (the A-ladder entry 5 = the key code 1)
+# applied at 6 s and held 3 s; the observable = the screen byte
+# 0x200050E8 (0x00 -> 0x83 at the 40-pass hold counter) + the display
+# delta.
+using sysbus
+mach create "p3k1"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:05.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('PRE scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2000
+emulation RunFor "00:00:03"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('HELD scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
+emulation RunFor "00:00:02"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('REL scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+quit

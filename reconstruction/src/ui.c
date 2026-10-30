@@ -704,6 +704,7 @@ void ui_task(void *p_arg)
 {
     (void)p_arg;
     static uint8_t ui_key_prev_edge = 0xFFu;   /* [session 61] the press-edge tracker */
+    static uint16_t ui_key_hold;               /* [session 61] the hold-pass counter [r5+0x21] */
     hw_init();
     if (ui_tasks_create_1() == 0xFFFFFFFFu)
         return;
@@ -754,8 +755,18 @@ void ui_task(void *p_arg)
              * press). Edge-trigger the action on the key change. */
             if (key != ui_key_prev_edge) {
                 ui_key_prev_edge = key;
-                if (key != 0xFFu) {
-                    if (((REG8(FLAG_BANK + 2u) >> 2u) & 1u) == 0u) {
+                ui_key_hold = 0;   /* [0x8019DE2] the per-press resets */
+                if (key == 0xFFu) {
+                    /* [session 61 | RECOVERED] the menu-key (the code 10)
+                     * release: the observed sequence scr 0x35 -> 0x00 with
+                     * the idle re-render (+65,223 lines, p3-key6.log); the
+                     * release handler = the vtable[10].release
+                     * (0x08018F1A). */
+                    if (REG8(UI_STATE_ADDR) == 0x35u) {
+                        ui_state_set(0x00u);
+                        ui_screen0_build();
+                    }
+                } else if (((REG8(FLAG_BANK + 2u) >> 2u) & 1u) == 0u) {
                         REG8(FLAG_BANK + 6u) &= 0x7Fu;   /* 0x8019fea */
                         REG8(KEY_CODE_COPY) = key;       /* 0x8019ff2 */
                         /* [session 61 | 0x08022CB4 RECOVERED] the key-13
@@ -790,17 +801,42 @@ void ui_task(void *p_arg)
                                 }
                             }
                             eeprom_write(0x0A00u, 0x4Du, ui_ee_settings);
-                        } else {
-                            /* [session 61] with the session cleared the
-                             * key reaches the dispatch switch (0x8019fea+);
-                             * the original answers with a screen repaint
-                             * (the key-1 press = +58,034 display-stream
-                             * lines in p1-exitseq.resc). The per-key state
-                             * machine = the phase-3 UI tree; the repaint
-                             * here = the behavioral display-delta match
-                             * the differential battery checks. */
+                        } else if (key == 10u) {
+                            /* [session 61 | RECOVERED] the menu key (the
+                             * code 10 = the A-ladder entry 0; the tag 2300
+                             * in p3-key6.log): the press = the screen 0x35
+                             * render (+49,648 lines); the release = the
+                             * idle restore (handled in the release branch
+                             * above). The press handler = the
+                             * vtable[10].press (0x08018ED4). The 0x35
+                             * screen's own content = the per-screen
+                             * decode; the status-page repaint = the
+                             * stand-in render. */
+                            ui_state_set(0x35u);
                             ui_screen0_build();
                         }
+                        /* [session 61 | 0x0801A13A RECOVERED] the keys 1/2
+                         * have NO short-press action: they increment the
+                         * hold counter [r5+0x21] each dispatch pass while
+                         * held, and at 40 the original switches to the
+                         * screen 0x83 (0x8014530) with the sub-state
+                         * [r5+0x168] = the key (the key 2 also calls
+                         * 0x801B15C(4,1,1) first). The hold path lives in
+                         * the else-branch below. The remaining keys'
+                         * short-press actions = the phase-3 per-screen
+                         * work; the generic repaint here = the stand-in
+                         * (the key-1 short press = NO action in the
+                         * original - excluded above). */
+                }
+            } else if (key == 1u || key == 2u) {
+                /* [0x801A13A] the held-key counter: the gates re-checked
+                 * per pass; at 40 passes -> the screen 0x83. */
+                if (key != 0xFFu &&
+                    ((REG8(FLAG_BANK + 2u) >> 2u) & 1u) == 0u) {
+                    ui_key_hold++;
+                    if (ui_key_hold == 40u) {
+                        ui_state_set(0x83u);   /* 0x8014530(0x83) */
+                        ui_screen0_build();
                     }
                 }
             }
