@@ -82,13 +82,23 @@ needs the keyscan, which is separately broken: TIM2 CC1 can never match),
 $B00/$C00 beacon reads with the 8051-side response formats from FUN_B, the
 $A02/$A08 telemetry pushes. Parity matrix v2 over all streams.
 
-## Round C — settings consumption (recon side)
+## Round C — settings consumption (recon side) — ✅ CORE CLOSED (session 61)
 Implement the typed-field parser: the original stores the raw frame twice
 (0x20003AD0/0x20003BD0) AND a sparse field struct at 0x20004E40..0x20004F80
 (6-byte callsign, 4x0x38 field, scattered config). Decompile the parser
 call chain (the $A00 branch → FUN_0801D8C0 targets), map the struct
 offsets, wire into protocol.c, then re-run the pattern-payload diff on both
 images (needs R1 for the recon side).
+**Session 61 result:** the context 0x20004E68 = the EE settings image 1:1
+(the 77-B page copy at boot, the magic-gated) — implemented and
+marker-verified on both images (p2-eemarker: the ctx[2]=03 → the S-meter
+step 1250 identical). The $A00 frame is NOT applied to the context
+(p2-marker negative proof) — it lives in the head's rxBuf mirror
+(0x20003A84, the settings at +0x14); the mirror-based consumers (the
+sparse-field writes into 0x20004E40..) remain OPEN for the phase-3/4.
+The S-meter step selection (0x0801F1C4) and the key-13 executor
+(FUN_08022CB4) are wired to the shadow and differentially verified
+(p2-key13: the 4-press cycle identical).
 
 ## Round E — CK4 display driver — ✅ DRIVERS CLOSED (session 51)
 **Recovered:** ST7735-class TFT on the 8-bit parallel bus (PB0-7 data,

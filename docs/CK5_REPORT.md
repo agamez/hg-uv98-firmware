@@ -219,6 +219,35 @@ wrapper call sites corroborate the same pattern for the local storage).
   behavior. The tail's branch actions are documented in the research
   log (session 52 pt4) for the real-hardware equivalence.
 
+### 3.9 Session-61 state-machine differences (classified)
+
+1. **The session (byte6 bit2) was never a stuck flag** — the counter-driven
+   dwell transition (0x801E09C, the dwell = the settings byte 26 × 30)
+   re-arms it once and latches byte8 bit5; the PTT-release path
+   (0x80241A0 → 0x8024A1A) clears it. The prior "boot hang" reading is
+   retracted; both images now traverse the identical trajectory under the
+   PTT-released bridge (b6 = 0x16 → 0x02, stable, no re-enter).
+2. **The display-stream magnitudes** (the boot scene ~195K recon vs ~289K
+   original with the peer flow consumed; the key-1 repaint +93,511 recon
+   vs +58,034 original) — **§7(c)**: the screen *content* differs (the
+   phase-3 UI-tree scope); the state behavior (the bit2 flip, the
+   edge-triggered single repaint, the stable idle) matches.
+3. **APP_STATE+0x36 (0x200046D2) = 0x0004** in the original at boot, 0 in
+   the recon — an unidentified boot-scene variable; queued to the
+   phase-3/4 decode.
+4. **The flag-bank byte at 0x2000509D bits 6-7 = 0xC0** in the original
+   (FUN_0801b198's screen-selector writes), 0 in the recon; the
+   executor-relevant bits 3-5 = 0 on both. Queued to the phase-3.
+5. **The key-ladder injections**: the earlier "injectable codes
+   {1,2,3,10,11,12,13,14}" were KEY IDs, not ADC values — the real gates
+   are 662..3253 (A/B) / 672..1751 (C); adc=2000 = the key code 1,
+   adc=3100 = the key code 13. The CK4-key battery must use in-window
+   ADC values.
+6. **The $A00 settings frame is NOT applied to the context**
+   (p2-marker.resc negative proof) — it lives in the head's rxBuf mirror
+   (0x20003A84, the settings at +0x14). The context = the EE settings
+   image 1:1 (p2-eemarker.resc positive proof, both images).
+
 ## 4. Workaround register (§7 restated)
 
 All of these live ONLY in the harness/platform; the original binaries
@@ -272,6 +301,24 @@ are immutable and the reconstruction code does not embed them:
     burst-fragment boundaries (e.g. +13 events after the @3545 save
     before the fix) were the one visible artifact. After session 55 the
     full-stream comparison is exact and even this artifact is gone.
+
+6. **The AT1846S SPI slave model** (session 61, `p1_gpioa.py` spi_tick +
+   the `pb_displaybus.py` IDR arbitration): the protocol from
+   FUN_0802692E — the command byte on the CLK rises, the read data
+   shifted on the CLK falls; the CS = PA8/PA12 active-low, the CLK =
+   PA15, the DATA = PB9. The read values: 0x0D bit15 forced (the PLL
+   lock — the tune loop at 0x801AC66 otherwise re-tunes every ~5 s), the
+   RSSI/noise regs (0x1A/0x1B/0x5F) = 0x0020 (the quiet channel), 0x1F =
+   0x0000 (the GPIO/COS idle), the writes echoed back. The write
+   mirrors (0x2000F812/14/16/18) expose the 0x29/0x2A/0x30 traffic.
+7. **The PTT bridge** (session 61): PA10 driven from the scratch mirror
+   0x2000F80A, default 1 = released (the real device's idle state). The
+   PTT-poll then runs the release path (0x80241A0 → the session exit)
+   continuously, matching the original's idle trajectory.
+8. **The host swapfile** (session 61): a 4 GB /swapfile added after the
+   OOM killer shot two Renode runs (the per-tick log hooks ballooned the
+   .NET heap). Host-side only; the per-tick log hooks are BANNED — rare
+   event hooks only.
 
 ## 5. Evidence index
 

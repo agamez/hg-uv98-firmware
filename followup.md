@@ -347,5 +347,16 @@ analysis/                    # gitignored dumps/traces
   [ctx+0x76] = dormant — the same boot-state root as the $A01 parking).
 - The `0x20004E40` radio-state region vs the lazy per-field settings reads
   (CK5 §3.2/§3.3).
+- Session 61 additions: the head's rxBuf mirror consumers (the settings at
+  rxBuf+0x14; the sparse-field writes into 0x20004E40..) — the $A00 frame
+  is stored but NOT applied to the context (the p2-marker negative proof).
+- Session 61 residuals: APP_STATE+0x36 (0x200046D2) = 0x0004 in the
+  original at boot; the flag-bank byte 0x2000509D bits 6-7 = 0xC0
+  (FUN_0801b198's screen-selector writes) — both queued to the phase-3
+  screen state.
+- Session 61 closures: the session bit2 (the dwell transition + the PTT
+  release — never a stuck flag), the key-ladder gate values (662..3253 /
+  672..1751; the key IDs ≠ the ADC values), the S-meter step source (the
+  context byte 2+idx via 0x0801F1C4), the key-13 executor cycle.
 
 Keep the log current, commit at milestones, and good hunting.
