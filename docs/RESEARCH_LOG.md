@@ -3415,3 +3415,38 @@ the REA MCP decompiles (the evidence for every fix below).
 - The menu's observed text calls mapped: text(1,108," ") class 4;
   text(111,6,确定) and text(111,125,取消) (the CJK); the item texts =
   the " "/"   " pads + "H"/"W" markers at (18/64, 5..92).
+
+## Session 61 (cont. 9) - the menu screen's text layer = the multi-class cell sequence (the ground truth captured)
+
+- The color scheme decoded (FUN_0801BFB8, REA): the ink code -> the (fg,
+  bg) pair - the ink 0 = (0x0000, 0xEFBE), the ink 1 = (0x001F, 0xEFBE),
+  the ink 2 = (0x0000, 0x8D5E), the ink 3 = (0xF800, 0xEFBE), the ink 4 =
+  (0, 0xEFBE) or the swap per the DAT_0801C910+0x18 flag, the ink 5 =
+  (0x13A2, 0xEFBE), the ink 6 = (0x58E1, 0xEFBE); the invert flag swaps.
+- The glyph fetch decoded (FUN_08028F8C): the class-indexed records -
+  the class 1 = 0xC stride, the class 3 = 0x10, the class 4 = 0x14 (the
+  space/'-'/'.' special offsets), the class 5 = 0x18, the class 6 =
+  0x24, the class 7 = 0x2D, the class 8 = 0x39, the class 9 = 0x40;
+  the class 0 = the mutex'd lookup FUN_0802BEC8.
+- THE CELL TRACE (p3-cell.resc, 100 cells): FUN_0801BFB8(p1 = y, p2 =
+  x) CONFIRMED by the boot callsign (the y=72 fixed, the x = 42..138 =
+  the horizontal NOCALL-7). The menu-era cells:
+  * the item texts = the class 1 (6x10), the ink 4: (64, 5/11/17/30/36/
+    42/55/68/80/92), (86, 139/145), (97, 22) - the repeated record
+    134487808 = the space pad, 134488468/134488288 = the markers;
+  * the header = the class 6 (0x24-stride): (76, 22/34/46/58/70/82/94);
+  * the status icons = the class 3 (8x16): (82, 108/116), (78, 13),
+    (20/37/54/71/88, 3/11/19/27/35/43/51);
+  * the selected row = the ink 1 INVERTED (inv=1), the class 3.
+  The earlier r0-r3 trace mislabeled: the 4th arg = the INK (4 = the
+  items), the class = the 5th (unseen; the cells = the ground truth).
+- The glyph records = the flash blob addresses (0x08041Fxx-0x08048xxx)
+  = INSIDE the recon's .uistrings mirror - the cells are directly
+  replayable.
+- THE IMPLEMENTATION ROUTE (the next slice): the menu render = the
+  exact cell-sequence replay via the recon's blitters (the class 1 =
+  display_blit_glyph_cell_6x10, the class 3 = display_blit_glyph_cell,
+  the class 6 = a new blitter with the 0x24-stride window geometry to
+  decode from FUN_0801BFB8's param_6==6 case), the colors from the ink
+  table. This bypasses the string/glyph-fetch layer entirely - the
+  cells ARE the rendered output.

@@ -1,0 +1,19 @@
+# p3-cell.resc - session 61: the glyph-cell args during the menu-key press
+# window on the ORIGINAL. FUN_0801BFB8(x, y, glyph, ink, invert, class):
+# r0-r2 = x/y/glyph, r3 = the ink code, r4 = the invert, r5 = the class.
+using sysbus
+mach create "p3cell"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x0801BFB8 "self.Log(LogLevel.Info, 'CELL ' + str(self.GetRegister(0).RawValue) + ' ' + str(self.GetRegister(1).RawValue) + ' g=' + str(self.GetRegister(2).RawValue) + ' ink=' + str(self.GetRegister(3).RawValue) + ' inv=' + str(self.GetRegister(4).RawValue) + ' cls=' + str(self.GetRegister(5).RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:05.990"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2300
+emulation RunFor "00:00:01"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('P1 scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+quit
