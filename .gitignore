@@ -42,3 +42,4 @@ ghidra-project/
 rea-ghidra-*/
 reconstruction/build/
 !reconstruction/data/*.bin
+__pycache__/
