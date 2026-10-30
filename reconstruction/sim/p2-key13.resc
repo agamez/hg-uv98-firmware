@@ -1,0 +1,42 @@
+# p2-key13.resc - session 61: the key-13 executor differential (the ORIGINAL),
+# with the CORRECT executor addresses (FUN_08022CB4's base = the CONTEXT
+# 0x20004E68): idx = ctx+0x40 (0x20004EA8), the state bytes = ctx+8+idx
+# (0x20004E70/72 for idx 0), the 3-bit mode field at 0x2000509D (the flag
+# bank +9, bits 3-5), the 6-B gate state at ctx+0x30 (0x20004E98).
+using sysbus
+mach create "p2k13"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:05.990"
+echo "=== press 1 ==="
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 3100
+emulation RunFor "00:00:00.500"
+python "m = emulationManager.CurrentEmulation.Machines[0]; g = m['sysbus'].ReadBytes(0x20004E98, 6); print('P1 idx=%02x st1=%02x st2=%02x fld9=%02x gate6=%s' % (int(m['sysbus'].ReadByte(0x20004EA8)), int(m['sysbus'].ReadByte(0x20004E70)), int(m['sysbus'].ReadByte(0x20004E72)), int(m['sysbus'].ReadByte(0x2000509D)), ''.join('%02x' % b for b in g)))"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
+emulation RunFor "00:00:00.500"
+echo "=== press 2 ==="
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 3100
+emulation RunFor "00:00:00.500"
+python "m = emulationManager.CurrentEmulation.Machines[0]; g = m['sysbus'].ReadBytes(0x20004E98, 6); print('P2 idx=%02x st1=%02x st2=%02x fld9=%02x gate6=%s' % (int(m['sysbus'].ReadByte(0x20004EA8)), int(m['sysbus'].ReadByte(0x20004E70)), int(m['sysbus'].ReadByte(0x20004E72)), int(m['sysbus'].ReadByte(0x2000509D)), ''.join('%02x' % b for b in g)))"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
+emulation RunFor "00:00:00.500"
+echo "=== press 3 ==="
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 3100
+emulation RunFor "00:00:00.500"
+python "m = emulationManager.CurrentEmulation.Machines[0]; g = m['sysbus'].ReadBytes(0x20004E98, 6); print('P3 idx=%02x st1=%02x st2=%02x fld9=%02x gate6=%s' % (int(m['sysbus'].ReadByte(0x20004EA8)), int(m['sysbus'].ReadByte(0x20004E70)), int(m['sysbus'].ReadByte(0x20004E72)), int(m['sysbus'].ReadByte(0x2000509D)), ''.join('%02x' % b for b in g)))"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
+emulation RunFor "00:00:00.500"
+echo "=== press 4 ==="
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 3100
+emulation RunFor "00:00:00.500"
+python "m = emulationManager.CurrentEmulation.Machines[0]; g = m['sysbus'].ReadBytes(0x20004E98, 6); print('P4 idx=%02x st1=%02x st2=%02x fld9=%02x gate6=%s' % (int(m['sysbus'].ReadByte(0x20004EA8)), int(m['sysbus'].ReadByte(0x20004E70)), int(m['sysbus'].ReadByte(0x20004E72)), int(m['sysbus'].ReadByte(0x2000509D)), ''.join('%02x' % b for b in g)))"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
+emulation RunFor "00:00:01"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('END idx=%02x st1=%02x st2=%02x fld9=%02x L=%d' % (int(m['sysbus'].ReadByte(0x20004EA8)), int(m['sysbus'].ReadByte(0x20004E70)), int(m['sysbus'].ReadByte(0x20004E72)), int(m['sysbus'].ReadByte(0x2000509D)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+quit

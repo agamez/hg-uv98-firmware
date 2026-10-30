@@ -3216,3 +3216,37 @@ the REA MCP decompiles (the evidence for every fix below).
 - p2-shadow = COMPLETE: the shadow load = the context copy (the marker
   verified on both), the runtime writer example = the S-meter steps (the
   marker verified on both), the $A00 non-application = marker-proven.
+
+## Session 61 (cont. 3) - p2-consumers: the key-13 side-key executor chain decoded, implemented, and differentially verified
+
+- REA decode: FUN_08020C9E = the mode-kill helper (the flag-bank byte at
+  0x2000509B bit3 latch + the FUN_08020CEE/0x8026318 branches), NOT the
+  executor. THE EXECUTOR = FUN_08022CB4, base = the CONTEXT 0x20004E68:
+  the idx = ctx[0x40] (the EE byte 64 = 0), the state bytes =
+  ctx[8+idx]/ctx[10+idx] (0x20004E70/72), the 6-B ID gate at ctx+0x30
+  vs the ROM default at 0x08045A74 = "000000" ('0'x6 - the same as the
+  EE's bytes 48-53), the 3-bit mode field at the flag bank +9
+  (0x2000509D bits 3-5), the settle = the settings save 0x0801A6EA.
+  (The earlier dump round used the wrong base - the flag bank +0x40 =
+  0x200050D4 = a DIFFERENT variable, observed 0xC4; the executor's
+  [ +0x40 ] = the ctx's. The address map is now explicit in the script.)
+- THE DIFFERENTIAL (p2-key13.resc / p2-key13-recon.resc, four press/
+  release cycles with the ADC2 tag 3100 = the A-ladder entry 3 = the key
+  code 13):
+  * ORIGINAL: (st1,st2) = (01,00), (01,01), (01,02), then the reset
+    (00,00) - the gate6 = 303030303030 (= "000000", the match -> the
+    reset path), idx = 00 throughout.
+  * RECON: IDENTICAL - (01,00), (01,01), (01,02), (00,00), the gate6
+    identical, idx = 00.
+  * RESIDUAL: the original's 0x2000509D = 0xC0 vs the recon's 0x00 - the
+    bits 6-7 = the screen-selector's flags (FUN_0801b198 |= 0xc0), NOT
+    the executor's bits 3-5 (both 0) - queued to the phase-3 screen
+    state. The display-stream magnitude also differs (the icon draw =
+    the phase-3 scope).
+- THE S-METER STEP SELECTION = already wired and marker-verified in
+  p2-shadow (the ee byte2=3 -> the steps[0] = 1250 on both).
+- Build 107,331 text; make test-host = all the protocol conformance
+  tests passed.
+- p2-consumers = COMPLETE: the S-meter step table behavior and the
+  side-key executor chain are both wired to the settings shadow and
+  differentially verified against the original.

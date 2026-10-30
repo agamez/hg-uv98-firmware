@@ -758,15 +758,49 @@ void ui_task(void *p_arg)
                     if (((REG8(FLAG_BANK + 2u) >> 2u) & 1u) == 0u) {
                         REG8(FLAG_BANK + 6u) &= 0x7Fu;   /* 0x8019fea */
                         REG8(KEY_CODE_COPY) = key;       /* 0x8019ff2 */
-                        /* [session 61] with the session cleared the key
-                         * reaches the dispatch switch (0x8019fea+); the
-                         * original answers with a screen repaint (the
-                         * key-1 press = +58,034 display-stream lines in
-                         * p1-exitseq.resc). The per-key state machine =
-                         * the phase-3 UI tree; the repaint here = the
-                         * behavioral display-delta match the differential
-                         * battery checks. */
-                        ui_screen0_build();
+                        /* [session 61 | 0x08022CB4 RECOVERED] the key-13
+                         * executor: the base = the CONTEXT (0x20004E68).
+                         * idx = ctx[0x40] (the EE byte 64 = 0); the state
+                         * bytes = ctx[8+idx]/ctx[10+idx]. The press cycle:
+                         * OFF -> ON (1,0); ON counts ctx[10+idx] 1..2; at
+                         * >2 the reset to (0,0) iff the 6-B ID at ctx+0x30
+                         * equals the ROM default "000000" (0x08045A74),
+                         * else clamp to 2. The clean-mode settle saves the
+                         * settings (0x0801A6EA). The icon draw + the mode
+                         * field (0x2000509D bits 3-5) = the phase-3 UI
+                         * scope; the RAM state + the save = the p2
+                         * observable (the original p2k13c.log: (1,0),
+                         * (1,1), (1,2), (0,0)). */
+                        if (key == 13u) {
+                            volatile uint8_t *ctx = (volatile uint8_t *)SETTINGS_CTX;
+                            uint8_t slot = ctx[0x40];
+                            if (ctx[8u + slot] == 0u) {
+                                ctx[8u + slot] = 1u;
+                                ctx[10u + slot] = 0u;
+                            } else {
+                                ctx[10u + slot] += 1u;
+                                if (ctx[10u + slot] > 2u) {
+                                    static const uint8_t id_def[6] = {'0', '0', '0', '0', '0', '0'};
+                                    if (mem_cmp((const void *)(SETTINGS_CTX + 0x30u), id_def, 6) == 0) {
+                                        ctx[10u + slot] = 0u;
+                                        ctx[8u + slot] = 0u;
+                                    } else {
+                                        ctx[10u + slot] = 2u;
+                                    }
+                                }
+                            }
+                            eeprom_write(0x0A00u, 0x4Du, ui_ee_settings);
+                        } else {
+                            /* [session 61] with the session cleared the
+                             * key reaches the dispatch switch (0x8019fea+);
+                             * the original answers with a screen repaint
+                             * (the key-1 press = +58,034 display-stream
+                             * lines in p1-exitseq.resc). The per-key state
+                             * machine = the phase-3 UI tree; the repaint
+                             * here = the behavioral display-delta match
+                             * the differential battery checks. */
+                            ui_screen0_build();
+                        }
                     }
                 }
             }
