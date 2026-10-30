@@ -1,0 +1,23 @@
+# p3-rtrace.resc - session 61: the render-chain trace during the menu-key
+# (the code 10) press window on the ORIGINAL. The display primitives
+# hooked: 0x0801CD32 (the fill/draw helper), 0x0801CB60 (the text draw),
+# 0x0801D334 (the blit). The args logged r0-r3.
+using sysbus
+mach create "p3rt"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x0801CD32 "self.Log(LogLevel.Info, 'RD cd32 ' + str(self.GetRegister(0).RawValue) + ' ' + str(self.GetRegister(1).RawValue) + ' ' + str(self.GetRegister(2).RawValue) + ' ' + str(self.GetRegister(3).RawValue))"
+cpu AddHook 0x0801CB60 "self.Log(LogLevel.Info, 'RD cb60 ' + str(self.GetRegister(0).RawValue) + ' ' + str(self.GetRegister(1).RawValue) + ' ' + str(self.GetRegister(2).RawValue) + ' ' + str(self.GetRegister(3).RawValue))"
+cpu AddHook 0x0801D334 "self.Log(LogLevel.Info, 'RD d334 ' + str(self.GetRegister(0).RawValue) + ' ' + str(self.GetRegister(1).RawValue) + ' ' + str(self.GetRegister(2).RawValue) + ' ' + str(self.GetRegister(3).RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:05.990"
+echo "=== hooks on: the key-10 press window ==="
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2300
+emulation RunFor "00:00:01"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('P1 scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+quit

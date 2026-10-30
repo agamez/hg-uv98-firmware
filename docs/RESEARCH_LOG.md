@@ -3330,3 +3330,38 @@ the REA MCP decompiles (the evidence for every fix below).
   documented §7(c) screen-content delta (the 0x35 screen's own render =
   the next per-screen slice).
 - Build 107,543 text.
+
+## Session 61 (cont. 6) - p3-screens slice 2: the menu screen (0x35) render spec captured
+
+- The key-10 press handler (0x08018ED4, the lcd.asm - not a Ghidra
+  procedure) = only a state-flag clear: the ctx+8+[ctx+0x40] read via
+  0x0801A69C, then [DAT_8019638+1] = 0. The 0x35 render comes from the
+  periodic screen machine, not the press handler itself.
+- THE RENDER TRACE (p3-rtrace.resc, the original, the display
+  primitives hooked during the key-10 press window): 39 draw calls.
+  The press-window spec (~21 calls):
+  fill_rect(18,1,158,92); fill(1,1,158,16); fill(1,4,72,16);
+  text(1,108,0x0803....,4); fill(1,120,16,16); fill(111,72,16,16);
+  fill(111,30,120,16); fill(111,1,5,16); fill(111,157,2,16);
+  text(111,6,0x0803....); text(111,125,0x0803....);
+  fill(29,106,18,20) [the item highlight];
+  text(18,80/92/55/30/68/5, the menu strings, 4);
+  text(50,22,...); fill(64,133,24,10) [the scrollbar];
+  fill(76,106,18,20) [the item-2 highlight]; text(64,80/92/55/30/68/5,...).
+  The menu re-renders periodically (the second burst in the window).
+- THE PRIMITIVES DECODED (REA): FUN_0801CD32(x,y,w,h) = the fill-rect
+  with 0xEFBE (the window setter 0x0801B9C8(x, y, x+h-1, y+w-1); the
+  h x w loop of the 0xEFBE/0xBE pairs) - the recon's display_fill_rect =
+  the identical shape. FUN_0801CB60(x, y, str, ink, size) = the text
+  draw: the ASCII (<0x81) = the 8-px path 0x0801C95E, the CJK = the
+  16-px path 0x0801C914 (the y += 0x10 per char), the terminator 0/0xFF.
+- THE IMPLEMENTATION ROUTE: the recon's display primitives = CK4-exact
+  (the boot stream = event-identical), so implementing the 0x35 render =
+  the same call list with the string pointers resolved against the
+  recon's .uistrings blob (the byte-identical assets at the same
+  addresses) gives a byte-exact stream for the menu screen. The string
+  addresses from the trace: 134346476 = 0x0803464C? (verify at the
+  implementation time), 134346540, 134346908, 134347088, 134502764,
+  134502980, 134502988, 134347104.
+- The slice = the spec captured; the implementation = the next work item
+  (p3-screens continues).
