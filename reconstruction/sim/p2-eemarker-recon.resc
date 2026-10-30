@@ -1,0 +1,20 @@
+# p2-eemarker-recon.resc - session 61: the EEPROM-marker second-boot
+# experiment on the RECONSTRUCTION. Identical flow to p2-eemarker.resc:
+# the ee_image is pre-programmed with the vendor defaults plus the
+# distinguishable markers (byte2=3 -> the S-meter step 1250, byte5=4).
+# Dumps the context (0x20004E68), the S-meter steps (0x200046CA), and the
+# dwell args (0x20004E82/83) at the epochs.
+using sysbus
+mach create "p2eerec"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:04.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T5 ctx=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x20004E68, 0x30))); print('T5 steps=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x200046CA, 0x10))); print('T5 dwellargs=%02x/%02x' % (int(m['sysbus'].ReadByte(0x20004E82)), int(m['sysbus'].ReadByte(0x20004E83))))"
+emulation RunFor "00:00:07"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T12 ctx=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x20004E68, 0x30))); print('T12 steps=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x200046CA, 0x10))); print('T12 dwellargs=%02x/%02x cnt=%04x' % (int(m['sysbus'].ReadByte(0x20004E82)), int(m['sysbus'].ReadByte(0x20004E83)), int(m['sysbus'].ReadWord(0x20004720)) & 0xFFFF)); b = m['sysbus'].ReadBytes(0x20005090, 0x10); print('T12 b6=%02x' % int(b[6])); print('T12 L=' + str(sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+quit

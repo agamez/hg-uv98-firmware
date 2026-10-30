@@ -1,0 +1,32 @@
+# p2-marker.resc - session 61: the distinguishable-settings marker experiment
+# on the ORIGINAL. The $A00 response carries byte2=3 (the S-meter step index
+# 3 -> duration 1250), byte5=4, byte26=2 (the dwell 2*30=60 instead of 180).
+# Epochs watch the dwell transition timing, the context image, and the
+# S-meter steps array at APP_STATE+0x2E (0x200046CA).
+using sysbus
+mach create "p2marker"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:00.690"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; a = [0]*512; a[2] = 3; a[5] = 4; a[26] = 2; frame = chr(36) + 'A00,' + '0'*14 + ',' + ''.join(chr(b) for b in a) + chr(13) + chr(10); assert len(frame) == 534; [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:00.100"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; a = [0]*512; a[2] = 3; a[5] = 4; a[26] = 2; frame = chr(36) + 'A00,' + '0'*14 + ',' + ''.join(chr(b) for b in a) + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:00.100"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; a = [0]*512; a[2] = 3; a[5] = 4; a[26] = 2; frame = chr(36) + 'A00,' + '0'*14 + ',' + ''.join(chr(b) for b in a) + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:00.100"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; a = [0]*512; a[2] = 3; a[5] = 4; a[26] = 2; frame = chr(36) + 'A00,' + '0'*14 + ',' + ''.join(chr(b) for b in a) + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:00.100"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; a = [0]*512; a[2] = 3; a[5] = 4; a[26] = 2; frame = chr(36) + 'A00,' + '0'*14 + ',' + ''.join(chr(b) for b in a) + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:02"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T3 ctx=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x20004E68, 0x30))); print('T3 steps=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x200046CA, 0x10))); print('T3 dwellargs=%02x/%02x cnt=%04x' % (int(m['sysbus'].ReadByte(0x20004E82)), int(m['sysbus'].ReadByte(0x20004E83)), int(m['sysbus'].ReadWord(0x20004720)) & 0xFFFF))"
+emulation RunFor "00:00:04"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T7 ctx=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x20004E68, 0x30))); print('T7 steps=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x200046CA, 0x10))); b = m['sysbus'].ReadBytes(0x20005090, 0x10); print('T7 b2=%02x b6=%02x b8=%02x' % (int(b[2]), int(b[6]), int(b[8]))); print('T7 L=' + str(sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+emulation RunFor "00:00:05"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T12 ctx=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x20004E68, 0x30))); print('T12 steps=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x200046CA, 0x10))); print('T12 dwellargs=%02x/%02x cnt=%04x' % (int(m['sysbus'].ReadByte(0x20004E82)), int(m['sysbus'].ReadByte(0x20004E83)), int(m['sysbus'].ReadWord(0x20004720)) & 0xFFFF))"
+quit

@@ -54,6 +54,11 @@
 #define KEY_PC7XOR8      0x20005164u  /* TIM2 sampler: PC7 ^ PC8 state    */
 #define KEY_PC8_CHANGED  0x20005165u  /* TIM2 sampler: PC8 change flag    */
 #define KEY_LADDER_A     0x20001684u  /* group A threshold table (8)      */
+#define SETTINGS_CTX     0x20004E68u  /* radio context = the EE settings
+                                       * image, 1:1 copy of the 0x0A00 page
+                                       * (77 B) at boot [session 61]     */
+#define SM_STEP_BASE     0x200046CAu  /* APP_STATE+0x2E: the u16 S-meter
+                                       * step durations, per VFO [s61]   */
 #define KEY_LADDER_B     0x200016A4u  /* group B threshold table (8)      */
 #define KEY_LADDER_C     0x200016C4u  /* group C threshold table (3)      */
 #define KEYLOCK_BYTE     0x20009458u  /* bit0 = keypad lock (0x80282fe)   */

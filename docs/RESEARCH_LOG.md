@@ -3167,3 +3167,52 @@ the REA MCP decompiles (the evidence for every fix below).
   session semantics), the bit2 transition happens naturally on both
   images under the same harness script, the sequence is locked into
   reconstruction/sim/p1-exitseq.resc + p1-exitseq-recon.resc.
+
+## Session 61 (cont. 2) - p2-shadow: the settings context + the S-meter steps implemented and marker-verified on both images
+
+- REA decode (the primary instrument; batch_decompile on FUN_0801b198 and
+  FUN_0801d8c0, search_bytes for the mirror literals):
+  * FUN_0801d8c0 = memcpy (the 512/8/4/2/1-byte optimized copy) - the
+    settings load's transport.
+  * FUN_0801b198(mode) = the UI screen/band reset selector (the modes
+    1/2/3 = 'g'/'h'/'i' + the per-screen repaint helpers), NOT the
+    settings apply.
+  * The S-meter chain fully decoded: the mode-10 handler 0x0801680C reads
+    the CONTEXT byte (0x20004E68 + 2 + the VFO idx [APP_STATE+0xF0]),
+    calls 0x0801F1C4 (the step table: 0->500, 1->625, 2->1000, 3->1250,
+    4->2500, 5->5000, 6->10000, else passthrough), stores the u16 at
+    APP_STATE+0x2E+idx*2 (0x200046CA+idx*2).
+- THE MARKER EXPERIMENTS (the decisive data-flow evidence):
+  * p2-marker.resc ($A00 with byte2=3, byte5=4, byte26=2): the ORIGINAL
+    does NOT apply the head's frame to the context - the ctx stays at the
+    defaults (the steps stay 500, the dwell args stay 06/00). The frame
+    lives only in the head's rxBuf mirror (0x20003A84; the settings start
+    at rxBuf+0x14 = the 5-byte header + the 14-B id).
+  * p2-eemarker.resc (the EE pre-programmed with the vendor defaults plus
+    byte2=3, byte5=4, the magic intact -> the second-boot path): the
+    ORIGINAL loads the EE settings page 1:1 into the context 0x20004E68
+    (the ctx[2]=03, the ctx[5]=04 appear) AND the S-meter chain fires
+    live: the steps[0] = 0x04E2 = 1250, the steps[1] = 500. The dwell
+    args = the ctx +26/+27 (0x20004E82/83) and the scan-starter gate =
+    the ctx +31 - the whole session-61 state machine is SETTINGS-DRIVEN.
+- THE RECON IMPLEMENTATION (ui.c/ui.h, the build = 107,211 text, the
+  host tests pass): SETTINGS_CTX = 0x20004E68 + SM_STEP_BASE = 0x200046CA
+  macros; ui_boot_scene copies ui_ee_settings 1:1 into the context after
+  the magic check and fills the steps[0]/[1] from the ctx via the
+  RECOVERED table.
+- THE DEBUG STORY (the honest record): the first recon marker run
+  crashed with PC=0x30000000. The bisect (the mem_copy disabled, then
+  the steps disabled - the binary back to the d007a90 size) proved the
+  CODE innocent: my sed-generated p2-eemarker-recon.resc had LOST the
+  LoadELF line (the CPU executed the unwritten flash). The hand-rewritten
+  script + the re-enabled blocks = clean. LESSON: never sed-generate
+  resc setup blocks; hand-write the LoadELF/SP/PC setup.
+- THE DIFFERENTIAL RESULT (the marker EE on both): the ctx bytes and the
+  S-meter steps IDENTICAL (the ctx[2]=03 [5]=04 [6..]=the vendor
+  defaults; the steps e204 f401 = 1250/500; the dwell 06/00; b6=02). The
+  one residual delta = the original keeps 0x0004 at APP_STATE+0x36
+  (0x200046D2) at boot - a separate variable, queued to p3/p4 with the
+  other APP_STATE fields.
+- p2-shadow = COMPLETE: the shadow load = the context copy (the marker
+  verified on both), the runtime writer example = the S-meter steps (the
+  marker verified on both), the $A00 non-application = marker-proven.

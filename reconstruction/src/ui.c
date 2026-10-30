@@ -269,6 +269,32 @@ void ui_boot_scene(void)
     eeprom_read(0x0A00u, 0x4Du, ui_ee_settings);
     if (mem_cmp(&ui_ee_settings[0x44], (const void *)0x0804594Cu, 4) != 0)
         ui_factory_reset(ui_ee_settings);
+    /* [session 61 | RECOVERED] the settings image lands 1:1 in the radio
+     * context at 0x20004E68 (the ee-marker experiment p2-eemarker.resc:
+     * the ee bytes 2/5 appear at the ctx +2/+5; the dwell args =
+     * the ctx +26/+27; the scan-starter gate = the ctx +31; the S-meter
+     * step selectors = the ctx +2+idx). The head's $A00 frame is NOT
+     * applied to the ctx (p2-marker.resc: a distinguishable-settings
+     * $A00 leaves the ctx at the defaults - the frame lives in the
+     * head's rxBuf mirror at 0x20003A84 only). */
+    mem_copy((void *)SETTINGS_CTX, ui_ee_settings, 0x4Du);
+
+    /* [session 61 | 0x0801F1C4 RECOVERED] the S-meter step durations for
+     * both VFOs: the ctx byte (2+idx) = the step index, mapped
+     * {0:500, 1:625, 2:1000, 3:1250, 4:2500, 5:5000, 6:10000} (else
+     * passthrough), stored as the u16 at SM_STEP_BASE+idx*2. The observed
+     * boot fills both entries (the steps[0]/[1] pair); the mode-10
+     * handler 0x0801680C refreshes one per pass live. */
+    {
+        static const uint16_t sm_tbl[7] = {500u, 625u, 1000u, 1250u, 2500u, 5000u, 10000u};
+        uint8_t i;
+        for (i = 0u; i < 2u; i++) {
+            uint8_t sel = *(const volatile uint8_t *)(SETTINGS_CTX + 2u + i);
+            uint16_t d = (sel < 7u) ? sm_tbl[sel] : (uint16_t)sel;
+            REG16(SM_STEP_BASE + (uint32_t)i * 2u) = d;
+        }
+    }
+
     {   /* [session 55 correction] step 5 = 0x08024CF8 -> 0x0802BC28(0, v):
          * the RF register-SHADOW update (0x0802D058 = shadow[8] = v,
          * RAM-only) — the original emits NO bus traffic here. The
