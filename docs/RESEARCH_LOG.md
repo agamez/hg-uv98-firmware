@@ -3385,3 +3385,33 @@ the REA MCP decompiles (the evidence for every fix below).
   layer = event-count-exact.
 - The next slice: the class-4 text decode (0x0801CB60's ASCII 8-px /
   CJK 16-px glyph pipeline) to close the 6,087-event gap.
+
+## Session 61 (cont. 8) - the class-4 text pipeline fully decoded (the 6,087-event gap's spec)
+
+- The REA decomps of FUN_0801C99E/CAC0/C95E complete the class-4 text
+  (FUN_0801CB60) semantics:
+  * FUN_0801CB60(y, x, s, ink, class) - the cursors (y = p1 = the row,
+    x = p2 = the column; the CJK path advances x += 0x10 per glyph =
+    the horizontal 16-px).
+  * FUN_0801C99E = the PRE-WRAP per class: if x > thr[class] then
+    x = 6 and y += line[class]. The class tables:
+    class:  0    1    2    3    4    5    6    7    8    9
+    thr:   9B   9A   99   98   96   94   94   91   8D   90
+    line:   7   10   12   16   16   16   20   15   24   32
+    adv:     6    6    7    8   10   12   12   15   19   16
+  * FUN_0801CAC0 = the POST-ADVANCE: x += adv[class] per ASCII glyph.
+  * FUN_0801C95E = the ASCII glyph draw = the wrapper over the class-3
+    cell FUN_0801BFB8 (the recon's existing glyph pipeline!) via the
+    font fetch FUN_08028F8C.
+  * The CJK (the lead byte >= 0x81 with the trail >= 0x81) = the 16-px
+    glyph via FUN_0801C914, x += 16, NO wrap in the CJK path.
+  * The BCD digit normalization: a byte < 10 mutates to +0x30 (the
+    ASCII digit) IN THE CALLER'S BUFFER (the original mutates the
+    working copy in place - the recon must copy before normalizing).
+- The implementation route: display_draw_text4(y, x, s, ink, class) =
+  the wrap-check + the existing class-3 glyph cell + the advance, over
+  the recon's font.c (the ascii_font_fetch/cjk16_fetch = the existing
+  assets). This closes the 6,087-event text gap in the menu screen.
+- The menu's observed text calls mapped: text(1,108," ") class 4;
+  text(111,6,确定) and text(111,125,取消) (the CJK); the item texts =
+  the " "/"   " pads + "H"/"W" markers at (18/64, 5..92).
