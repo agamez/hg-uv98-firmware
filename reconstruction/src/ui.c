@@ -700,6 +700,39 @@ uint8_t key_get_code(void)
     return 0xFFu;
 }
 
+/* [session 61 | p3-screens slice 3 | RECOVERED via p3-rtrace.resc] the
+ * menu screen (0x35) fill layer: the trace's 13 fill calls in order, the
+ * color 0xEFBE (the original's FUN_0801CD32 fill pairs 0xEF/0xBE). The
+ * recon's display_fill_rect(y, x, cols, rows, color) takes the original's
+ * (p1, p2, p3, p4) directly (the window = the cols p1..p1+p3-1?? no:
+ * 0x2A = the x-axis from (p2, p2+p3-1), 0x2B = the y-axis from
+ * (p1, p1+p4-1); the recon's session-52-corrected mapping matches). The
+ * text layer (the class-4 draw 0x0801CB60: " " pads, "H"/"W" markers, the
+ * CJK 确定/取消 labels at 0x08045A44/0x08045A4C) = the next decode; the
+ * glyph streams here = pending. The original re-renders periodically (the
+ * RSSI-task screen machine); the recon renders once per press. */
+void ui_menu_screen_build(void)
+{
+    ui_state_set(0x35u);
+    display_fill_rect(18u, 1u, 158u, 92u, 0xEFBEu);
+    display_fill_rect(1u, 1u, 158u, 16u, 0xEFBEu);
+    display_fill_rect(1u, 4u, 72u, 16u, 0xEFBEu);
+    /* text(1, 108, " ", 0, 4) — the class-4 text = pending */
+    display_fill_rect(1u, 120u, 16u, 16u, 0xEFBEu);
+    display_fill_rect(111u, 72u, 16u, 16u, 0xEFBEu);
+    display_fill_rect(111u, 30u, 120u, 16u, 0xEFBEu);
+    display_fill_rect(111u, 1u, 5u, 16u, 0xEFBEu);
+    display_fill_rect(111u, 157u, 2u, 16u, 0xEFBEu);
+    /* text(111, 6, 确定, 0, 4); text(111, 125, 取消, 0, 4) — pending */
+    display_fill_rect(29u, 106u, 18u, 20u, 0xEFBEu);
+    /* text(18, 80/92/55, " ", 0, 4); text(18, 30/5, "   ", 0, 4);
+     * text(18, 68, "W", 0, 4); text(50, 22, "H", 0, 4) — pending */
+    display_fill_rect(64u, 133u, 24u, 10u, 0xEFBEu);
+    display_fill_rect(76u, 106u, 18u, 20u, 0xEFBEu);
+    /* text(64, 80/92/55, " ", 0, 4); text(64, 30/5, "   ", 0, 4);
+     * text(64, 68, "W", 0, 4) — pending */
+}
+
 void ui_task(void *p_arg)
 {
     (void)p_arg;
@@ -805,15 +838,20 @@ void ui_task(void *p_arg)
                             /* [session 61 | RECOVERED] the menu key (the
                              * code 10 = the A-ladder entry 0; the tag 2300
                              * in p3-key6.log): the press = the screen 0x35
-                             * render (+49,648 lines); the release = the
-                             * idle restore (handled in the release branch
-                             * above). The press handler = the
-                             * vtable[10].press (0x08018ED4). The 0x35
-                             * screen's own content = the per-screen
-                             * decode; the status-page repaint = the
-                             * stand-in render. */
-                            ui_state_set(0x35u);
-                            ui_screen0_build();
+                             * render. The press handler = the
+                             * vtable[10].press (0x08018ED4) only clears the
+                             * executor state; the render comes from the
+                             * periodic screen machine - the recon renders
+                             * it directly at the press.
+                             * [p3-screens slice 3 | p3-rtrace.resc spec]
+                             * The fill layer = the trace's 13 fill calls,
+                             * byte-exact via the CK4-exact primitives (the
+                             * recon's fill_rect(y, x, cols, rows) = the
+                             * original's (p1, p2, p3, p4) in order). The
+                             * text layer (the ASCII 8-px / the CJK 16-px
+                             * class-4 draw 0x0801CB60) = the next decode;
+                             * the glyphs here = the stand-in. */
+                            ui_menu_screen_build();
                         }
                         /* [session 61 | 0x0801A13A RECOVERED] the keys 1/2
                          * have NO short-press action: they increment the

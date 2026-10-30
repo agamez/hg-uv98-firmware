@@ -3365,3 +3365,23 @@ the REA MCP decompiles (the evidence for every fix below).
   134502980, 134502988, 134347104.
 - The slice = the spec captured; the implementation = the next work item
   (p3-screens continues).
+
+## Session 61 (cont. 7) - p3-screens slice 3: the menu screen (0x35) fill layer implemented
+
+- The recon's display primitives verified against the original's window
+  math: display_fill_rect(y, x, cols, rows, color) takes the original
+  FUN_0801CD32's (p1, p2, p3, p4) directly - 0x2A (the x-axis) =
+  (p2, p2+p3-1), 0x2B (the y-axis) = (p1, p1+p4-1) per the session-52
+  correction; the fill loop = the rows x cols of the 0xEFBE pairs.
+- ui_menu_screen_build() implemented: ui_state_set(0x35) + the trace's
+  13 fill calls in order, the color 0xEFBE. The text layer (the class-4
+  draw 0x0801CB60: the " " pads, the "H"/"W" markers, the CJK 确定
+  [0x08045A44] / 取消 [0x08045A4C]) = explicitly pending with the
+  per-call comments in the source.
+- THE DIFFERENTIAL (p3-key6-recon.resc after the build 107,711):
+  PRE L=185,382; P1 (the press) scr=35 L=228,943 -> the press delta
+  +43,561; the original's press delta = +49,648 (p3-key6.log). THE GAP =
+  6,087 events = the text-glyph layer (the class-4 draws) - the fill
+  layer = event-count-exact.
+- The next slice: the class-4 text decode (0x0801CB60's ASCII 8-px /
+  CJK 16-px glyph pipeline) to close the 6,087-event gap.
