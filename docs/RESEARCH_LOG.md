@@ -3250,3 +3250,48 @@ the REA MCP decompiles (the evidence for every fix below).
 - p2-consumers = COMPLETE: the S-meter step table behavior and the
   side-key executor chain are both wired to the settings shadow and
   differentially verified against the original.
+
+## Session 61 (cont. 4) - p3-screen-map: the screen/transition map assembled
+
+- The screen-ID space (the sessions 28-30, re-verified): the state byte
+  0x200050E8 = the CURRENT SCREEN ID, printable chars by design, ~145
+  values (0x00 idle; 0x01..0x2F the menu screens; 0x30..0x8D the rest;
+  'g' = the RX/RF-active, 'h'/'i'/'j' = the beacon windows, 'M'/'N' =
+  the memory modes, 'x' = the refined menu). ui_state_set (0x08010530)
+  has only THREE call sites (0x8010EF8, 0x801B198 = the band/screen
+  selector, 0x80214E4) - the screen writes are mostly direct stores
+  (the 25-pool-site writer set from the session-61 ctx+0x21 sweep).
+- The menu edges: 115, already mapped in docs/MENU_TREE.md (the
+  binary-search dispatcher 0x08011190-0x08015628).
+- THE KEY-DRIVEN TRANSITIONS - the per-key vtable decoded (the dispatch's
+  long-press expiry at 0x801A02A calls [vtable + key*16 + 4], the release
+  at 0x801A03E calls [vtable + key*16 + 8]; the base = DAT_801A3A4 =
+  0x08040AEC; each 16-B entry = {u32 index, u32 press, u32 release,
+  u32 category 0/1/2}):
+    key  0: press 08019910 rel 08019d4c cat 0
+    key  1: press 0801679c rel 080167d8 cat 0
+    key  2: press 08016896 rel 080168e8 cat 0
+    key  3: press 0801680c rel 08016868 cat 1   (the S-meter mode handler)
+    key  4: press 08016924 rel 080169a2 cat 1
+    key  5: press 080169d2 rel 08016a30 cat 1
+    key  6: press 08017d54 rel 08017dde cat 0
+    key  7: press 08016a6c rel 08016ac8 cat 0
+    key  8: press 08016b00 rel 08016bcc cat 1
+    key  9: press 08016cd0 rel 08016d10 cat 0
+    key 10: press 08018ed4 rel 08018f1a cat 1
+    key 11: press 08018222 rel 08018264 cat 1
+    key 12: press 08017218 rel 0801735c cat 2
+    key 13: press 08016fd0 rel 08017064 cat 0
+    key 14: press 0801709c rel 080171dc cat 2
+    key 15: press 08016f08 rel 08016f96 cat 0
+- The dispatch's short-press semantics (0x08019FEA switch): the keys
+  11/12 = the mode-kill (FUN_08020C9E) + the counter [r5+0x21] to 40 ->
+  the vtable press handler; the key 13 = the executor FUN_08022CB4
+  directly; the key 14 = the same counter mechanism; the key 15 = the
+  MONI path (0x8019E9C, [r6+12] |= 0x40 + the counter). The release
+  ageing tail = 0x801A20A.
+- THE p3-screens WORKLIST = the 16 press handlers + the 16 release
+  handlers above (the per-key decode queue), the reachable screen set =
+  the ~145 IDs with the 115 menu edges + the key transitions.
+- The p3-screen-map = COMPLETE (the map = this entry + MENU_TREE.md +
+  the vtable).
