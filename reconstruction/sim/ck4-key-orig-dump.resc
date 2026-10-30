@@ -15,7 +15,7 @@ emulation RunFor "00:00:01.990"
 sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2330
 echo "MARK press code10"
 emulation RunFor "00:00:00.250"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/orig_keydump_hold.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20005140, 0x26)))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/home/sslayer/hguv98-sim/orig_keydump_hold.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20005140, 0x26)))'
 emulation RunFor "00:00:00.250"
 sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
 echo "MARK release"

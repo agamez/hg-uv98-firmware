@@ -13,19 +13,19 @@ sysbus WriteDoubleWord 0xE000E018 0x00000000
 emulation RunFor "00:00:01.990"
 sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2330
 echo "MARK press + single poke"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; m["sysbus"].WriteByte(0x20005096, m["sysbus"].ReadByte(0x20005096) & 0xFB); open("/tmp/opencode/ra0.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; m["sysbus"].WriteByte(0x20005096, m["sysbus"].ReadByte(0x20005096) & 0xFB); open("/home/sslayer/hguv98-sim/ra0.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
 emulation RunFor "00:00:00.010"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/ra1.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/home/sslayer/hguv98-sim/ra1.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
 emulation RunFor "00:00:00.020"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/ra2.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/home/sslayer/hguv98-sim/ra2.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
 emulation RunFor "00:00:00.030"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/ra3.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/home/sslayer/hguv98-sim/ra3.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
 emulation RunFor "00:00:00.050"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/ra4.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/home/sslayer/hguv98-sim/ra4.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
 emulation RunFor "00:00:00.100"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/ra5.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/home/sslayer/hguv98-sim/ra5.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
 emulation RunFor "00:00:00.200"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/ra6.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/home/sslayer/hguv98-sim/ra6.bin","wb").write(bytes([m["sysbus"].ReadByte(0x20005096)]))'
 sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
 echo "MARK release"
 emulation RunFor "00:00:00.300"

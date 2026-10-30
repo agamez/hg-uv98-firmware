@@ -21,7 +21,7 @@ cpu AddHook 0x080285b6 "self.Log(LogLevel.Info, 'I2C_BYTE v=0x' + hex(self.GetRe
 emulation RunFor "00:00:00.010"
 sysbus WriteDoubleWord 0xE000E018 0x00000000
 emulation RunFor "00:00:01.990"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/flagdump_ee.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
-python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/ackflag.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005150, 0x20))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/flagdump_ee.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/ackflag.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005150, 0x20))); f.close()'
 python "print('SLAVE STATE:', globals().get('i2c_state'), 'ackwait:', globals().get('i2c_ack_wait'), 'bits:', globals().get('i2c_bits'), 'shift:', hex(globals().get('i2c_shift',0)), 'SDA_DIR:', globals().get('EE_SDA_MASTER_OUT'), 'EE_SDA_BIT:', globals().get('EE_SDA_BIT'), 'sclprev:', globals().get('i2c_scl_prev'), 'sdalast:', globals().get('i2c_sda_last'))"
 quit

@@ -17,5 +17,5 @@ cpu AddHook 0x0801ab36 "self.Log(LogLevel.Info, 'SMETER_RENDER band=' + str(self
 emulation RunFor "00:00:00.010"
 sysbus WriteDoubleWord 0xE000E018 0x00000000
 emulation RunFor "00:00:01.990"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/flagdump_ee.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/flagdump_ee.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
 quit

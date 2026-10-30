@@ -1,0 +1,28 @@
+# p1-mainmode.resc - session 60: the phase-1 exit validation. Boot with the
+# WORKING I2C slave (the sane first-boot defaults), sample the flag bank at
+# 10/20/30 s, inject a keypad code at 32 s, sample again. The display-stream
+# growth before/after the key = the differential delta proxy.
+# The binary path is substituted by the runner (sed BINARY_PATH).
+using sysbus
+mach create "mainmode"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @BINARY_PATH 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:09.990"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/mm_flags_t10.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/mm_eep_t10.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005150, 0x10))); f.close()'
+emulation RunFor "00:00:10"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/mm_flags_t20.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
+emulation RunFor "00:00:10"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/mm_flags_t30.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
+python 'import shutil; shutil.copy("/home/sslayer/hguv98-sim/pb_stream.log", "/home/sslayer/hguv98-sim/mm_stream_prekey.log")'
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 1
+emulation RunFor "00:00:02"
+python 'import shutil; shutil.copy("/home/sslayer/hguv98-sim/pb_stream.log", "/home/sslayer/hguv98-sim/mm_stream_postkey.log")'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/mm_flags_t32.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
+quit

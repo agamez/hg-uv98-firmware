@@ -22,7 +22,7 @@ sysbus WriteDoubleWord 0xE000E018 0x00000000
 emulation RunFor "00:00:00.990"
 python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; [u.WriteChar(ord(c)) for c in chr(36)+'A00,']"
 echo "MARK probe-1s injected"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/cr1_1s.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x40004400, 0x18))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/cr1_1s.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x40004400, 0x18))); f.close()'
 
 emulation RunFor "00:00:00.500"
 emulation RunFor "00:00:02.500"
@@ -32,8 +32,8 @@ emulation RunFor "00:00:01.000"
 python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; s = chr(0xCD) + chr(0)*511; frame = chr(36) + 'A01,' + s + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
 echo "MARK a01-534 injected"
 emulation RunFor "00:00:01.000"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/a01_flagbank.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
-python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/a01_rxbuf.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20002F74, 0x240))); f.close()'
-python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/cr1_4s.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x40004400, 0x18))); f.close()'
-python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/irqtable.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20000000 + 0, 0x400))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/a01_flagbank.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/a01_rxbuf.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20002F74, 0x240))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/cr1_4s.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x40004400, 0x18))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/irqtable.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20000000 + 0, 0x400))); f.close()'
 quit

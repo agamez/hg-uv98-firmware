@@ -20,10 +20,10 @@ cpu AddHook 0x080285b6 "self.Log(LogLevel.Info, 'I2C_BYTE v=0x' + hex(self.GetRe
 emulation RunFor "00:00:00.010"
 sysbus WriteDoubleWord 0xE000E018 0x00000000
 emulation RunFor "00:00:01.990"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/flagdump_fix1.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
-python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/ackflag_fix1.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005150, 0x20))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/flagdump_fix1.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/ackflag_fix1.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005150, 0x20))); f.close()'
 emulation RunFor "00:00:08"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/flagdump_fix1b.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/flagdump_fix1b.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x20))); f.close()'
 python 'm = emulationManager.CurrentEmulation.Machines[0]; d = bytes(m["sysbus"].ReadBytes(0x20005090, 0x20)); print("BIT2_5096=" + str((d[6] >> 2) & 1))'
-python 'd = open("/tmp/opencode/ee_image.bin","rb").read(); nz = sum(1 for b in d if b != 0xFF); print("EE_NONFF=" + str(nz) + " EE_FIRST16=" + d[:16].hex())'
+python 'd = open("/home/sslayer/hguv98-sim/ee_image.bin","rb").read(); nz = sum(1 for b in d if b != 0xFF); print("EE_NONFF=" + str(nz) + " EE_FIRST16=" + d[:16].hex())'
 quit

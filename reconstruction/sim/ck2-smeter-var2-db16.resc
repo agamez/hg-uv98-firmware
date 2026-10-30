@@ -109,5 +109,5 @@ python "m = emulationManager.CurrentEmulation.Machines[0]; sb = m['sysbus']; v =
 emulation RunFor "00:00:00.020"
 python "m = emulationManager.CurrentEmulation.Machines[0]; sb = m['sysbus']; v = sb.ReadByte(0x20005094); sb.WriteByte(0x20005094, v | 0xC0); w = sb.ReadByte(0x20005096); sb.WriteByte(0x20005096, w & 0xFB)"
 echo "MARK pokes end"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; sb = m["sysbus"]; f = open("/tmp/opencode/smeter_ctx.bin","wb"); import array; d = bytes(sb.ReadBytes(0x2000469c, 0x140)); f.write(d); f.close(); f2 = open("/tmp/opencode/smeter_flags.bin","wb"); f2.write(bytes(sb.ReadBytes(0x20005094, 0x10))); f2.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; sb = m["sysbus"]; f = open("/home/sslayer/hguv98-sim/smeter_ctx.bin","wb"); import array; d = bytes(sb.ReadBytes(0x2000469c, 0x140)); f.write(d); f.close(); f2 = open("/home/sslayer/hguv98-sim/smeter_flags.bin","wb"); f2.write(bytes(sb.ReadBytes(0x20005094, 0x10))); f2.close()'
 quit

@@ -13,6 +13,6 @@ emulation RunFor "00:00:00.100"
 python 'm = emulationManager.CurrentEmulation.Machines[0]; d = m["sysbus"].ReadBytes(0x200050E0, 0x20); b = bytes(d); print("A len=", len(d), "byteslen=", len(b), "type=", type(d))'
 python 'm = emulationManager.CurrentEmulation.Machines[0]; d = m["sysbus"].ReadBytes(0x20005080, 0x50); b = bytes(d); print("B len=", len(d), "byteslen=", len(b), "type=", type(d))'
 python 'm = emulationManager.CurrentEmulation.Machines[0]; d = m["sysbus"].ReadBytes(0x20000000, 0x20); b = bytes(d); print("C len=", len(d), "byteslen=", len(b), "type=", type(d))'
-python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/dumptest2a.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20005080, 0x50)))'
-python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/dumptest2c.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20000000, 0x20)))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/home/sslayer/hguv98-sim/dumptest2a.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20005080, 0x50)))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/home/sslayer/hguv98-sim/dumptest2c.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20000000, 0x20)))'
 quit

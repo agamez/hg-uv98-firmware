@@ -18,6 +18,6 @@ echo "MARK press code10 (2s hold)"
 emulation RunFor "00:00:02.000"
 sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
 echo "MARK release"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/cntdump_rel.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x200046B0, 0x30)))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/home/sslayer/hguv98-sim/cntdump_rel.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x200046B0, 0x30)))'
 emulation RunFor "00:00:00.500"
 quit

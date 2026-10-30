@@ -1,0 +1,23 @@
+# p1-pcsample.resc - session 60: locate the post-settings hang. Sample the
+# CPU PC every 5 s; a frozen PC region = the hang site.
+using sysbus
+mach create "pcsample"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @BINARY_PATH 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:04.990"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; c = m["cpu"]; print("PC5=0x%x" % c.GetRegister(15).RawValue)'
+emulation RunFor "00:00:05"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; c = m["cpu"]; print("PC10=0x%x" % c.GetRegister(15).RawValue)'
+emulation RunFor "00:00:05"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; c = m["cpu"]; print("PC15=0x%x" % c.GetRegister(15).RawValue)'
+emulation RunFor "00:00:05"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; c = m["cpu"]; print("PC20=0x%x" % c.GetRegister(15).RawValue)'
+emulation RunFor "00:00:05"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; c = m["cpu"]; print("PC25=0x%x" % c.GetRegister(15).RawValue)'
+quit

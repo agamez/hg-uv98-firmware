@@ -12,12 +12,12 @@ cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValu
 emulation RunFor "00:00:00.010"
 sysbus WriteDoubleWord 0xE000E018 0x00000000
 emulation RunFor "00:00:01.990"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/statedump_pre.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20009450, 0x40))); open("/tmp/opencode/statedump2_pre.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20006840, 0x50)))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/home/sslayer/hguv98-sim/statedump_pre.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20009450, 0x40))); open("/home/sslayer/hguv98-sim/statedump2_pre.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20006840, 0x50)))'
 sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2330
 echo "MARK press code10"
 emulation RunFor "00:00:00.300"
 sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
 echo "MARK release; dump"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/statedump_rel.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20009450, 0x40))); open("/tmp/opencode/statedump2_rel.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20006840, 0x50)))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/home/sslayer/hguv98-sim/statedump_rel.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20009450, 0x40))); open("/home/sslayer/hguv98-sim/statedump2_rel.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x20006840, 0x50)))'
 emulation RunFor "00:00:00.500"
 quit

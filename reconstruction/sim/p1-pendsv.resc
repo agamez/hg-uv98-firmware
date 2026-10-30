@@ -1,0 +1,18 @@
+# p1-pendsv.resc - session 60: did the RTOS ever switch tasks? Count the
+# PendSV fires and log the xPSR at the I2C dly sites (the masking state).
+using sysbus
+mach create "pendsv"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x0802b21b "self.Log(LogLevel.Info, 'PENDSV')"
+cpu AddHook 0x0802bd69 "self.Log(LogLevel.Info, 'SYSTICK_RUN')"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:09.990"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; print("SYSTCTRL=0x%x" % m["sysbus"].ReadDoubleWord(0xE000E010))'
+emulation RunFor "00:00:05"
+quit

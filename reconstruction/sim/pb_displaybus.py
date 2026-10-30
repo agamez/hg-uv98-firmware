@@ -14,7 +14,7 @@
 # ODR/BSRR/BRR/CRL/CRH write is logged to a capture file so the display
 # stream can be diffed between the original and the reconstruction (CK4).
 #
-# Capture file: /tmp/opencode/pb_stream.log (truncated at peripheral init,
+# Capture file: /home/sslayer/hguv98-sim/pb_stream.log (truncated at peripheral init,
 # one line per bus write; flushed per line - the boot-time volume is small).
 if request.IsInit:
     crl = 0x44444444      # reset value: floating inputs
@@ -22,7 +22,7 @@ if request.IsInit:
     odr = 0x0000
     seq = 0
     i2c_last_lvl = 1      # the SDA level at the last published event (idle high)
-    f = open('/tmp/opencode/pb_stream.log', 'w')
+    f = open('/home/sslayer/hguv98-sim/pb_stream.log', 'w')
     f.write('# seq CRL CRH ODR BSRR BRR  (values after the write)\n')
     f.flush()
 elif request.IsRead:
@@ -117,6 +117,6 @@ def i2c_sda_event(m):
     m['sysbus'].WriteByte(0x2000F803, 1)
     globals()['i2c_ev_n'] = globals().get('i2c_ev_n', 0) + 1
     if globals()['i2c_ev_n'] < 120:
-        df = open('/tmp/opencode/i2c_ev.log', 'a')
+        df = open('/home/sslayer/hguv98-sim/i2c_ev.log', 'a')
         df.write('EVENT n=%d sda=%d\n' % (globals()['i2c_ev_n'], lvl))
         df.close()

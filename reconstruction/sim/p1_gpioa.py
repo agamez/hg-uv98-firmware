@@ -22,7 +22,7 @@
 # NOTE: the pythonEngine namespace is SHARED between the python peripherals,
 # so ALL state here is ga_/i2c_ prefixed to avoid the displaybus collisions.
 #
-# EEPROM image: /tmp/opencode/ee_image.bin (32768 bytes). If absent it is
+# EEPROM image: /home/sslayer/hguv98-sim/ee_image.bin (32768 bytes). If absent it is
 # created all-0xFF (erased device), so the vendor's own first-boot path
 # programs its factory defaults - the sane-settings unlock happens through
 # the vendor's own logic, not harness magic. Writes are persisted per byte.
@@ -53,8 +53,8 @@ if request.IsInit:
     m['sysbus'].WriteByte(0x2000F801, 1)   # the bridge: the master output (the default)
     m['sysbus'].WriteByte(0x2000F804, 1)   # the bridge: the master-out SDA mirror (idle high)
     m['sysbus'].WriteByte(0x2000F805, 0)   # the bridge: the SCL mirror (idle low)
-    if not os.path.exists('/tmp/opencode/ee_image.bin'):
-        f = open('/tmp/opencode/ee_image.bin', 'wb')
+    if not os.path.exists('/home/sslayer/hguv98-sim/ee_image.bin'):
+        f = open('/home/sslayer/hguv98-sim/ee_image.bin', 'wb')
         f.write(b'\xff' * 32768)
         f.close()
 elif request.IsRead:
@@ -99,7 +99,7 @@ elif request.IsWrite:
     # cross-peripheral ODR read.
     m['sysbus'].WriteByte(0x2000F805, (ga_odr >> 11) & 1)
     if ga_pa_n < 3000:
-        df = open('/tmp/opencode/pa_stream.log', 'a')
+        df = open('/home/sslayer/hguv98-sim/pa_stream.log', 'a')
         df.write('%d R%02x %04x -> odr %04x\n' % (ga_pa_n, request.Offset, v & 0xFFFF, ga_odr))
         df.close()
 
@@ -157,7 +157,7 @@ def i2c_tick(m):
     # radio's PB9 burst) or a persistent slave defect.
     dbg = globals()['i2c_dbg_n']
     if dbg < 400 or (200000 <= dbg < 200400):
-        df = open('/tmp/opencode/i2c_slave.log', 'a')
+        df = open('/home/sslayer/hguv98-sim/i2c_slave.log', 'a')
         df.write('EDGE n=%d scl=%d state=%s bits=%d sda=%d dir=%d odr9=%d wseq=%d\n' % (dbg, scl, i2c_state, i2c_bits, sda, dirbit, m['sysbus'].ReadByte(0x2000F804), m['sysbus'].ReadByte(0x2000F810)))
         df.close()
 
@@ -233,7 +233,7 @@ def i2c_tick(m):
 def ee_read_at(addr):
     global i2c_mem
     if i2c_mem is None:
-        f = open('/tmp/opencode/ee_image.bin', 'rb')
+        f = open('/home/sslayer/hguv98-sim/ee_image.bin', 'rb')
         i2c_mem = bytearray(f.read())
         f.close()
     return i2c_mem[addr & 0x7FFF]
@@ -241,11 +241,11 @@ def ee_read_at(addr):
 def ee_write_at(addr, val):
     global i2c_mem
     if i2c_mem is None:
-        f = open('/tmp/opencode/ee_image.bin', 'rb')
+        f = open('/home/sslayer/hguv98-sim/ee_image.bin', 'rb')
         i2c_mem = bytearray(f.read())
         f.close()
     i2c_mem[addr & 0x7FFF] = val
-    f = open('/tmp/opencode/ee_image.bin', 'r+b')
+    f = open('/home/sslayer/hguv98-sim/ee_image.bin', 'r+b')
     f.seek(addr & 0x7FFF)
     f.write(bytes([val]))
     f.close()

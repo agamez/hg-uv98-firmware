@@ -14,5 +14,5 @@ cpu AddHook 0x080285b6 "self.Log(LogLevel.Info, 'I2C_BYTE v=0x' + hex(self.GetRe
 emulation RunFor "00:00:00.010"
 sysbus WriteDoubleWord 0xE000E018 0x00000000
 emulation RunFor "00:00:01.990"
-python 'd = open("/tmp/opencode/ee_image.bin","rb").read(); nz = sum(1 for b in d if b != 0xFF); print("EE_NONFF=" + str(nz))'
+python 'd = open("/home/sslayer/hguv98-sim/ee_image.bin","rb").read(); nz = sum(1 for b in d if b != 0xFF); print("EE_NONFF=" + str(nz))'
 quit

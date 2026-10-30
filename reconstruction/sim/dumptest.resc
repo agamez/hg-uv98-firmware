@@ -11,7 +11,7 @@ emulation RunFor "00:00:00.010"
 sysbus WriteDoubleWord 0xE000E018 0x00000000
 emulation RunFor "00:00:00.200"
 echo "MARK before dump"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/tmp/opencode/dumptest1.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x200050E0, 0x20)))'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; open("/home/sslayer/hguv98-sim/dumptest1.bin","wb").write(bytes(m["sysbus"].ReadBytes(0x200050E0, 0x20)))'
 echo "MARK after dump"
 python 'm = emulationManager.CurrentEmulation.Machines[0]; d = m["sysbus"].ReadBytes(0x200050E0, 0x20); print("LEN=", len(d))'
 echo "MARK after print"

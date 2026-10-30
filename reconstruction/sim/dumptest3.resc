@@ -10,5 +10,5 @@ cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValu
 emulation RunFor "00:00:00.010"
 sysbus WriteDoubleWord 0xE000E018 0x00000000
 emulation RunFor "00:00:00.100"
-python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/tmp/opencode/dumptest3.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x200050E0, 0x20))); f.close()'
+python 'm = emulationManager.CurrentEmulation.Machines[0]; f = open("/home/sslayer/hguv98-sim/dumptest3.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x200050E0, 0x20))); f.close()'
 quit
