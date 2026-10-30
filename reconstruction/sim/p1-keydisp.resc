@@ -1,0 +1,23 @@
+# p1-keydisp.resc - session 61: does the UI key dispatch see the injected key?
+# Hook the got-a-key site (0x8019DE2, fires only when key_get_code != 0xFF)
+# and key_event. ADC2_DR = 2000 (group-A entry-5 window) tagged at 5 s.
+using sysbus
+mach create "keydisp"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x08019DE2 "self.Log(LogLevel.Info, 'EV dispatch key=' + str(self.GetRegister(0).RawValue))"
+cpu AddHook 0x0801E044 "self.Log(LogLevel.Info, 'EV key_event id=' + str(self.GetRegister(0).RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:04.990"
+echo "=== tag ADC2_DR = 2000 at 5 s ==="
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2000
+emulation RunFor "00:00:03"
+python "m = emulationManager.CurrentEmulation.Machines[0]; a = m['sysbus'].ReadBytes(0x20005090, 0x30); print('T8 FLAGS=' + ''.join('%02x' % b for b in a)); print('T8 LINES=' + str(sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+emulation RunFor "00:00:05"
+python "m = emulationManager.CurrentEmulation.Machines[0]; a = m['sysbus'].ReadBytes(0x20005090, 0x30); print('T13 FLAGS=' + ''.join('%02x' % b for b in a)); print('T13 LINES=' + str(sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+quit

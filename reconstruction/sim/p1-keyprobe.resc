@@ -1,0 +1,24 @@
+# p1-keyprobe.resc - session 61: the key-ladder injection probe. The tables
+# and lock bytes dumped before/after the ADC2_DR=2000 tag (mid group-A/B
+# window). Only the rare key_event is hooked (key_scan polls at the OS tick
+# rate - never hook it).
+using sysbus
+mach create "keyprobe"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x0801E044 "self.Log(LogLevel.Info, 'EV key_event id=' + str(self.GetRegister(0).RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:04.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; t = m['sysbus'].ReadBytes(0x20001684, 0x4C); print('TBL=' + ''.join('%02x' % b for b in t)); print('LOCK9458=%02x' % int(m['sysbus'].ReadByte(0x20009458))); print('LOCK51A=%02x %02x' % (int(m['sysbus'].ReadByte(0x200051A1)), int(m['sysbus'].ReadByte(0x200051A2)))); print('ADCST=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x20005140, 8)))"
+echo "=== tag ADC2_DR = 2000 at 5 s ==="
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2000
+emulation RunFor "00:00:02"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T7 ADCST=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x20005140, 8))); print('T7 VALID=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x20005160, 4))); a = m['sysbus'].ReadBytes(0x20005090, 0x30); print('T7 FLAGS=' + ''.join('%02x' % b for b in a)); print('T7 LINES=' + str(sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+emulation RunFor "00:00:05"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T12 ADCST=' + ''.join('%02x' % b for b in m['sysbus'].ReadBytes(0x20005140, 8))); a = m['sysbus'].ReadBytes(0x20005090, 0x30); print('T12 FLAGS=' + ''.join('%02x' % b for b in a)); print('T12 LINES=' + str(sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+quit

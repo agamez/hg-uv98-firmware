@@ -1,0 +1,51 @@
+# p1-peer2.resc - session 61: the event-window-robust peer flow. Inject the
+# $A00 settings response repeatedly across 0.7-2.7 s guest (the head enables
+# the UART RX only around its own $A00 handshake - session 59 pt3 - so a
+# one-shot injection can miss the window), then the $A01 telemetry frames on
+# a cadence. Neutral content, identical for both images.
+using sysbus
+mach create "peer2"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:00.690"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); assert len(frame) == 534; [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:00.100"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:00.100"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:00.100"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:00.100"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:00.100"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:00.100"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:00.100"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:00.100"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:00.100"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+echo "=== A00 window done (0.7-2.7s); now the A01 telemetry cadence ==="
+emulation RunFor "00:00:00.300"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A01,' + chr(0)*512 + chr(13) + chr(10); assert len(frame) == 519; [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:01"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A01,' + chr(0)*512 + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:01"
+python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; frame = chr(36) + 'A01,' + chr(0)*512 + chr(13) + chr(10); [u.WriteChar(ord(c)) for c in frame]"
+emulation RunFor "00:00:03"
+python "m = emulationManager.CurrentEmulation.Machines[0]; a = m['sysbus'].ReadBytes(0x20005090, 0x30); print('FLAGS_T7=' + ''.join('%02x' % b for b in a))"
+emulation RunFor "00:00:10"
+python "m = emulationManager.CurrentEmulation.Machines[0]; a = m['sysbus'].ReadBytes(0x20005090, 0x30); print('FLAGS_T17=' + ''.join('%02x' % b for b in a)); print('LINES17=' + str(sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+emulation RunFor "00:00:10"
+python "m = emulationManager.CurrentEmulation.Machines[0]; a = m['sysbus'].ReadBytes(0x20005090, 0x30); print('FLAGS_T27=' + ''.join('%02x' % b for b in a)); print('LINES27=' + str(sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+sysbus ReadDoubleWord 0xE000ED28
+sysbus ReadDoubleWord 0xE000ED2C
+quit

@@ -53,6 +53,23 @@ if request.IsInit:
     m['sysbus'].WriteByte(0x2000F801, 1)   # the bridge: the master output (the default)
     m['sysbus'].WriteByte(0x2000F804, 1)   # the bridge: the master-out SDA mirror (idle high)
     m['sysbus'].WriteByte(0x2000F805, 0)   # the bridge: the SCL mirror (idle low)
+    m['sysbus'].WriteByte(0x2000F806, 0)   # the bridge: PA15 (the radio SPI CLK) mirror
+    m['sysbus'].WriteByte(0x2000F807, 3)   # the bridge: PA8/PA12 (the radio CS) - bit0=PA8, bit1=PA12 (1 = idle high)
+    m['sysbus'].WriteByte(0x2000F808, 1)   # the bridge: the radio model's DATA-out bit (1 = released)
+    m['sysbus'].WriteByte(0x2000F809, 0)   # the bridge: the radio model drives (1 = during the read phase)
+    m['sysbus'].WriteDoubleWord(0x2000F812, 0xFFFFFFFF)  # the last 0x29 (freq lo) write
+    m['sysbus'].WriteDoubleWord(0x2000F814, 0xFFFFFFFF)  # the last 0x2A (freq hi) write
+    m['sysbus'].WriteDoubleWord(0x2000F816, 0xFFFFFFFF)  # the last 0x30 (mode) write
+    m['sysbus'].WriteByte(0x2000F818, 0)   # the radio write counter
+    m['sysbus'].WriteByte(0x2000F80A, 1)   # the bridge: the PTT PA10 (1 = released)
+    spi_state = 'IDLE'       # IDLE CMD READ
+    spi_bits = 0
+    spi_shift = 0
+    spi_reg = 0
+    spi_rw = 0
+    spi_out = 0
+    spi_outbit = 0
+    spi_regs = {}            # the emulated AT1846S register map (the writes)
     if not os.path.exists('/home/sslayer/hguv98-sim/ee_image.bin'):
         f = open('/home/sslayer/hguv98-sim/ee_image.bin', 'wb')
         f.write(b'\xff' * 32768)
@@ -64,8 +81,10 @@ elif request.IsRead:
     elif request.Offset == 0x04:
         request.Value = ga_crh
     elif request.Offset == 0x08:
-        # IDR: real pins (all floating low on this board)
-        request.Value = m['sysbus'].ReadDoubleWord(0x50010808) & 0xFFFF
+        # IDR: real pins, with the PTT bridge on PA10 (session 61): the
+        # mirror 0x2000F80A (1 = released/high, 0 = pressed/low) drives
+        # bit10, the pin the radio's PTT handler samples (0x8024110).
+        request.Value = (m['sysbus'].ReadDoubleWord(0x50010808) & 0xFFFF) | ((m['sysbus'].ReadByte(0x2000F80A) & 1) << 10)
     elif request.Offset == 0x0C:
         request.Value = ga_odr
     else:
@@ -83,14 +102,17 @@ elif request.IsWrite:
         ga_odr = v & 0xFFFF
         m['sysbus'].WriteDoubleWord(0x5001080C, ga_odr)
         i2c_tick(m)
+        spi_tick(m)
     elif request.Offset == 0x10:
         ga_odr = (ga_odr | (v & 0xFFFF)) & ~((v >> 16) & 0xFFFF) & 0xFFFF
         m['sysbus'].WriteDoubleWord(0x50010810, v)
         i2c_tick(m)
+        spi_tick(m)
     elif request.Offset == 0x14:
         ga_odr = ga_odr & ~(v & 0xFFFF) & 0xFFFF
         m['sysbus'].WriteDoubleWord(0x50010814, v)
         i2c_tick(m)
+        spi_tick(m)
     ga_pa_n = globals().get('ga_pa_n', 0) + 1
     globals()['ga_pa_n'] = ga_pa_n
     # [session 60 fix] the SCL (PA11) mirror for the displaybus's event
@@ -229,6 +251,96 @@ def i2c_tick(m):
         i2c_ack_release = 0
         globals()['EE_SDA_BIT'] = 1
         m['sysbus'].WriteByte(0x2000F800, 1)
+
+def spi_tick(m):
+    """[session 61] The AT1846S SPI slave engine. CS = PA8/PA12 (active low),
+    CLK = PA15, DATA = PB9 (the master drives during the command + write
+    bits; the model drives during the 16 read bits). Frame = 1(rw)+7(reg)
+    latched on the CLK rising edges, then 16 data bits: latched on the rises
+    for a write, shifted out on the CLK FALLING edges for a read (the
+    vendor's read loop FUN_0802692E samples after each rise and the first
+    fall precedes the first sample, so the MSB goes out on the first fall
+    after the command byte). The RSSI-class registers (0x1A noise dB, 0x1B
+    RSSI dB, 0x5F RSSI 1/8 dB) return a quiet-channel value so the squelch
+    can close; every other register reads back what was written."""
+    global spi_state, spi_bits, spi_shift, spi_reg, spi_rw, spi_out, spi_outbit, spi_regs
+    clk = (ga_odr >> 15) & 1
+    cs8 = (ga_odr >> 8) & 1
+    cs12 = (ga_odr >> 12) & 1
+    cs_active = (cs8 == 0) or (cs12 == 0)
+    prev_clk = m['sysbus'].ReadByte(0x2000F806)
+    m['sysbus'].WriteByte(0x2000F806, clk)
+    m['sysbus'].WriteByte(0x2000F807, (cs12 << 1) | cs8)
+    if not cs_active:
+        if spi_state == 'DATAW' and spi_bits == 16:
+            spi_regs[spi_reg] = spi_shift & 0xFFFF
+        if spi_state != 'IDLE':
+            m['sysbus'].WriteByte(0x2000F809, 0)
+            m['sysbus'].WriteByte(0x2000F808, 1)
+            spi_state = 'IDLE'
+            spi_bits = 0
+            spi_shift = 0
+        return
+    if clk == prev_clk:
+        return
+    if clk == 1:
+        if spi_state == 'IDLE':
+            spi_state = 'CMD'
+            spi_bits = 0
+            spi_shift = 0
+        if spi_state == 'CMD' or spi_state == 'DATAW':
+            sda = m['sysbus'].ReadByte(0x2000F804) & 1
+            spi_shift = ((spi_shift << 1) | sda) & 0xFFFFFFFF
+            spi_bits += 1
+            if spi_state == 'CMD' and spi_bits == 8:
+                spi_rw = (spi_shift >> 7) & 1
+                spi_reg = spi_shift & 0x7F
+                spi_bits = 0
+                spi_shift = 0
+                if spi_rw:
+                    spi_out = spi_regs.get(spi_reg, 0)
+                    if spi_reg in (0x1A, 0x1B, 0x5F):
+                        spi_out = 0x0020
+                    if spi_reg == 0x1F:
+                        # [session 61] the GPIO/COS register: the main's RSSI
+                        # task polls 0x1F for the squelch (the recon main.c:
+                        # "read RF reg 0x1F here"). All pins inactive = the
+                        # carrier absent = the squelch closed.
+                        spi_out = 0x0000
+                    if spi_reg == 0x0D:
+                        # [session 61] the tune-status register: the channel
+                        # tune tests bit15 (PLL lock) at 0x801AC82; bit15 is a
+                        # live status, not the written value. Locked always.
+                        spi_out |= 0x8000
+                    spi_out &= 0xFFFF
+                    spi_outbit = 0
+                    m['sysbus'].WriteByte(0x2000F809, 1)
+                    spi_state = 'READ'
+                else:
+                    spi_state = 'DATAW'
+            elif spi_state == 'DATAW' and spi_bits == 16:
+                spi_regs[spi_reg] = spi_shift & 0xFFFF
+                # [session 61] the scan-trajectory mirrors: the frequency
+                # (0x29/0x2A), the mode (0x30), and the write counter let the
+                # host watch the channel/mode progression without hooks.
+                if spi_reg == 0x29:
+                    m['sysbus'].WriteDoubleWord(0x2000F812, spi_shift & 0xFFFF)
+                elif spi_reg == 0x2A:
+                    m['sysbus'].WriteDoubleWord(0x2000F814, spi_shift & 0xFFFF)
+                elif spi_reg == 0x30:
+                    m['sysbus'].WriteDoubleWord(0x2000F816, spi_shift & 0xFFFF)
+                wc = m['sysbus'].ReadByte(0x2000F818)
+                m['sysbus'].WriteByte(0x2000F818, (wc + 1) & 0xFF)
+                spi_state = 'IDLE'
+                spi_bits = 0
+                spi_shift = 0
+    else:
+        if spi_state == 'READ':
+            if spi_outbit < 16:
+                m['sysbus'].WriteByte(0x2000F808, (spi_out >> (15 - spi_outbit)) & 1)
+                spi_outbit += 1
+            else:
+                m['sysbus'].WriteByte(0x2000F808, 1)
 
 def ee_read_at(addr):
     global i2c_mem

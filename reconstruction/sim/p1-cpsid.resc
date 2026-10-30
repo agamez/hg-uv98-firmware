@@ -1,0 +1,23 @@
+# p1-cpsid.resc - session 61: bracket the masked-interrupt hang. Hook all
+# the cpsid/cpsie sites (the uC/OS-II critical sections) with LR logging;
+# the last mask-set without a matching clear = the dead critical section.
+using sysbus
+mach create "cpsid"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x0802c9d4 "self.Log(LogLevel.Info, 'CPSID_A lr=0x' + hex(self.GetRegister(14).RawValue))"
+cpu AddHook 0x0802c9d8 "self.Log(LogLevel.Info, 'CPSIE_B lr=0x' + hex(self.GetRegister(14).RawValue))"
+cpu AddHook 0x0802c9e0 "self.Log(LogLevel.Info, 'CPSID_C lr=0x' + hex(self.GetRegister(14).RawValue))"
+cpu AddHook 0x0802b1e4 "self.Log(LogLevel.Info, 'CPSID_D lr=0x' + hex(self.GetRegister(14).RawValue))"
+cpu AddHook 0x0802b206 "self.Log(LogLevel.Info, 'CPSIE_E lr=0x' + hex(self.GetRegister(14).RawValue))"
+cpu AddHook 0x0802b21a "self.Log(LogLevel.Info, 'CPSID_STARTHIGHRDY lr=0x' + hex(self.GetRegister(14).RawValue))"
+cpu AddHook 0x0802b258 "self.Log(LogLevel.Info, 'CPSIE_PENDSV lr=0x' + hex(self.GetRegister(14).RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:29.990"
+echo "SAMPLE_WINDOW_DONE"
+quit

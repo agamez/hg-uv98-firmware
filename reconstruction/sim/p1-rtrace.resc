@@ -1,0 +1,28 @@
+# p1-rtrace.resc - session 61: log every rf_read call-site return value.
+# 13 sites x low cadence (task polls) - safe. Model active via the repl.
+using sysbus
+mach create "rtrace"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x0801AC6A "self.Log(LogLevel.Info, 'RR 1ac6a ' + str(self.GetRegister(0).RawValue))"
+cpu AddHook 0x0801B00E "self.Log(LogLevel.Info, 'RR 1b00e ' + str(self.GetRegister(0).RawValue))"
+cpu AddHook 0x08020468 "self.Log(LogLevel.Info, 'RR 20468 ' + str(self.GetRegister(0).RawValue))"
+cpu AddHook 0x08021740 "self.Log(LogLevel.Info, 'RR 21740 ' + str(self.GetRegister(0).RawValue))"
+cpu AddHook 0x08021836 "self.Log(LogLevel.Info, 'RR 21836 ' + str(self.GetRegister(0).RawValue))"
+cpu AddHook 0x08021A22 "self.Log(LogLevel.Info, 'RR 21a22 ' + str(self.GetRegister(0).RawValue))"
+cpu AddHook 0x080234F0 "self.Log(LogLevel.Info, 'RR 234f0 ' + str(self.GetRegister(0).RawValue))"
+cpu AddHook 0x08023520 "self.Log(LogLevel.Info, 'RR 23520 ' + str(self.GetRegister(0).RawValue))"
+cpu AddHook 0x08025B46 "self.Log(LogLevel.Info, 'RR 25b46 ' + str(self.GetRegister(0).RawValue))"
+cpu AddHook 0x08025C5E "self.Log(LogLevel.Info, 'RR 25c5e ' + str(self.GetRegister(0).RawValue))"
+cpu AddHook 0x08025EF2 "self.Log(LogLevel.Info, 'RR 25ef2 ' + str(self.GetRegister(0).RawValue))"
+cpu AddHook 0x0802733E "self.Log(LogLevel.Info, 'RR 2733e ' + str(self.GetRegister(0).RawValue))"
+cpu AddHook 0x0802738E "self.Log(LogLevel.Info, 'RR 2738e ' + str(self.GetRegister(0).RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:14.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; a = m['sysbus'].ReadBytes(0x20005090, 0x30); print('FLAGS=' + ''.join('%02x' % b for b in a)); print('LINES=' + str(sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+quit

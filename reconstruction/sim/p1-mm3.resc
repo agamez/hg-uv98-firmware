@@ -1,0 +1,31 @@
+# p1-mm3.resc - session 61: the mainmode validation, no per-tick hooks (the
+# systick hook crawls the emulation at 13.5 kHz). Full flag-bank reads +
+# the display-stream line counts per epoch + the key injection at 30 s.
+using sysbus
+mach create "mm3"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:04.990"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; print("LINES_T5=" + str(sum(1 for _ in open("/home/sslayer/hguv98-sim/pb_stream.log")))); f = open("/home/sslayer/hguv98-sim/flags_t5.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x30))); f.close()'
+emulation RunFor "00:00:05"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; print("LINES_T10=" + str(sum(1 for _ in open("/home/sslayer/hguv98-sim/pb_stream.log")))); f = open("/home/sslayer/hguv98-sim/flags_t10.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x30))); f.close()'
+emulation RunFor "00:00:05"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; print("LINES_T15=" + str(sum(1 for _ in open("/home/sslayer/hguv98-sim/pb_stream.log")))); f = open("/home/sslayer/hguv98-sim/flags_t15.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x30))); f.close()'
+emulation RunFor "00:00:05"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; print("LINES_T20=" + str(sum(1 for _ in open("/home/sslayer/hguv98-sim/pb_stream.log")))); f = open("/home/sslayer/hguv98-sim/flags_t20.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x30))); f.close()'
+emulation RunFor "00:00:05"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; print("LINES_T25=" + str(sum(1 for _ in open("/home/sslayer/hguv98-sim/pb_stream.log")))); f = open("/home/sslayer/hguv98-sim/flags_t25.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x30))); f.close()'
+emulation RunFor "00:00:05"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; print("LINES_T30_PREKEY=" + str(sum(1 for _ in open("/home/sslayer/hguv98-sim/pb_stream.log")))); f = open("/home/sslayer/hguv98-sim/flags_t30.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x30))); f.close()'
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 1
+emulation RunFor "00:00:02"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; print("LINES_T32_POSTKEY=" + str(sum(1 for _ in open("/home/sslayer/hguv98-sim/pb_stream.log")))); f = open("/home/sslayer/hguv98-sim/flags_t32.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x30))); f.close()'
+emulation RunFor "00:00:08"
+python 'm = emulationManager.CurrentEmulation.Machines[0]; print("LINES_T40_POSTKEY=" + str(sum(1 for _ in open("/home/sslayer/hguv98-sim/pb_stream.log")))); f = open("/home/sslayer/hguv98-sim/flags_t40.bin","wb"); f.write(bytes(m["sysbus"].ReadBytes(0x20005090, 0x30))); f.close()'
+quit

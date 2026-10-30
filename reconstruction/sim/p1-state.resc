@@ -1,0 +1,26 @@
+# p1-state.resc - session 61: the full scan/session state trajectory.
+# 0x20004E82/83 = the dwell args, 0x20004720 = the dwell counter (u16),
+# 0x20004E86 = the key-mode, 0x20004E97 = the scan flag, byte6/byte8.
+using sysbus
+mach create "state"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:01.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T2 dwell=%02x/%02x cnt=%04x mode=%02x scanfl=%02x b6=%02x b8=%02x' % (int(m['sysbus'].ReadByte(0x20004E82)), int(m['sysbus'].ReadByte(0x20004E83)), int(m['sysbus'].ReadWord(0x20004720)) & 0xFFFF, int(m['sysbus'].ReadByte(0x20004E86)), int(m['sysbus'].ReadByte(0x20004E97)), int(m['sysbus'].ReadByte(0x20005096)), int(m['sysbus'].ReadByte(0x20005098))))"
+emulation RunFor "00:00:03"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T5 dwell=%02x/%02x cnt=%04x mode=%02x scanfl=%02x b6=%02x b8=%02x' % (int(m['sysbus'].ReadByte(0x20004E82)), int(m['sysbus'].ReadByte(0x20004E83)), int(m['sysbus'].ReadWord(0x20004720)) & 0xFFFF, int(m['sysbus'].ReadByte(0x20004E86)), int(m['sysbus'].ReadByte(0x20004E97)), int(m['sysbus'].ReadByte(0x20005096)), int(m['sysbus'].ReadByte(0x20005098))))"
+emulation RunFor "00:00:04"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T9 dwell=%02x/%02x cnt=%04x mode=%02x scanfl=%02x b6=%02x b8=%02x' % (int(m['sysbus'].ReadByte(0x20004E82)), int(m['sysbus'].ReadByte(0x20004E83)), int(m['sysbus'].ReadWord(0x20004720)) & 0xFFFF, int(m['sysbus'].ReadByte(0x20004E86)), int(m['sysbus'].ReadByte(0x20004E97)), int(m['sysbus'].ReadByte(0x20005096)), int(m['sysbus'].ReadByte(0x20005098))))"
+emulation RunFor "00:00:01"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T10 dwell=%02x/%02x cnt=%04x mode=%02x scanfl=%02x b6=%02x b8=%02x' % (int(m['sysbus'].ReadByte(0x20004E82)), int(m['sysbus'].ReadByte(0x20004E83)), int(m['sysbus'].ReadWord(0x20004720)) & 0xFFFF, int(m['sysbus'].ReadByte(0x20004E86)), int(m['sysbus'].ReadByte(0x20004E97)), int(m['sysbus'].ReadByte(0x20005096)), int(m['sysbus'].ReadByte(0x20005098))))"
+emulation RunFor "00:00:05"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T15 dwell=%02x/%02x cnt=%04x mode=%02x scanfl=%02x b6=%02x b8=%02x' % (int(m['sysbus'].ReadByte(0x20004E82)), int(m['sysbus'].ReadByte(0x20004E83)), int(m['sysbus'].ReadWord(0x20004720)) & 0xFFFF, int(m['sysbus'].ReadByte(0x20004E86)), int(m['sysbus'].ReadByte(0x20004E97)), int(m['sysbus'].ReadByte(0x20005096)), int(m['sysbus'].ReadByte(0x20005098))))"
+emulation RunFor "00:00:05"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T20 dwell=%02x/%02x cnt=%04x mode=%02x scanfl=%02x b6=%02x b8=%02x' % (int(m['sysbus'].ReadByte(0x20004E82)), int(m['sysbus'].ReadByte(0x20004E83)), int(m['sysbus'].ReadWord(0x20004720)) & 0xFFFF, int(m['sysbus'].ReadByte(0x20004E86)), int(m['sysbus'].ReadByte(0x20004E97)), int(m['sysbus'].ReadByte(0x20005096)), int(m['sysbus'].ReadByte(0x20005098))))"
+quit

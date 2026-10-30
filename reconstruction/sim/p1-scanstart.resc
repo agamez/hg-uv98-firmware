@@ -1,0 +1,20 @@
+# p1-scanstart.resc - session 61: the scan-starter gate values.
+# [0x20004E87] = the skip gate, [0x20004E8B] = the threshold arg,
+# 0x200046C1 = the close counter (u16), 0x20004E97 = the scan flag.
+using sysbus
+mach create "scanstart"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:04.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T5 gate=%02x thr=%02x ccnt=%04x scanfl=%02x' % (int(m['sysbus'].ReadByte(0x20004E87)), int(m['sysbus'].ReadByte(0x20004E8B)), int(m['sysbus'].ReadWord(0x200046C0)) & 0xFFFF, int(m['sysbus'].ReadByte(0x20004E97))))"
+emulation RunFor "00:00:05"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T10 gate=%02x thr=%02x ccnt=%04x scanfl=%02x' % (int(m['sysbus'].ReadByte(0x20004E87)), int(m['sysbus'].ReadByte(0x20004E8B)), int(m['sysbus'].ReadWord(0x200046C0)) & 0xFFFF, int(m['sysbus'].ReadByte(0x20004E97))))"
+emulation RunFor "00:00:10"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T20 gate=%02x thr=%02x ccnt=%04x scanfl=%02x' % (int(m['sysbus'].ReadByte(0x20004E87)), int(m['sysbus'].ReadByte(0x20004E8B)), int(m['sysbus'].ReadWord(0x200046C0)) & 0xFFFF, int(m['sysbus'].ReadByte(0x20004E97))))"
+quit

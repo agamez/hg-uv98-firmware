@@ -1,0 +1,21 @@
+# p1-band.resc - session 61: the band-state byte (0x200050E8) trajectory.
+# Valid enter values: 0 or 'g'(0x67)/'h'(0x68)/'i'(0x69)/'j'(0x6A).
+using sysbus
+mach create "band"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:01.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T2 band=%02x b6=%02x b11=%02x' % (int(m['sysbus'].ReadByte(0x200050E8)), int(m['sysbus'].ReadByte(0x20005096)), int(m['sysbus'].ReadByte(0x2000509B))))"
+emulation RunFor "00:00:03"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T5 band=%02x b6=%02x b11=%02x' % (int(m['sysbus'].ReadByte(0x200050E8)), int(m['sysbus'].ReadByte(0x20005096)), int(m['sysbus'].ReadByte(0x2000509B))))"
+emulation RunFor "00:00:05"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T10 band=%02x b6=%02x b11=%02x' % (int(m['sysbus'].ReadByte(0x200050E8)), int(m['sysbus'].ReadByte(0x20005096)), int(m['sysbus'].ReadByte(0x2000509B))))"
+emulation RunFor "00:00:05"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T15 band=%02x b6=%02x b11=%02x' % (int(m['sysbus'].ReadByte(0x200050E8)), int(m['sysbus'].ReadByte(0x20005096)), int(m['sysbus'].ReadByte(0x2000509B))))"
+quit

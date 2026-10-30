@@ -1,0 +1,28 @@
+# p1-scanwalk.resc - session 61: the scan trajectory. The freq/mode mirrors
+# at the epochs show whether the scan cycles channels or retries one; the
+# rare session/scan hooks count the transitions.
+using sysbus
+mach create "scanwalk"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x080241BC "self.Log(LogLevel.Info, 'EV scanfn')"
+cpu AddHook 0x0802490E "self.Log(LogLevel.Info, 'EV sess_enter')"
+cpu AddHook 0x08024A1A "self.Log(LogLevel.Info, 'EV sess_exit')"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:04.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T5 f29=%04x f2a=%04x f30=%04x wc=%d' % (int(m['sysbus'].ReadDoubleWord(0x2000F812)), int(m['sysbus'].ReadDoubleWord(0x2000F814)), int(m['sysbus'].ReadDoubleWord(0x2000F816)), int(m['sysbus'].ReadByte(0x2000F818))))"
+emulation RunFor "00:00:05"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T10 f29=%04x f2a=%04x f30=%04x wc=%d' % (int(m['sysbus'].ReadDoubleWord(0x2000F812)), int(m['sysbus'].ReadDoubleWord(0x2000F814)), int(m['sysbus'].ReadDoubleWord(0x2000F816)), int(m['sysbus'].ReadByte(0x2000F818))))"
+emulation RunFor "00:00:05"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T15 f29=%04x f2a=%04x f30=%04x wc=%d' % (int(m['sysbus'].ReadDoubleWord(0x2000F812)), int(m['sysbus'].ReadDoubleWord(0x2000F814)), int(m['sysbus'].ReadDoubleWord(0x2000F816)), int(m['sysbus'].ReadByte(0x2000F818))))"
+emulation RunFor "00:00:05"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T20 f29=%04x f2a=%04x f30=%04x wc=%d' % (int(m['sysbus'].ReadDoubleWord(0x2000F812)), int(m['sysbus'].ReadDoubleWord(0x2000F814)), int(m['sysbus'].ReadDoubleWord(0x2000F816)), int(m['sysbus'].ReadByte(0x2000F818))))"
+emulation RunFor "00:00:05"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('T25 f29=%04x f2a=%04x f30=%04x wc=%d' % (int(m['sysbus'].ReadDoubleWord(0x2000F812)), int(m['sysbus'].ReadDoubleWord(0x2000F814)), int(m['sysbus'].ReadDoubleWord(0x2000F816)), int(m['sysbus'].ReadByte(0x2000F818))))"
+python "m = emulationManager.CurrentEmulation.Machines[0]; a = m['sysbus'].ReadBytes(0x20005090, 0x30); print('FLAGS=' + ''.join('%02x' % b for b in a)); print('LINES=' + str(sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+quit

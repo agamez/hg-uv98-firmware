@@ -31,12 +31,16 @@ elif request.IsRead:
     elif request.Offset == 0x04:
         request.Value = crh
     elif request.Offset == 0x08:
-        # IDR: all pins externally low EXCEPT PB9 (SDA-in), which mirrors the
-        # I2C slave's output (EE_SDA_BIT published by p1_gpioa.py; 0 = ACK or
-        # a data 0, 1 = released). The session-47 always-ACK semantics are
-        # preserved: an unaddressed slave leaves bit9 released (0-read).
+        # IDR: the PB9 line is SHARED (session 61): the I2C SDA (the PA11
+        # clock) and the radio SPI DATA (the PA15 clock, CS PA8/PA12).
+        # Arbitration: when the radio model is in the read phase it drives
+        # the line (the bridge 0x2000F809 = 1, the bit at 0x2000F808);
+        # otherwise the line = the I2C slave's EE_SDA_BIT (0x2000F800).
         m = emulationManager.CurrentEmulation.Machines[0]
-        request.Value = (m['sysbus'].ReadByte(0x2000F800) & 1) << 9
+        if m['sysbus'].ReadByte(0x2000F809) == 1:
+            request.Value = (m['sysbus'].ReadByte(0x2000F808) & 1) << 9
+        else:
+            request.Value = (m['sysbus'].ReadByte(0x2000F800) & 1) << 9
     elif request.Offset == 0x0C:
         request.Value = odr
     else:

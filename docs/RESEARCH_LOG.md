@@ -3044,3 +3044,86 @@ the REA MCP decompiles (the evidence for every fix below).
 - NEXT: the main-mode validation on both images (bit2 transitions, keys,
   $A01 via the peer flow), the power-cycle flow, then the recon rf.c PB9 fix
   + eeprom.c SCL-order fix + protocol.c correction #2 + the host tests.
+
+## Session 61 - the boot/app state machine decoded; the AT1846S SPI model; the PTT session-exit; the exit sequence validated on the original
+
+- ENV: two Renode runs OOM-killed (the .NET heap ballooned by the per-tick
+  log hooks). Added a 4 GB swapfile; BANNED per-tick log hooks (the SysTick =
+  13.5 kHz!); all subsequent hooks = event/rare sites only. The runs are now
+  lean (the RSS ~1.9 GB).
+- The mm3 epoch battery: the display stream freezes at exactly 214,895 lines
+  between T5-T10 (the same number as the Oct-21 run = deterministic), the
+  flag byte+9 bit6 (0x40) toggles every 5 s (a blink = a live task), byte6
+  0x16 -> 0x06 (the bit4 clear). NOT a crash: an idle renderer + a held
+  session flag (byte6 bit2).
+- AT1846S SPI slave model added (p1_gpioa.py spi_tick + the pb_displaybus
+  IDR arbitration): the protocol decoded from FUN_0802692E - the CS = PA8/
+  PA12 active-low, the CLK = PA15, the DATA = PB9; the command byte =
+  1(rw)+7(reg) latched on the CLK rises; a write = 16 bits on the rises; a
+  read = 16 bits shifted out on the CLK FALLING edges (the first fall
+  precedes the first sample). The scratch bridges: 0x2000F806 = the CLK
+  mirror, F807 = the CS mirror, F808/9 = the model's data bit + the drive
+  flag; the write mirrors 0x2000F812/14/16 (the regs 0x29/0x2A/0x30) +
+  F818 = the write counter. The read values: 0x1A/0x1B/0x5F = 0x0020 (the
+  quiet RSSI/noise), 0x1F = 0x0000 (the GPIO/COS), 0x0D |= 0x8000 (the PLL
+  lock bit - the tune loop at 0x801AC66 tests bit15 and re-tunes every ~5 s
+  without it), everything else = the write echo.
+- The radio-read tracer (the 13 call sites hooked): only 0x801AC66
+  (reg 0x0D, the tune) fires in the idle state; the S-meter updater
+  (0x8020468) stays gated; the state-machine reads never fire pre-key.
+- THE STATE MACHINE DECODED (the session's core result):
+  * byte6 (0x20005096) bit2 = the RX/scan session. SET = the enter branch
+    0x802490E (in the periodic session manager; also bfi's bits4-5 =
+    channel_idx+1 -> 0x16 at boot); CLEARED = only the exit 0x8024A1A tail
+    (0x8024C10-16, after delay(50)).
+  * The exit's early returns: byte6 bit7 set -> return; bit2 == 0 -> return;
+    byte11 (0x2000509B) bit1 set -> clear it and return (the busy guard).
+    The band-apply 0x8027BC6 then `[r4+2] &= 0xCF` = the 0x16->0x06
+    transition, [0x20004720] (the dwell counter) = 0.
+  * The "squelch-open RX entry" 0x801E09C = COUNTER-DRIVEN, no RSSI: the
+    dwell counter [0x20004720]++ per call; at counter > [0x20004E82]*30
+    (= 6*30 = 180, the dwell default from the factory settings byte 26): it
+    calls the exit, then RE-ARMS bit2 (0x801E14C) and latches byte8 bit5
+    (0x20005098 |= 0x20), which makes the entry self-skip thereafter (the
+    counter freezes at 0). This is the designed one-shot boot transition,
+    NOT a stuck flag.
+  * The "squelch-close"/scan-starter 0x801E1A0 is disarmed by
+    [0x20004E87] = 1 - the VENDOR'S OWN programmed default (the ee_image
+    0x0A00 page byte 31 = 0x01) - so the channel scan never runs on a
+    defaults device.
+  * THE PTT ENDS THE SESSION: the PTT handler tests GPIOA bit10 (PA10,
+    0x8024110, DAT_8024C20 = 0x40010800); the release path (0x80241A0)
+    calls 0x8024606 then the exit 0x8024A1A -> bit2 = 0. A real device
+    idles with the PTT released, so the session-clear state = normal.
+  * The key dispatch 0x8019DCC (the task that also polls key_get_code at
+    the OS-tick rate): bit2 == 1 -> only the keys 18/19/20 (the C-group
+    scan keys) act, everything else is dropped (0x8019FE8 -> exit);
+    bit2 == 0 -> the normal key switch at 0x8019FEA (the keys 11/12/13/14
+    decode; the dispatch stores the key at [DAT_801A398]).
+  * The key ladder (the recon ui.c confirmed live): the gates A/B =
+    662..3253, C = 672..1751; the tables at 0x20001684/A4/C4 = {upper,
+    lower} pairs; adc = 2000 matches the A entry 5 (1947 < 2000 < 2147) ->
+    the index 4 -> the key code 1 (the A map {10,11,12,13,1,2,3,14}). The
+    earlier "injectable codes {1,2,3,...}" were KEY IDs, not ADC values -
+    the adc=1 injections could never match (the gate rejects < 662).
+    The keypad lock 0x20009458 bit0 = 0 (open); the key-lock bytes
+    0x200051A1/A2 = 0.
+- THE HARNESS PTT BRIDGE: p1_gpioa.py IDR now drives PA10 from the mirror
+  0x2000F80A (1 = released, the idle state) - the PTT-poll then calls the
+  exit continuously from boot (mostly cheap bit2==0 early returns).
+- p1-exitseq.resc (the ORIGINAL, consolidated): the boot + the $A00
+  settings window (the 534-B frame x10, 0.7-2.7 s) + the $A01 telemetry
+  (the 519-B frame x3) + the ADC2_DR = 2000 tag at 10 s. RESULT: b2 = 00,
+  b6 = 02 (the session cleared, no re-enter), L(T7) = 289,221 (the peer
+  flow consumed: +74 K lines vs the peerless 214,895 freeze), the key ->
+  L(T12) = 347,255 (+58,034 = the key rendered), stable through T20. The
+  key_event hook stays silent (the event = the repeat-engine path; the
+  dispatch acts directly) - the display delta = the operative evidence.
+- p1-exitseq-recon.resc (the RECONSTRUCTION): the boot = 195,582 lines
+  (the same magnitude as the original's splash - the display driver ok),
+  b6 = 00, but the key tag -> ZERO delta. THE GAP: the recon implements
+  the keyscan chain + the stub key_event, but not the UI key dispatch /
+  the session state machine - the P1 remainder on the recon side.
+- NEXT: implement the recon's app state machine (the session manager, the
+  PTT handler, the key dispatch 0x8019DCC behavior) to the point the exit
+  sequence matches; then the p1-exit-sequence task closes on both images.
