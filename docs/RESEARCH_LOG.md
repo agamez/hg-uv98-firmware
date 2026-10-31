@@ -4556,3 +4556,23 @@ post, the key11-long timing):**
 | 12 | PARKED (the orig-internal ±2 jitter) | skipped (the same class) |
 | 13 | 100.00% | 100.00% |
 | 14 | 100% of the orig's | 100% of the orig's |
+
+## Session 70 (cont. 3) — the §5.3 decode-item batch 1: the RX/TX path + the mode chain decompiled; the 0x08019F70 re-classified as the VFO A/B switch applier
+
+- **FUN_08019F70** (the earlier-listed "PTT synthesizer") = actually the
+  **VFO A/B channel-switch applier**: the mode byte [rec+0xc] bit0 toggled
+  from the per-VFO settings records (param_1 = the table, param_3 = the
+  mirror table, the [0x40] selector), the 0x1e-byte record copy
+  (FUN_0801d8c0), the AT1846S program (FUN_0801acfc), the per-slot
+  follow-ups (FUN_0801f104, FUN_0801f57c icons at (0x32,0x16)/(0x61,0x16),
+  FUN_0801db54), the 200-ms beep. Same call cluster as the dispatch's
+  key-14 second handler — the A/B switch machine confirmed.
+- **FUN_08022930** = the mode-label text renderer: the (0x4e,0xd)/(0x1f,0xd)
+  label cells over the 0x8022ba0/0x8022355c tables, gated by FLAG_BANK[9]
+  bit3 (0x2000509D). The slot-0 second handler (0x8019d4d) = FUN_0801e286
+  (→ FUN_0801e5e0) + FUN_08022930 + FUN_08022a24 = the mode-apply +
+  the label chain.
+- The end-frame sender hunt: the slot-0 second ≠ the frame; the frame =
+  the release-path tail (the candidates narrowed to the func_0x08027ef4 /
+  the FUN_08022a98 cluster — the §5.0 item continues).
+- The decompiles = docs/rea/rea_decompile_ptt_ab_chain_19f70_22930.c.
