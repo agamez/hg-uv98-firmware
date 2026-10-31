@@ -26,8 +26,13 @@
  * reconstructed; body is SCAFFOLD. */
 static volatile uint8_t ui_key_last;
 
-/* prio 10 [0x08017664 | RECOVERED cadence]: 1 ms periodic background task;
- * every 8th pass runs a maintenance call (0x0801E6F4). Body SCAFFOLD. */
+/* prio 10 [0x08017664 | RECOVERED cadence, session 69 tick correction]: the
+ * background maintenance task; every 8th pass runs a maintenance call
+ * (0x0801E6F4). Body SCAFFOLD. The "1 ms" cadence was the session-7 1 ms
+ * tick-era reading; on the original's 720 Hz kernel the closest expressible
+ * period is one tick (1.389 ms). OSTimeDlyHMSM(0,0,0,1) computes 0 ticks at
+ * 720 Hz (OS_ERR_TIME_ZERO_DLY = no block), which would busy-spin this
+ * prio-10 task and starve the dispatcher and the UI. */
 static void periodic_task(void *arg)
 {
     (void)arg;
@@ -37,7 +42,7 @@ static void periodic_task(void *arg)
             n = 0;
             /* original calls 0x0801E6F4 here (unidentified maintenance)  */
         }
-        time_dly_hmsm(0, 0, 0, 1);
+        time_dly(1);
     }
 }
 

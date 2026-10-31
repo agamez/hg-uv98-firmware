@@ -10,7 +10,8 @@ SIZE    = $(TOOLCHAIN_PATH)arm-none-eabi-size
 
 CPUFLAGS = -mcpu=cortex-m3 -mthumb
 CFLAGS   = $(CPUFLAGS) -std=c11 -O2 -g -Wall -Wextra -ffreestanding -nostdlib \
-           -fno-builtin -ffunction-sections -fdata-sections -DGD32F10X_HD
+           -fno-builtin -ffunction-sections -fdata-sections -DGD32F10X_HD \
+           -MMD -MP
 # Note: no -D__SYSTEM_CLOCK_* needed — the vendored V2.2.1 system_gd32f10x.c
 # defaults to __SYSTEM_CLOCK_108M_PLL_HXTAL, which is exactly the original's
 # configuration [VENDOR | RECOVERED, see startup.c].
@@ -37,8 +38,9 @@ TOBJ = build/tables.o
 .DEFAULT_GOAL := all
 
 build/tables.o: src/tables.S data/ram_tables_recovered.bin data/uistrings_region.bin
-build/splash_data.o: src/splash_data.S data/splash_128x160_rgb565.bin data/ascii8x16_font.bin data/ascii6x10_font.bin data/big12x20_font.bin data/led_stream.bin data/ee359_stream.bin data/vendor_stream.bin
 	$(CC) -x assembler-with-cpp -mcpu=cortex-m3 -mthumb -Isrc -c $< -o $@
+
+build/splash_data.o: src/splash_data.S data/splash_128x160_rgb565.bin data/ascii8x16_font.bin data/ascii6x10_font.bin data/big12x20_font.bin data/led_stream.bin data/ee359_stream.bin data/vendor_stream.bin
 	$(CC) -x assembler-with-cpp -mcpu=cortex-m3 -mthumb -Isrc -c $< -o $@
 
 INC = -Isrc -Iucos2/cfg -Iucos2/ucos2 -Iucos2/port -Iucos2/cpu -Iucos2/lib \
@@ -99,5 +101,10 @@ disasm: build/hguv98.elf
 
 clean:
 	rm -rf build
+
+# Header dependency tracking (-MMD): without this, ucos2/cfg/os_cfg.h edits
+# silently left the kernel objects stale (the session-69 tick fix first ran
+# against a 1 ms-tick kernel).
+-include $(wildcard build/*.d)
 
 .PHONY: all clean disasm

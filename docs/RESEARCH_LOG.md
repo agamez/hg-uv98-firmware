@@ -4010,3 +4010,63 @@ tick dispatch pass; the row-only vs row+label cycle shapes (the labels
 appear from cycle 3); the interaction with the menu state (p3-key6 shows NO
 refreshes while 0x35 is open and none in 9 s of post-release capture, which
 bounds the trigger); the d=720 18-wide cell and the d=224 6x10 variant.
+
+## Session 69 (cont. 3) — the dispatch pass is 41.667 ms, not 14.4/30 ms: the RSSI regression root-caused and both p3 pairs converged
+
+**The regression.** The first p3-key6 check under the new RSSI slice
+(p3k6reg) emitted 3 refresh slices (16,651 events) BEFORE the 6.0 s menu
+press: rec PRE L=205,688 vs the orig's 189,037; every later marker offset by
+exactly those 3 slices (the menu span 49,648 and the release re-render
+65,223 events matched the orig bit-for-bit).
+
+**Root cause (proven, not fitted).** The kill press at sim 6.0 s only
+suppresses fires that have not fired yet, so the recon's first fire must land
+>= 6.0 s. Marker arithmetic on the two runs (c3: 5 fires in 10.5 s;
+p3k6reg: 3 fires by 6.0 s) is simultaneously consistent ONLY with a dispatch
+pass of ~30 ms and a flat-out boot ending at ~0.1-1.8 s: the recon's pass =
+30 ticks x the 1 ms OS tick (os_cfg.h session-7 guess, OS_TICKS_PER_SEC
+1000), and c3's "N=69 convergence" was a WINDOW COINCIDENCE - 69 x 30 ms =
+2.07 s puts 5 fires in the 10.5 s window, the same count as the original's
+5 x 1.000 s fires, and the eventless gaps hide every timing difference in
+the stream. The p3-key6 window exposes it: fires at ~0.5/2.6/4.6 s precede
+the press. The original's true cadence, three independent proofs:
+1. rf.c's decoded tone tick divides APP_STATE+0x109 by 100,000 CPU cycles =
+   1.38889 ms at 72 MHz -> the OS tick = 720 Hz;
+2. the boot spans exactly 144 dispatch passes = 144 x 41.667 ms = 6.000 s
+   (the p3k1 fire 5 at exactly 10.000 s -> fire 1 at exactly 6.000 s);
+3. the RSSI fires are 24 passes apart = 24 x 41.667 ms = 1.000 s (the
+   p3k1_orig slice spacing).
+So the original's pass = 30 x 1.38889 ms = 41.667 ms and its boot = 144
+passes. The c3-era "14.4 ms pass" note was a mis-fitted artifact.
+
+**The fix package (all [session 69 | PROVEN/DATA-DERIVED] annotated).**
+- ucos2/cfg/os_cfg.h: OS_TICKS_PER_SEC 1000 -> 720 (the tick = 100,000
+  cycles; cnts = 108 MHz/720 = 150,000 exactly), OS_TIME_GET_SET_EN 1.
+- src/rtos.c + rtos.h: rtos_ticks() = OSTimeGet() (the boot anchor's clock).
+- src/ui.c: the boot-pass anchor - after the boot-scene events the boot is
+  held at the 144-pass boundary (while (rtos_ticks() < 4320) time_dly(30));
+  waits emit no bus events, so the stream is unchanged; the RSSI fire
+  period %69 -> %24 (= 1.000 s); fire 1 = the first post-boot pass.
+- src/main.c: periodic_task off OSTimeDlyHMSM(0,0,0,1) - at 720 Hz that
+  computes 0 ticks (OS_ERR_TIME_ZERO_DLY = no block) and would busy-spin
+  the prio-10 task, starving the dispatcher and the UI; now time_dly(1)
+  (one tick = 1.389 ms, the closest expressible period; body SCAFFOLD).
+- Makefile: -MMD -MP header deps + -include build/*.d (the first fixed run
+  silently used a STALE kernel: p-os_cpu_c.o dated Oct 16 still divided by
+  1000, so the anchor exited at 4.32 s and the rec still leaked 3 slices);
+  plus the tables.o/splash_data.o recipe split (tables.o had NO recipe and
+  make clean exposed it - a stale-build-dir bug).
+
+**Fresh differential evidence (p3diff.sh, fresh-EE, build 110,447 text).**
+- p3-key6 (p3-key6x-orig.resc vs p3-key6-recon.resc): every marker identical
+  (PRE 189037 / P1 238685 / P3 238685 / REL 303908 both sides);
+  orig=303,907 rec=303,907 prefix=303,907 = 100.00%.
+- p3-key1 (p3-key1-orig.resc vs p3-key1-recon.resc): orig=219,256
+  rec=220,539 prefix=219,256 = 100% of the original's stream (rec P1
+  L=205,688 = slices 1-3 done, fire 4 pending at 9.04 s - the fires land
+  1.000 s apart as in the original). The +1,283 tail = the recon completing
+  slice 5 (7,426 ev) where the original's capture cuts it at 10.5 s
+  (6,143 ev) - the in-flight render artifact, the original's stream is 100%
+  covered.
+- make test-host green; the recon's key-scan ADC2 read warnings are the
+  pre-existing per-pass pattern (unchanged density).

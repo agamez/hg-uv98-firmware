@@ -34,7 +34,14 @@
 #define OS_SCHED_LOCK_EN          1u
 
 #define OS_TICK_STEP_EN           0u
-#define OS_TICKS_PER_SEC        1000u   /* 1 ms tick (research log session 7)           */
+/* [session 69 | PROVEN] the original's OS tick = 100,000 CPU cycles at its
+ * 72 MHz core = 1.38889 ms = 720 Hz: rf.c's decoded tone tick divides the
+ * APP_STATE+0x109 u32 by 100000, the boot spans exactly 144 30-tick dispatch
+ * passes (6.000 s; 5 byte-identical orig captures) and the RSSI refresh
+ * fires every 24 passes = 1.000 s (the p3k1_orig slice spacing). Session 7's
+ * 1 ms guess made the recon's dispatch pass 30 ms, its boot run flat-out and
+ * its RSSI period 2.07 s (the c3 fire-count match was a window coincidence). */
+#define OS_TICKS_PER_SEC        720u
 
 #define OS_TLS_TBL_SIZE           0u
 
@@ -108,7 +115,7 @@
                                        /* --------------------- TIME MANAGEMENT ---------------------- */
 #define OS_TIME_DLY_HMSM_EN       1u
 #define OS_TIME_DLY_RESUME_EN     0u
-#define OS_TIME_GET_SET_EN        0u
+#define OS_TIME_GET_SET_EN        1u   /* [session 69] OSTimeGet: the boot-pass anchor */
 #define OS_TIME_TICK_HOOK_EN      0u
 
                                        /* --------------------------- TIMERS ------------------------- */

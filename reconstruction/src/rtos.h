@@ -30,6 +30,7 @@ int      task_create(task_fn fn, void *arg, uint32_t stack_size, uint8_t prio);
 
 void     time_dly(uint32_t ticks);
 void     time_dly_hmsm(uint8_t h, uint8_t m, uint8_t s, uint8_t ms);
+uint32_t rtos_ticks(void);                                 /* OSTimeGet */
 void     rtos_start(void);
 void     board_setup_tick(uint32_t hclk_hz);        /* OS_CPU_SysTickInitFreq */
 

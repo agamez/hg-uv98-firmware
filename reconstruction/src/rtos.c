@@ -70,6 +70,13 @@ void time_dly(uint32_t ticks)
     OSTimeDly((INT16U)ticks);
 }
 
+/* [session 69] the RTOS tick counter (OSTime) reader: the boot-pass anchor
+ * in ui.c holds the boot at the 144-pass (6.000 s) boundary. */
+uint32_t rtos_ticks(void)
+{
+    return (uint32_t)OSTimeGet();
+}
+
 void time_dly_hmsm(uint8_t h, uint8_t m, uint8_t s, uint8_t ms)
 {
     OSTimeDlyHMSM(h, m, s, ms);

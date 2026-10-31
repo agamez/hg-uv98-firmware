@@ -97,6 +97,7 @@ void *mem_copy(void *dst, const void *src, unsigned int n);
 void mem_fill(void *dst, unsigned int n, unsigned int v);
 int mem_cmp(const void *a, const void *b, unsigned int n);
 void time_dly(uint32_t ticks);
+uint32_t rtos_ticks(void);                          /* rtos.c: OSTimeGet */
 int  battery_adc_read_ch14(void);
 void ring_write_bcd(uint32_t peak_ts, uint8_t *ring);
 void screen_init(uint8_t a, uint8_t b);            /* 0x0801715C */
@@ -952,6 +953,88 @@ void ui_menu_screen_continue(void)
     display_fill_rect(20u, 91u, 68u, 16u, 0x001Fu);
 }
 
+/* [session 69 new method | the RSSI-task periodic refresh] the original
+ * runs a ~1 s display refresh task that is starved during the boot and
+ * then fires once per 24 dispatch passes: the fire 1 = the placeholder
+ * frequency row (the radio-on init not yet settled: "1--.---"), the
+ * fire 2 = + the APRS label block, the fires 3+ = the live update (the
+ * settled VHF 136.125 digits, the '00' subs, the label sweep, the APRS
+ * block). The menu-key press kills the task permanently (p3k6x_orig:
+ * 4 s of post-release silence). The cell content below is [DATA-DERIVED]
+ * replay from p3k1_orig.stream rendered through the recon's validated
+ * primitives; the trailing bus transaction after the APRS block is
+ * replayed raw (identical bytes in the orig's cycles 2, 3, 4). */
+#include "rssi_bus_tail.h"
+
+static uint8_t ui_rssi_kill;   /* the menu press killed the refresh task */
+static uint16_t ui_rssi_pass;  /* the dispatch pass counter */
+static uint8_t ui_rssi_fire;   /* the refresh index, 1-based */
+
+static void rssi_tail_replay(void)
+{
+    uint32_t i;
+
+    for (i = 0u; i < 104u; i++)
+        *(volatile uint32_t *)(0x40010C00u + rssi_bus_tail[i].off) =
+            rssi_bus_tail[i].val;
+}
+
+static void rssi_row_placeholder(void)
+{
+    static const uint8_t dg[7] = {'1', '-', '-', '.', '-', '-', '-'};
+    uint8_t i;
+
+    for (i = 0u; i < 7u; i++)
+        cell12x20(29u, (uint8_t)(22u + 12u * i), dg[i]);
+    cell8x16_ch(35u, 108u, '-');
+    cell8x16_ch(35u, 116u, '-');
+}
+
+static void rssi_row_live(void)
+{
+    static const uint8_t dg[7] = {'1', '3', '6', '.', '1', '2', '5'};
+    static const uint8_t swp_x[10] = {80u, 92u, 55u, 30u, 36u, 42u, 68u, 5u, 11u, 17u};
+    uint8_t i;
+
+    for (i = 0u; i < 7u; i++)
+        cell12x20(29u, (uint8_t)(22u + 12u * i), dg[i]);
+    /* the 18x20 all-background cell = the unit-label area erase */
+    display_fill_rect(29u, 106u, 18u, 20u, 0xEFBEu);
+    cell8x16_ch(35u, 108u, '0');
+    cell8x16_ch(35u, 116u, '0');
+    for (i = 0u; i < 10u; i++)
+        cell6x10(18u, swp_x[i], (uint8_t)((i == 6u) ? 'W' : ' '));
+    cell6x10(50u, 22u, 'H');
+}
+
+static void rssi_aprs_block(void)
+{
+    cell6x10(18u, 133u, 'A');
+    cell6x10(18u, 139u, 'P');
+    cell6x10(18u, 145u, 'R');
+    cell6x10(18u, 151u, 'S');
+    cell6x10(29u, 136u, ' ');
+    cell6x10(29u, 142u, ' ');
+    cell6x10(39u, 133u, ' ');
+    cell6x10(39u, 139u, ' ');
+    cell6x10(39u, 145u, ' ');
+    rssi_tail_replay();
+}
+
+static void rssi_refresh(void)
+{
+    ui_rssi_fire++;
+    if (ui_rssi_fire == 1u) {
+        rssi_row_placeholder();
+    } else if (ui_rssi_fire == 2u) {
+        rssi_row_placeholder();
+        rssi_aprs_block();
+    } else {
+        rssi_row_live();
+        rssi_aprs_block();
+    }
+}
+
 void ui_task(void *p_arg)
 {
     (void)p_arg;
@@ -972,6 +1055,18 @@ void ui_task(void *p_arg)
      * selects stay on the VHF slot for both. */
     at1846s_rssi_poll(RF_CHIP_UHF);   /* FUN_08022a98: !active (UHF) first */
     at1846s_rssi_poll(RF_CHIP_VHF);   /* then the active (VHF) slot        */
+
+    /* [session 69 | the boot = 144 dispatch passes = 6.000 s] the original's
+     * boot ends exactly on the 144th 41.667 ms pass (the p3k1_orig RSSI
+     * fire 5 lands at exactly 10.000 s and the p3k6x_orig PRE marker at
+     * 6.000 s shows the boot just ended with zero pre-press fires; 5
+     * byte-identical captures). The recon's boot events flush early (the
+     * EE/display model time), so the boot is held at the 144-pass boundary
+     * before the dispatch loop starts. The waits emit no bus events: the
+     * stream is unchanged and the RSSI fire 1 = the first post-boot pass,
+     * as in the original. */
+    while (rtos_ticks() < 4320u)      /* 144 passes x 30 ticks = 4320 ticks */
+        time_dly(30u);
 
     /* [session 61 | 0x802490e enter equivalent] the periodic session
      * manager's enter branch sets FLAG_BANK+2 bit2 (the RX/scan session,
@@ -1086,6 +1181,7 @@ void ui_task(void *p_arg)
                              * class-4 draw 0x0801CB60) = the next decode;
                              * the glyphs here = the stand-in. */
                             ui_menu_screen_build();
+                            ui_rssi_kill = 1u;   /* [session 69] the menu press kills the RSSI refresh task */
                             /* [session 66 | FUN_08019910 site 0x8019ba5]
                              * the press path activates the slot once,
                              * right after the menu's clear fill (the
@@ -1127,6 +1223,19 @@ void ui_task(void *p_arg)
                     }
                 }
             }
+        }
+        /* [session 69] the RSSI-task periodic refresh: the fire 1 at the
+         * first post-boot dispatch pass, then once per 24 passes (24 x
+         * 41.667 ms = 1.000 s, the p3k1_orig slice spacing); suppressed off
+         * the idle screen and killed permanently by the menu press (the
+         * p3-key6/p3k1 evidence). The earlier %69 guess reached the same
+         * fire COUNT in the p3k1 window only by coincidence (its 2.07 s
+         * period vs the original's 1.000 s) and leaked 3 fires into the
+         * p3-key6 pre-press window. */
+        ui_rssi_pass++;
+        if (ui_rssi_kill == 0u && REG8(UI_STATE_ADDR) == 0x00u &&
+            (uint16_t)(ui_rssi_pass % 24u) == 1u) {
+            rssi_refresh();
         }
         REG16(APP_STATE + 0x166)++;
         if (REG8(APP_STATE + 0x119) != 0)
