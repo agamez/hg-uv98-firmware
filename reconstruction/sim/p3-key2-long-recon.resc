@@ -1,8 +1,8 @@
 # p3-key2-long-recon.resc - session 69: the recon mirror of
 # p3-key2-long-orig.resc (code 2 = the A-ladder idx 5,
-# ADC 1645, the long press, hold 3.0s).
+# ADC 1645, the short press, hold 0.4s).
 using sysbus
-mach create "p3k2longrec"
+mach create "p3k2lhortrec"
 machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
 sysbus WriteDoubleWord 0x00000000 0x20006800
 sysbus WriteDoubleWord 0x00000004 0x08004165

@@ -3,7 +3,7 @@
 # the long press (hold 3.0s). Fresh-EE: the driver deletes
 # ee_image.bin before the run.
 using sysbus
-mach create "p3k2longorig"
+mach create "p3k2lhortorig"
 machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
 sysbus WriteDoubleWord 0x00000000 0x20006780
 sysbus WriteDoubleWord 0x00000004 0x08044691

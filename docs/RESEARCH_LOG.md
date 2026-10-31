@@ -4520,3 +4520,39 @@ identical to the key-11's (which matches at 99.61%).** The p3k12-long =
 skipped (the same jitter class). The key-12's recon-side model = CORRECT
 (the shared UP engine); the remaining delta = the orig-internal bus
 jitter, not a decode gap.
+
+## Session 70 (cont. 2) — the matrix long-press paths: p3-key2-long and p3-key3-long = 100.00% of the orig's streams; the noinline-build re-verification of all the banked channels = intact
+
+**The noinline regression check (the current build, 122,299 text):**
+- p3-key14-short = prefix 362,176 = **100% OF THE ORIG'S FULL STREAM** (the
+  same as the banked; the recon = 394,709 = the pacing surplus)
+- p3-key14-long = prefix 517,228 = **100% OF THE ORIG'S** (the same)
+- p3-key13-short = **100.00% byte-identical** (204,670/204,670)
+- p3-key13-long = **100.00% byte-identical** (204,670/204,670)
+- p3-key11-long = 2,798,646 = **99.93% OF THE ORIG'S** (the same as the
+  pre-noinline run — the noinline = the codegen-stability fix verified)
+
+**The key-2/3 long-press paths (the fresh resc pairs, 3.0 s hold + 1.5 s
+post, the key11-long timing):**
+- p3-key2-long: prefix = **219,256 = 100.00% OF THE ORIG'S FULL STREAM**
+  (the orig = 219,256; the recon = 227,965 = the post-window RSSI
+  surplus). The orig's hold = fully suspended: P1 = 196,979 = the EXACT
+  short-press freeze value from the session-69 note — the C's 0x67-gate
+  (`*DAT_0801a390 == 0x67`) = FALSE at scr 0x00 → the generic press path
+  (the vtbl once + func_08014c50) and the hold = the RSSI suspension
+  only — the recon models this exactly.
+- p3-key3-long: prefix = **219,256 = 100.00% OF THE ORIG'S FULL STREAM**
+  (the identical shape; the digit renders at the same cell counts).
+
+**THE P3-MATRIX TASK = COMPLETE.** The fresh-EE matrix evidence:
+| code | short | long |
+|---|---|---|
+| 1 | 100% (session 69) | 100% (session 69) |
+| 2 | 100% (session 69) | 100% OF THE ORIG'S (this session) |
+| 3 | 100% (session 69) | 100% OF THE ORIG'S (this session) |
+| 6 | 100.00% (1ad04ac) | — (the menu kill) |
+| 10 | 100% (session 61) | — |
+| 11 | 99.61% of the orig's | 99.93% of the orig's |
+| 12 | PARKED (the orig-internal ±2 jitter) | skipped (the same class) |
+| 13 | 100.00% | 100.00% |
+| 14 | 100% of the orig's | 100% of the orig's |
