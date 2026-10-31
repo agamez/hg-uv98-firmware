@@ -3915,3 +3915,59 @@ Date: 2026-10-31
   text. The post-poll dynamic layer = the next decode (the orig's
   219118..238685 = the selection bar + the 5 row strings, 19,567 events).
 - The release polls remain +6,659 late (the release-era render diff).
+
+## Session 69 — p3-key6 reaches 100.00% event-identical (303,907/303,907)
+
+**Result.** `p3k6_rec79.stream` vs `p3k6_orig.stream`: orig=303907 rec=303907
+prefix=303907 (100.00%), firstdiff=None. The full scenario — boot, status
+render, both boot polls, the menu press (clear + press poll + the text layer),
+the release re-render, both release polls — is event-identical. `make
+test-host` green (all protocol conformance tests passed). Build 108,991 text.
+
+**1. The post-poll dynamic era fully decoded (p3k6_orig.stream
+219118..238685).** Every cell = the same window shape
+`0x2A,[0,x1],[0,x2],0x2B,[0,y1],[0,y2],0x2C` + pixel events (2/pixel,
+RGB565 hi/lo pairs on the ODR low byte). The 16px CJK cells place x2=0x2a,
+which masquerades as the 0x22A command byte in a naive scan — that artifact
+caused the earlier "no-x-param window" misread. Row structure: 5 rows at
+y=20+17i, the string walked from x=3: ASCII chars = 8x16 font cells (256
+events), GB2312 pairs = SOLID 16x16 blocks (512 events, every pixel = fg).
+The solidity is the SPI2 font-flash model answering all-0xFF to the orig's
+CJK glyph fetch, so the glyph renders all-ink [DATA-DERIVED]. Then the row-0
+selection re-walk with the inverted pair (fg 0xEFBE on bg 0x001F) + the blue
+bar `fill_rect(20,91,68,16,0x001F)` (2176 events). RETRACTED: the session-61
+scaffold fills #2-13 (belong to no orig era here) and the session-69-first-
+pass "cursor-column cell at x3..10" (that cell is the '0' glyph).
+
+**2. The menu strings = the NUL-terminated chain at 0x08043B20.** REA
+read_bytes: "01.本机设置"(B20,12B) "02.站点类型"(B2C,12B) "03.GPS 设置"(B38,13B)
+"04.信号设置"(B45,12B) "05.信号类型"(B52,12B). Offsets 0x0,0xC,0x18,0x25,0x31
+— NOT stride 12 (the recon's `12*i` drifted off-by-one from row 3 on). REA
+search_bytes finds zero references to 0x08043B45/0x08043B52 ⇒ no per-row
+pointer table; the original walks the chain [RECOVERED].
+
+**3. Implementation** (reconstruction/src/ui.c): `menu_row_text(y, s, fg, bg)`
+walks a GBK string from x=3 (ASCII → display_blit_glyph_cell with the shared
+ui_ascii8x16_font; the pair ≥0x81 → display_blit_bitmap_1bpp(16,16,
+menu_cjk_solid) whose all-0xFF record is layout-independent and byte-equal to
+the orig's solid cell). `ui_menu_screen_continue()` = the 5 chain rows
+(fg 0000/bg EFBE) + the row-0 re-walk (EFBE/001F) + the blue bar. The CJK
+solid record is [DATA-DERIVED]; the walk shape is [RECOVERED] from the cells.
+
+**4. The release era root cause.** The orig's release pass (~238.6k, one
+render period after the press) = state 0x35→0x00, re-renders the status page
+starting directly at the content clear `fill_rect(18,1,158,92)` with NO
+CALL:/BAT cells, then refreshes both slots (the polls 301912/302910). The
+recon's release called the boot-shaped `ui_screen0_build()`, re-emitting the
+22 boot-only CALL:/BAT cells (+5,874 events) before the clear and pushing the
+release polls to 308571 (+6,659). Fix: split `ui_screen0_body()` out of
+`ui_screen0_build()` (the prologue = the cells + the one-shot EE scan only);
+the release branch now calls the body. Aligned pre-check: the orig's
+238685..301911 vs the recon's 244559..308570 bodies = 63,227 events, 0 diffs
+— the body was already byte-exact; only the prologue differed.
+
+**Reagents.** /tmp/opencode/cellextract.py (the cell/bitmap extractor, the
+column-major rec[c] bit-r layout), /tmp/opencode/scan2.py (the structure
+scanner). Debug captures p3k6_rec77/78/79.stream + the resc variants remain
+untracked. The 5,874-event junk = 22 cells × 267 events (13 "CALL:"+callsign
++ 9 "BAT:0.8 V"; 17 windows visible to the window scanner).

@@ -508,6 +508,8 @@ static void ui_screen0_scan(void)
     }
 }
 
+static void ui_screen0_body(void);   /* [session 69] the shared render body */
+
 static void ui_screen0_build(void)
 {
     static const char line1[5] = "CALL:";
@@ -543,7 +545,19 @@ static void ui_screen0_build(void)
             ui_screen0_scan();
         }
     }
+    ui_screen0_body();
+}
 
+/* [session 69 | the boot/release split | RECOVERED + DATA-DERIVED] the
+ * status-page render = two shapes: the FIRST build = the CALL:/BAT
+ * cell prologue + the one-shot EE scan (the boot's pre-scan gap,
+ * p3k6_orig.stream 95094..100969); the release re-render = the body
+ * only, starting at the content clear with NO cells (p3k6_orig.stream
+ * 238685..: the release pass renders the status page then refreshes
+ * both slots; the aligned body diff vs the boot-shaped build = 63227
+ * events, 0 diffs). */
+static void ui_screen0_body(void)
+{
     display_fill_rect(18u, 1u, 158u, 92u, 0xEFBEu);
     {   /* [session 55] the 2x read16 burst @ODR#118,308 (0x0800 + 0x0810,
          * the VFO A/B blocks) right after the content fill. */
@@ -879,38 +893,63 @@ void ui_menu_screen_build(void)
     display_fill_rect(18u, 1u, 158u, 92u, 0xEFBEu);
 }
 
+/* [session 69 | p3k6_orig.stream 219118..238685 cell decode] the menu
+ * row text = the flash GBK string walked from x=3 at y=20+17*i:
+ *   - each ASCII char = one 8x16 font cell (display_blit_glyph_cell:
+ *     11 window events + 256 pixel events);
+ *   - each GB2312 pair = one SOLID 16x16 cell (window + 512 pixel
+ *     events). The orig fetches the CJK glyph from the SPI2 font-flash;
+ *     that flash's Renode model returns all-0xFF, so every CJK pixel
+ *     renders in the fg color — a solid block [DATA-DERIVED].
+ * Row strings = the NUL-terminated chain at 0x08043B20 (offsets
+ * 0x0,0xC,0x18,0x25,0x31; REA search_bytes finds no reference to the
+ * row-3/4 addresses 0x08043B45/0x08043B52, so no per-row pointer
+ * table exists — the orig walks the chain) [RECOVERED].
+ * The session-61 scaffold fills #2-13 and the "cursor-column cell at
+ * x 3..10" are RETRACTED: the first cell of each row = the '0' glyph
+ * at x 3..10; the orig emits no other fills in this era. */
+static const uint8_t menu_cjk_solid[32] = {
+    0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu,
+    0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu,
+    0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu,
+    0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu,
+};
+
+static void menu_row_text(uint8_t y, const uint8_t *s, uint16_t fg, uint16_t bg)
+{
+    uint8_t x = 3u;
+
+    while (*s != 0u && *s != 0xFFu) {
+        if ((*s >= 0x81u) && (s[1] >= 0x81u)) {
+            display_blit_bitmap_1bpp(y, x, 16u, 16u, menu_cjk_solid, fg, bg);
+            x = (uint8_t)(x + 16u);
+            s += 2;
+        } else {
+            display_blit_glyph_cell(y, x,
+                                    &ui_ascii8x16_font[(uint32_t)(uint8_t)*s * 16u - 0x200u],
+                                    fg, bg);
+            x = (uint8_t)(x + 8u);
+            s += 1;
+        }
+    }
+}
+
 void ui_menu_screen_continue(void)
 {
-    display_fill_rect(1u, 1u, 158u, 16u, 0xEFBEu);
-    display_fill_rect(1u, 4u, 72u, 16u, 0xEFBEu);
-    /* text(1, 108, " ", 0, 4) — the class-4 text = pending */
-    display_fill_rect(1u, 120u, 16u, 16u, 0xEFBEu);
-    display_fill_rect(111u, 72u, 16u, 16u, 0xEFBEu);
-    display_fill_rect(111u, 30u, 120u, 16u, 0xEFBEu);
-    display_fill_rect(111u, 1u, 5u, 16u, 0xEFBEu);
-    display_fill_rect(111u, 157u, 2u, 16u, 0xEFBEu);
-    display_fill_rect(29u, 106u, 18u, 20u, 0xEFBEu);
-    display_fill_rect(64u, 133u, 24u, 10u, 0xEFBEu);
-    display_fill_rect(76u, 106u, 18u, 20u, 0xEFBEu);
-    /* [session 61 | p3-text.resc] the text layer, drawn after all fills:
-     * the 5 settings-list strings (the flash slots 0x08043B20 + 12*i:
-     * "01.本机设置" "02.站点类型" "03.GPS 设置" "04.信号设置"
-     * "05.信号类型") walked at (20 + 17*i, 3) with the ink 4, cls 3, inv 0.
-     * The GB2312 tails emit nothing (the CJK font-fetch guard is off in
-     * the platform model) but advance the cursor 16 px per pair. Then the
-     * selection: the row 0 re-walked with the ink 1, inv 1 (the blue bar);
-     * the original does this as a direct per-char loop, not through the
-     * string walker (no cb60 entry in the trace). */
-    {
-        uint8_t i;
+    const uint8_t *s = (const uint8_t *)0x08043B20u;
+    uint8_t i;
 
-        for (i = 0u; i < 5u; i++) {
-            display_draw_text_cls((uint8_t)(20u + 17u * i), 3u,
-                                  (const uint8_t *)(0x08043B20u + 12u * (uint32_t)i),
-                                  4u, 3u, 0u);
-        }
-        display_draw_text_cls(20u, 3u, (const uint8_t *)0x08043B20u, 1u, 3u, 1u);
+    for (i = 0u; i < 5u; i++) {
+        menu_row_text((uint8_t)(20u + 17u * i), s, 0x0000u, 0xEFBEu);
+        while (*s != 0u)
+            s++;
+        s++;
     }
+    /* [session 69] the selection re-walk of row 0 (the inverted pair:
+     * the text EFBE on 001F) + the blue bar filling the row tail
+     * (2176 events = x 91..158, y 20..35). */
+    menu_row_text(20u, (const uint8_t *)0x08043B20u, 0xEFBEu, 0x001Fu);
+    display_fill_rect(20u, 91u, 68u, 16u, 0x001Fu);
 }
 
 void ui_task(void *p_arg)
@@ -985,7 +1024,7 @@ void ui_task(void *p_arg)
                      * (0x08018F1A). */
                     if (REG8(UI_STATE_ADDR) == 0x35u) {
                         ui_state_set(0x00u);
-                        ui_screen0_build();
+                        ui_screen0_body();   /* [session 69] the release re-render = the cells-less body */
                         /* [session 66 | FUN_08022a98] the release
                          * re-renders the status page then refreshes both
                          * slots (the RD-hook polls 4+5, the stream
