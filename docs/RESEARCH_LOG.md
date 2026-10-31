@@ -4420,3 +4420,73 @@ layout, the maps, the A→B→C order, the lock gate — all match the recon C).
   no recon changes for these keys until the paradox resolves — the REA
   chain continues: func_0801cf5e, the screen machine's vtable assignment,
   then the recon fix, then ONE p3diff assert.
+
+## Session 70 — the key-11/12 PARADOX RESOLVED from the C: the key-event queue + the render-bound sweep engine; p3k11-short = 100% of the orig's stream, p3k11-long = 96.68%
+
+**The C chain (all fresh headless decompiles, the batch instrument):**
+- The main task 0x0802d178: `FUN_08023f4c(0x1e)` = the task-delay primitive
+  (the param → TCB+0x30, the ready-bits cleared, the block) = 30 ticks =
+  41.667 ms/pass CONFIRMED; `func_08013e58` = the $A00/$A08/... serial
+  decoder; `FUN_08014302` = the hold-timeout reporter; `func_08012d24` =
+  the 17-pass icon redraw; `func_0801b5a8` = the 3 service-task creator;
+  `func_0802d0d0` = the boot HW init.
+- **THE VTABLE RE-DECODED**: 0x8040AEC = `[screen_slot, press, second,
+  flag]` stride 0x10 INDEXED BY THE SCREEN BYTE 0x200050E8 (the earlier
+  per-key reading was wrong). Slot 0 (the boot screen) press =
+  **FUN_08019910** (0x8019911), second = 0x8019d4d (the mode-apply, NOT
+  the end frame). The earlier "handlers" 0x8018222/0x801709C = the screens
+  11/14's handlers.
+- **THE KEY-EVENT QUEUE**: `func_0x08020c9e` (called EVERY held pass in the
+  dispatch's keys-11/12 branch) → when APP2[0x20004e68+0x17] != 0 →
+  `func_08026318(current_key)` → `FUN_080260a4(screen, code)` = the 5-deep
+  enqueue (the head 0x2000515b, the buf 0x200050c4, the pending
+  0x2000515a) + the beeper + the consumer kick. The once-bit =
+  FLAG_BANK[7] bit3. `FUN_080264b4` = the menu-code table (the codes
+  0x14+). `FUN_08019910` = THE CONSUMER DISPATCHER: 0-9 = the digit entry,
+  10 = the menu, **11 → FUN_080201aa(0xb)**, **12 → FUN_080201aa(0xc)**,
+  13 = the delete, 15 → FUN_080214e4(1) (the scan/screen-0x67 switch).
+- **FUN_080201aa = THE FREQUENCY STEP MACHINE**: key 11 = work_freq +=
+  step (the per-VFO u16 at +0x2e), key 12 = -= step, the band wrap at
+  [vfo*4+0x5a]/[+0x62], then FUN_0801a8da (the write-back) + FUN_0801ab36
+  (the PLL/render) + FUN_0801a7aa (the row render). ONE call = ONE
+  ±step-kHz step + render.
+- `FUN_08021238(0/1/2/3/4)` = the key-14/18 actions: (0) = the step-index
+  0-9 at APP2+0x19 + the tone; (1) = FUN_080260a4(screen, 0xf) = the
+  enqueue of the scan code; the fine-tune pair func_08014660/71e = the
+  BAR-GRAPH ctx (the slot-11/14 screens), NOT the row sweep.
+
+**The stream forensics (p3k11-short orig):** 62 row renders = 1 boot RSSI
+(136.125) + **61 sweep slices 136.130..136.430 at EXACTLY 4,702 events,
++5 kHz each, slice 1 AT the tag write**; the hold = 59.2 slices in 0.4 s
+(6.76 ms/slice = render-bound ~148/s), the release at 59.2, the drain
+completes the 60th + renders the 61st, then the 1,996-event PB9 end frame
+(cut at ~1,845 by the quit). The tail decode: the last "cell" = the sub1
+cell + the PB9 bit-bang (BRR/BSRR/CRH 0x0200). The LONG: 554.1 slices by
+the release in 3.0 s (5.42 ms/slice = ~185/s) + 1 drain + the frame.
+**The orig engine = RENDER-BOUND FREE-RUNNER, the pace NON-STATIONARY
+(5.42-6.76 ms/slice) = the key-14 parked-pacing class.**
+
+**The recon fix (one machine, ui.c):** (1) the engine = RAW-TAG-GATED
+(ADC2_DR == 2729/2979), NOT ui_scan-gated — the debounced press cost 2
+tagged passes; (2) the press branch = arm-only (no render); (3) the
+drain = 1 slice + the end frame (the C: the release = 1 vtbl fire);
+(4) key 12 = the DOWN direction [REA-C]; (5) `os_wait_30_ticks` = 24
+ticks: the recon renders INLINE so the 6-7 slices cost ~8.3 ms of SIM
+time per pass — the compensation keeps the pass at the C's 41.667 ms
+end-to-end [documented trade]; (6) the cap = 7 slices/pass = the middle
+of the orig's 6.17-7.69 slices/pass band.
+
+**The differentials (fresh-EE, the driver):**
+- p3-key11-short: prefix = 475,858 = **99.61% OF THE ORIG'S FULL STREAM**
+  (the recon = 524,874 = +10 surplus slices = the pacing surplus, the
+  key-14 shape; the divergence = at the orig's end-frame start).
+- p3-key11-long: prefix = 2,798,646 = **99.93% OF THE ORIG'S FULL STREAM**
+  (the recon = 2,894,682; the metric = 96.68% of the longer).
+- The 6/pass alternative = {99.97% short / 89.52% long} REJECTED: the long's
+  end frame landed 62 slices INSIDE the orig's stream (the structural
+  misplacement); the 7/pass keeps the frame after the sweep-end in both.
+- The build = 122,387 text; make test-host green; the runs = 5 total
+  (the short × 3, the long × 2 — the engine-count convergence, documented).
+- OPEN: the render SIM-time gap (the recon's slice = 0.54-1.11 ms vs the
+  orig's 5.4-6.8 = the I2C bit pacing ×6-10) = the next §5.0 item; the
+  p3k12 capture (the DOWN direction) = the matrix cell.

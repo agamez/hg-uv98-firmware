@@ -108,7 +108,20 @@ uint16_t rf_read_reg(uint8_t chip, uint8_t reg);   /* rf.c: 0x0802292E */
  * recovery (sessions 18-30 mapped the transitions they drive). */
 uint32_t ui_tasks_create_1(void) { return 0u; }
 void ui_tasks_create_2(void) { }
-void os_wait_30_ticks(void) { time_dly(30); }
+void os_wait_30_ticks(void) {
+    /* [session 70] The original's main task = FUN_08023f4c(0x1e) = delay(30)
+     * ticks = a 41.667 ms pass, with the render work running in a SEPARATE
+     * task (the C: the queue-consumer engine), so the render SIM time never
+     * stretches the pass. The recon renders INLINE in the main loop: the
+     * sweep engine's 6 slices cost ~8.33 ms of SIM time per pass, which
+     * stretched the pass to 50 ms and cost 2 tagged passes in the 0.4-s
+     * p3k11 window (48 vs the original's 59.2 slices at the release).
+     * Compensation: delay 24 ticks so delay + inline render = 41.667 ms
+     * end-to-end. The pass period stays the C's 41.667 ms; the RSSI burst
+     * (11 passes) and the 40-pass hold threshold are count-based and
+     * unaffected. [differential-fidelity trade, documented] */
+    time_dly(24);
+}
 void router_protocol_bridge(void) { }        /* 0x0800FE58 */
 void router_state_progress(void) { }         /* 0x08010302 */
 void router_battery_poll(void) { }           /* 0x08015DCC */
@@ -1075,7 +1088,7 @@ static void rssi_refresh(void)
  * MSB-first. The RSSI idle refresh is replaced by the scan while the
  * scan is on. */
 static uint32_t ui_freq = 136125u;   /* the VFO frequency, kHz (the fresh EE = 136.125) */
-static uint8_t ui_scan;              /* the scan mode: 1 = the key-14 (the frame per slice), 2 = the key-11/12 (the display-only fast sweep) */
+static uint8_t ui_scan;              /* the scan mode: 1 = the key-14 (the frame per slice), 2 = the key-11 UP sweep, 3 = the key-12 DOWN sweep [REA-C] */
 static uint16_t ui_scan_pass;        /* the passes since the scan start (the tick pacing) */
 static uint8_t ui_scan_end;          /* the key-11/12 release phases: 0 = the held, 1..2 = the deceleration slices, 3 = the end frame */
 
@@ -1414,22 +1427,22 @@ void ui_task(void *p_arg)
                             at1846s_rssi_poll(RF_CHIP_VHF);  /* the active slot */
                             ui_menu_screen_continue();
                         } else if (key == 11u || key == 12u) {
-                            /* [session 69 | DATA-DERIVED p3k11/p3k12_orig]
-                             * the keys 11/12 = the SCAN (the display-only
-                             * fast sweep): the press = the scan + the first
-                             * +5 kHz step + the display-only tune slice (NO
-                             * PB9 frame per slice - the PLL is programmed
-                             * ONCE at the end). The held passes sweep ~6
-                             * slices per pass (the orig's render-paced
-                             * 4,702-event slices; 59 slices in the 0.4-s
-                             * hold); the release = 2 deceleration slices
-                             * then ONE end frame (the AT1846S program to
-                             * the final freq; the byte-identical streams
-                             * for both keys). */
-                            ui_scan = 2u;
+                            /* [session 70 | REA-C: dispatch 0x8019dcc keys
+                             * 11/12 branch + FUN_080201aa (0x080201AA)] the
+                             * press only ARMS the drain state machine. The
+                             * sweep engine itself is RAW-TAG-GATED below
+                             * (the original's engine is render-bound at
+                             * ~144 Hz = 6.94 ms/slice and starts at the
+                             * first dispatch pass that samples the key
+                             * down, NOT at the debounced press detection:
+                             * p3k11-short slice 1 = 136.130 emitted exactly
+                             * at the tag write). FUN_080201aa: key 11 =
+                             * work_freq += step (per-VFO u16 at +0x2e),
+                             * key 12 = -= step, band-limit wrap at
+                             * [vfo*4+0x5a]/[+0x62] (no wrap in the captured
+                             * 61-step window; wrap = TODO-[C]). */
+                            ui_scan = (key == 11u) ? 2u : 3u;
                             ui_scan_end = 0u;
-                            ui_freq += 5u;
-                            key14_row_display();
                         } else if (key == 14u) {
                             /* [session 69 | DATA-DERIVED p3k14_orig] the
                              * key 14 = the SCAN start: the first 5 kHz step
@@ -1499,34 +1512,58 @@ void ui_task(void *p_arg)
          * fire count in the p3k1 window only by coincidence and leaked 3
          * fires into the p3-key6 pre-press window. */
         ui_rssi_pass++;
-        if (ui_scan == 2u) {
-            /* [session 69 | DATA-DERIVED p3k11_orig] the key-11/12 scan:
-             * the held = 6 display-only slices per pass (the render-paced
-             * cadence; the press pass already rendered s1); the release =
-             * 2 deceleration slices then ONE end frame; after the end
-             * frame the scan is over and the RSSI refresh stays killed
-             * [INFERRED: the capture ends at the frame; the key-13
-             * precedent kills it]. */
+        if (ADC2_DR == 2729u) {
+            /* [session 70 | REA-C: FUN_080201aa(0xb)] the key-11 sweep
+             * engine: RAW-TAG-GATED (2729 = the key-11 ADC code), NOT
+             * gated on ui_scan - the original's engine is RENDER-BOUND
+             * (a free-running consumer task, NOT pass-quantized): the
+             * measured orig pace = 148 slices/s in the 0.4-s hold
+             * (6.76 ms/slice) and 185 slices/s in the 3.0-s hold
+             * (5.42 ms/slice) - the non-stationary RTOS pacing (the
+             * key-14 parked-boundary class). The recon quantizes to
+             * 7 slices per 41.667-ms dispatch pass (the middle of the
+             * orig's 6.1-7.7 slices/pass band): p3k11-short = the
+             * content-exact prefix + the pacing surplus (the key-14
+             * shape), p3k11-long = the byte-exact stream. */
             uint8_t k;
-
-            if (ADC2_DR != 0u) {
-                for (k = 0u; k < 6u; k++) {
-                    ui_freq += 5u;
-                    key14_row_display();
-                }
-            } else {
-                ui_scan_end++;
-                if (ui_scan_end <= 2u) {
-                    ui_freq += 5u;
-                    key14_row_display();
-                } else {
-                    key11_frame_send();
-                    ui_scan = 0u;
-                    ui_scan_end = 0u;
-                    ui_rssi_kill = 1u;
-                }
+            for (k = 0u; k < 7u; k++) {
+                ui_freq += 5u;
+                key14_row_display();
             }
-        } else if (ui_scan != 0u) {
+        } else if (ADC2_DR == 2979u) {
+            /* [session 70 | REA-C: FUN_080201aa(0xc)] the key-12 = the
+             * mirror: work_freq -= step (the DOWN sweep). [REA-C-INFERRED
+             * direction; no p3k12 capture yet]. */
+            uint8_t k;
+            for (k = 0u; k < 7u; k++) {
+                ui_freq -= 5u;
+                key14_row_display();
+            }
+        } else if (ui_scan == 2u || ui_scan == 3u) {
+            /* [session 70 | REA-C: the dispatch release path fires the
+             * vtbl press ONCE per short press (0 < counter < 40) =
+             * FUN_08019910(0xb/0xc) = ONE more step slice (the 61st),
+             * then the end frame. The orig's post-release window = the
+             * 60th-slice completion + the 61st + the PB9 end frame
+             * (1,996 events, cut at ~1,843 by the capture quit). The
+             * drain = 1 slice + the frame. After the frame the scan is
+             * over and the RSSI refresh stays killed (the capture ends
+             * silent; the key-13 precedent). */
+            if (ui_scan_end == 0u) {
+                ui_scan_end = 1u;
+                if (ui_scan == 2u) {
+                    ui_freq += 5u;
+                } else {
+                    ui_freq -= 5u;
+                }
+                key14_row_display();
+            } else {
+                key11_frame_send();
+                ui_scan = 0u;
+                ui_scan_end = 0u;
+                ui_rssi_kill = 1u;
+            }
+        } else if (ui_scan == 1u) {
             /* [session 69 | DATA-DERIVED p3k14_orig] the scan = RENDER-
              * PACED: one TUNE SLICE every pass, back-to-back (the orig's
              * slice pitch = exactly 6,698 events from the press slice on;
