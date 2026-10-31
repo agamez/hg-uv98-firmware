@@ -416,6 +416,14 @@ static void cell12x20(uint8_t y, uint8_t x, uint8_t ch)
  * 00 25 01 40 ... -> "400.125" (corrects the session-55 "440.125" note:
  * 40 01 25 00 = 40012500 = 400.12500 MHz). The orig reads each block
  * immediately before rendering its row (the t=29.66/29.84 hooks). */
+/* [session 63 pt3] the VFO slot RAM mirrors: the original's read16
+ * destinations 0x20004F94 (EE 0x0800) / 0x20004FB2 (EE 0x0810) persist
+ * across the render; the power-level labels read [slot+0xC] bit0
+ * (0x0801E5E0 ctx[0x0C] for the y=50 one, 0x0801E7E4 slot-1+0xC for
+ * y=97). Blocks 0x0C byte = 0x01 in ui_ee_vfo_defaults -> 'H' fresh. */
+static uint8_t ui_vfo_blk_a[16];
+static uint8_t ui_vfo_blk_b[16];
+
 static void vfo_freq_row(uint8_t y, const uint8_t *blk)
 {
     static const uint8_t xs[7] = {0x16u, 0x22u, 0x2Eu, 0x3Au, 0x46u, 0x52u, 0x5Eu};
@@ -600,9 +608,8 @@ static void ui_screen0_build(void)
     {   /* [session 55/63] read16(0x0800) @ODR#137,739 — the VFO A block,
          * right before the first frequency row (0x1D) renders; the orig
          * renders the row's digits FROM this block (session 63). */
-        uint8_t blk[16];
-        eeprom_read(0x0800u, 0x10u, blk);
-        vfo_freq_row(0x1Du, blk);
+        eeprom_read(0x0800u, 0x10u, ui_vfo_blk_a);
+        vfo_freq_row(0x1Du, ui_vfo_blk_a);
     }
     display_fill_rect(29u, 106u, 18u, 20u, 0xEFBE);;
     cell8x16_ch(0x23u, 0x6Cu, 0x30u);
@@ -617,7 +624,15 @@ static void ui_screen0_build(void)
     cell6x10(0x12u, 0x05u, 0x20u);
     cell6x10(0x12u, 0x0Bu, 0x20u);
     cell6x10(0x12u, 0x11u, 0x20u);
-    cell6x10(0x32u, 0x16u, 0x4Cu);
+    /* [session 63 pt3 | 0x0801E5E0/0x0801F57C RECOVERED] the power-level
+     * indicator beside the VFO rows: drawn via CB60 class 1 at (y=0x32,
+     * x=0x16) only while the screen byte [0x200050E8]==0, char =
+     * SETTINGS_CTX[0x0C] bit0 ? 'H' (0x48) : 'L' (0x4C) — the orig's
+     * strings live inline at 0x0801f89c/0x0801f734. The fresh factory
+     * default ctx[0x0C]=1 renders 'H' (p3k6_orig CB60 trace b=48,0,0,0);
+     * the session-52 sim-state image had 0 -> 'L'. */
+    cell6x10(0x32u, 0x16u,
+             (uint8_t)((REG8(SETTINGS_CTX + 0x0Cu) & 1u) ? 0x48u : 0x4Cu));
     display_fill_rect(63u, 0u, 160u, 1u, 0x0000);;
     display_fill_rect(64u, 133u, 24u, 10u, 0xEFBE);;
     cell6x10(0x4Cu, 0x88u, 0x20u);
@@ -628,9 +643,8 @@ static void ui_screen0_build(void)
     {   /* [session 55/63] read16(0x0810) @ODR#145,359 — the VFO B block,
          * right before the second frequency row (0x4C) renders; the digits
          * render FROM this block (session 63). */
-        uint8_t blk[16];
-        eeprom_read(0x0810u, 0x10u, blk);
-        vfo_freq_row(0x4Cu, blk);
+        eeprom_read(0x0810u, 0x10u, ui_vfo_blk_b);
+        vfo_freq_row(0x4Cu, ui_vfo_blk_b);
     }
     display_fill_rect(76u, 106u, 18u, 20u, 0xEFBE);;
     cell8x16_ch(0x52u, 0x6Cu, 0x30u);
@@ -645,7 +659,10 @@ static void ui_screen0_build(void)
     cell6x10(0x40u, 0x05u, 0x20u);
     cell6x10(0x40u, 0x0Bu, 0x20u);
     cell6x10(0x40u, 0x11u, 0x20u);
-    cell6x10(0x61u, 0x16u, 0x4Cu);
+    /* [session 63 pt3 | 0x0801E7E4] the VFO-2 power-level indicator:
+     * char = slot-1+0xC bit0 (the read16(0x0810) mirror byte 0x0C). */
+    cell6x10(0x61u, 0x16u,
+             (uint8_t)((ui_vfo_blk_b[0x0Cu] & 1u) ? 0x48u : 0x4Cu));
     {
         static const uint8_t left_arrow[16] = {   /* the '<' cursor glyph [DATA-DERIVED] */
             0x00, 0xFC, 0xF8, 0xF0, 0xE0, 0xC0, 0x80, 0x00,

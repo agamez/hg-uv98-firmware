@@ -3680,3 +3680,41 @@ match extends 172,707 -> 178,695 (880 -> 523 diff blocks).**
   session-52 transcription has 'L'. The status-page labels/marks are
   state-driven (the VFO mode/name indicators?) — the next decompile
   target is the CB60 caller that renders the label row.
+
+**Session 64 — the state-driven labels decoded (the match extends to 187,040);
+the original's RSSI-poll architecture identified via REA.**
+- The H/L power-level indicator decoded completely: 0x0801F57C(y, x, flag,
+  class) draws ONLY while the screen byte [0x200050E8]==0, char = the flag's
+  bit0 ? 'H' (0x48, string inline at 0x0801f89c) : 'L' (0x4C, 0x0801f734),
+  via the CB60 walker class 1. Callers: 0x0801E5E0 passes (0x32, 0x16,
+  ctx[0x0C]&1) — THE SETTINGS CONTEXT IS THE STATE (the [0x0801f024]
+  literal = 0x20004E68); 0x0801E7E4 passes (0x61, 0x16, slot1+0xC&1); the
+  0x0801E2D0 variant (0x55, 0x16, slot0+0xC&1). The slot array = [0x0801ea00]
+  = 0x20004F94 = the read16(0x0800) destination (the slot stride 0x1E).
+  Implemented: ui.c renders both labels from the settings ctx[0x0C] bit0
+  (y=50) and the read16(0x0810) mirror byte 0x0C (y=97). The fresh factory
+  defaults carry 0x01 -> 'H' both (the p3k6_orig cells = 60/60 'H' matches).
+- RESULT: the raw-value stream now matches the original byte-for-byte
+  through seq 187,040 — the ENTIRE boot including the full status page
+  (both VFO digit rows, both power labels). 523 -> 509 diff blocks; the
+  first divergence = 187,041 = the FIRST RF EVENT of the press window.
+- THE RF ARCHITECTURE DIFFERENCE (the next work item, REA-evidenced):
+  the recon emits 29,295 HL bits + 226 I/O events after 187,041; the
+  original only 5,220 + 186. The original's RSSI poll is NOT a free-running
+  500 ms RTOS task: REA shows 0x0801ACFC = the per-slot refresh (the
+  rf_read(0x0802692e)(chip, 0x0A) -> the RSSI state strh [r6+0x122], the
+  mode-set 0x0802689a, the gpio_reconfig_plain 0x080272a4, 4 EE reads,
+  the 3 label drawers 0x0801f510) invoked from the UI/periodic layer
+  (the callers 0x80241bc/0x802445e/0x80247cc) — the poll cadence = the
+  screen-refresh cadence. The recon's free-running rssi_task (21 polls in
+  11 s) over-emits ~5.6x. ALSO: the recon's stream shows a 58-bit preamble
+  before the first poll's block_b ((0x30,0x7002)+(0x1F,0x9AA9)+read-cmd —
+  the exact apply-Phase-X head shape) while the hook evidence says the
+  apply never runs (APPLY-ENTER=0), rf_write(0x30,0x7002) never fires
+  (the conditional hook = 0) and the first rf_send_byte = (0x15,0x1F,0x00)
+  — the preamble's emitter is STILL UNIDENTIFIED (the open item; the
+  next candidates: an inlined rf frame writer or a direct BSRR/BRR path
+  outside the hooked functions).
+- The debug-only resc variants (p3-key6-cb60lr/-recon-hook/-recon-rfw/
+  -recon-sbit/-recon-w7.resc) = untracked, NOT committed (the workaround
+  register: reconstruction/sim/).
