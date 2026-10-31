@@ -4348,3 +4348,40 @@ thumb addresses).
 `key_scan` 0x080281A6, `key_get_code` 0x080282FC (via REA MCP
 batch_decompile; the bands 661..3253/671..1751, the upper-first pair
 layout, the maps, the A→B→C order, the lock gate — all match the recon C).
+
+## Session 69 (cont. 11) — the vtable located in flash; the key-11/12 handlers decompiled: the fine-tune pair, NOT the +5 kHz sweep
+
+**The vtable (the mechanical flash word-scan for the session-61's
+0x08018ED4/0x08018F1A pointers): base 0x8040AEC, stride 0x10, the layout
+[key_index, press_handler, second_handler, once_flag]** — the entry 10 =
+0x8018ED4/0x8018F1A (the session-61 cross-check ✓); 11 = 0x8018222/
+0x8018264; 12 = 0x8017218/0x801735C; 13 = 0x8016FD0/0x8017064;
+14 = 0x801709C/0x80171DC; 15 = 0x8016F08/0x8016F96.
+
+**The decompiled handler bodies (docs/rea/rea_fn_*.c, 10 functions):**
+- The key-11 press handler 0x8018222 = a per-screen multi-key dispatcher:
+  10 → func_0801a69c(+10), 11 → **func_08014660()**, 12 → func_0801471e(),
+  13 → func_08014cd4().
+- **func_08014660 / func_0801471e = the FINE-TUNE pair:** the context
+  struct (DAT_08014f48) with the low/high limits at [2]/[3], the 1-kHz
+  sub-counter at [5] (the ±1 per call), the coarse ±5 kHz applied only on
+  the sub-counter wrap (the smooth 1-kHz effective resolution), the
+  combined value at [0x12], the wrap/limit handling, the redraw flag
+  (DAT_08014f34+2 = 1) per call, and a 20-byte state copy + the
+  func_0801cfd0(0/1, ...) refresh per call.
+- The key-14 press handler 0x801709C = the same multi-key dispatcher
+  family (10 = the menu state 0x34 path with the 0x8014530 state write;
+  11/12 = the same step functions).
+- func_08020c9e = a small flag setter (the bit 3 of the [7] byte + one of
+  the two calls), NOT the render path.
+- **The consequence for the recon:** the current recon key-11/12 model
+  (the +5 kHz-per-slice display sweep + the end frame) does NOT correspond
+  to the fine-tune pair — the observed p3k11/p3k14 +5 kHz-per-slice series
+  must originate in a different path. The remaining candidate = the
+  per-key timestamp/auto-repeat helper func_08021a50 (the session-61's
+  0x0801b2a0 table) which gates the dispatch's key branch
+  (`(... || (iVar7 = func_08021a50(key), iVar7 != 0xff))`). THE NEXT REA
+  STEP: decompile func_08021a50 + the func_0801cfd0 refresh (the possible
+  slice renderer) and re-derive the p3k11/p3k14 render path from the C
+  BEFORE any further recon changes or replay runs (the REA-first doctrine).
+  The recon's key-11/12 model is flagged SUSPECT-against-C until then.

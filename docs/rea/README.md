@@ -27,3 +27,29 @@
   `key_scan` 0x080281A6 (the A/B/C ladders, bands 661..3253 / 671..1751,
   the upper-first pair layout, the TIM2 accessory branch) and
   `key_get_code` 0x080282FC (the maps {10,11,12,13,1,2,3,14}/{4,5,6,0,7,8,9,15}/{18,19,20}, the A→B→C order, the keypad-lock gate).
+
+## Session 69 (cont. 11): the vtable + the key-11/12/14 handler pairs
+
+- **The vtable found in flash at base 0x8040AEC**, stride 0x10, layout
+  `[key_index, press_handler, second_handler, once_flag]` (the words = the
+  odd thumb addresses). Entries (key: press/second/flag):
+  10: 0x8018ED4/0x8018F1A/1 (the session-61 cross-check ✓);
+  11: 0x8018222/0x8018264/1; 12: 0x8017218/0x801735C/2;
+  13: 0x8016FD0/0x8017064/0; 14: 0x801709C/0x80171DC/2;
+  15: 0x8016F08/0x8016F96/0.
+- **func_08014660 (the key-11 action) / func_0801471e (the key-12) = the
+  FINE-TUNE pair**, NOT a +5 kHz sweep: a 1-kHz sub-counter at ctx[5]
+  (±1 per call, reset to 4/0), the coarse ±5 kHz on the sub-counter wrap,
+  the combined value at ctx[0x12] (the smooth 1-kHz resolution), the
+  redraw flag DAT_08014f34+2 = 1 per call, the wrap handling at the
+  band edges ([2] = the low limit, [3] = the high limit).
+- The press handlers 0x8018222/0x801709C = the per-screen multi-key
+  dispatchers (10 = the menu state 0x34; 11/12 = the step functions;
+  13 = func_08014cd4).
+- The files rea_fn_*.c = the decompiled bodies (the key-11/12/14 press +
+  second, the two helpers).
+- OPEN: the observed p3k11/p3k14 +5 kHz-per-slice series is NOT produced by
+  the fine-tune pair; the remaining candidates = the pre-counter helper
+  func_08020c9e (a small flag-setter, decompiled - not the renderer) and
+  the per-key timestamp/auto-repeat helper func_08021a50 (the session-61
+  0x0801b2a0 table) - the next decompile target before touching the recon.
