@@ -153,7 +153,7 @@ static void rf_send_byte(uint8_t b)
  * 24-bit write frame: CLK low -> delay 8 -> select chip -> delay 10 ->
  * send [R/W=0 + addr7, data_hi, data_lo] -> delay 8 -> trailing both-CS
  * select -> CLK low, DATA low (bus idle). */
-void rf_write(uint8_t chip, uint8_t reg, uint16_t val)
+__attribute__((noinline)) void rf_write(uint8_t chip, uint8_t reg, uint16_t val)
 {
     uint8_t frame[3];
 
@@ -223,7 +223,7 @@ static void rf_data_output(void)
  * (0x080266D4) -> CLK low. GPIOB-visible footprint = the 8 command
  * bits + the I/O CRH toggle (the session-58 "turnaround BRR" note is
  * RETRACTED — the turnaround is the CRH switch, not a data write). */
-uint32_t rf_read(uint8_t chip, uint8_t reg)
+__attribute__((noinline)) uint32_t rf_read(uint8_t chip, uint8_t reg)
 {
     uint32_t v = 0;
 

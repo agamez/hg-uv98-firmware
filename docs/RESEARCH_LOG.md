@@ -4653,3 +4653,27 @@ bad-instruction):**
 **docs/COVERAGE.md = 685 rows: 645 RECOVERED (the recon source annotations
 or the REA decompile cites under docs/rea/) + 40 DATA = ZERO UNCLASSIFIED.**
 The §5.4 gate = met. Commits 9bf8bbc, 25815e2.
+
+## Session 70 (cont. 7) — the §6 battery, first pass: the matrix + the CK4 ODR = fresh; the CK3 root-caused to the router stub; the CK2 pending
+
+**Fresh runs (the current build, 122,299 text, the noinline-pinned):**
+- p3-key2-long / p3-key3-long = 219,256 = **100.00% of the orig's streams**;
+  p3-key11-long = 2,798,646 = 99.93%; the key13/14 channels = 100% (the
+  re-verified earlier this session) — the key matrix = fresh ✓.
+- **CK4 (the canonical pair, boot + 3 s):** the FULL GPIOB stream =
+  the orig 168,978 vs the recon 188,958 events — **the ODR = 150,701/150,701
+  = 100.00%** ✓ (the display data byte-exact); the divergence = the PB9
+  bit-bang region (the BSRR/BRR 0x0200 pairs) at event ~95K — the
+  BRR/BSRR/CRH census = the orig 9,274/5,357/3,645 vs the rec
+  17,587/9,680/5,709. OPEN: the PB9-side event-shape parity (the §5.0 item).
+- **CK3 (the AT1846S SPI):** the recon = 2 events (the 2 RFRD reg-13) vs
+  the reference 292. ROOT CAUSE FOUND: **router_protocol_bridge()
+  (0x0800FE58) = an EMPTY STUB in the recon** — the main-loop serial→RF
+  bridge is not implemented, so the $A00 settings apply never reaches the
+  radio (the rf_write = 0 calls). The stale hook addresses were also fixed
+  (the rf_write/rf_read = re-derived from the nm; the noinline pinning
+  added — the addresses unchanged). NEXT: the decompile 0x0800FE58, the
+  reconstruct the bridge, re-run (the 2-run budget).
+- The CK2 peer pair = pending (the next pass).
+- The session-58's CK3 292/292 claim = now understood as the pre-bridge-era
+  result; the current recon's = the stub regression to fix, NOT to park.
