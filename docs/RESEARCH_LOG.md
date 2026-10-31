@@ -3741,3 +3741,19 @@ rework blueprint).**
   screen render path; keep the poll shape = the rf_read(chip,0x0A) + the
   mode-set + the gpio-reconfig; then re-diff (the 58-bit preamble may
   dissolve with the restructure — if not, attribute it then).
+
+**Session 65 — the status-page re-draw fixed; the display content of the
+boot now byte-identical end-to-end.**
+- The status-page re-draw section (the ui.c static VFO-row scaffold after
+  the LED-tail replay) re-rendered the STALE "000.000" digits; the original
+  re-renders with the live values (the BFB8 trace: y=29/y=76 each drawn
+  twice with the same records). Replaced with vfo_freq_row(0x1D/0x4C) on
+  the session-63 mirrors.
+- RESULT: 509 -> 472 diff blocks; the boot's display content (the fills,
+  the splash, the scan era, the status page incl. both VFO rows drawn
+  twice, both power labels, the LED bursts) = byte-identical through
+  seq 187,040. The first divergence = 187,044 = the first RF event.
+- The RF rework (the session-64 blueprint) = the next work item: the poll
+  = the render tail (the recon's rssi_task = the free-running 500 ms
+  emitter to be removed; the poll = the render-integrated 0x0801ACFC
+  model). The 58-bit preamble attribution remains open.

@@ -674,13 +674,11 @@ static void ui_screen0_build(void)
     display_led_stream_replay();   /* [DATA-DERIVED] the 4,458-event LED burst @ODR#152,036 */
     display_fill_rect(97u, 30u, 90u, 10u, 0xEFBE);;
     display_led_tail_replay();     /* [DATA-DERIVED] the 25-event burst @ODR#153,847 */
-    cell12x20(0x1Du, 0x16u, 0x30u);
-    cell12x20(0x1Du, 0x22u, 0x30u);
-    cell12x20(0x1Du, 0x2Eu, 0x30u);
-    cell12x20(0x1Du, 0x3Au, 0x2Eu);
-    cell12x20(0x1Du, 0x46u, 0x30u);
-    cell12x20(0x1Du, 0x52u, 0x30u);
-    cell12x20(0x1Du, 0x5Eu, 0x30u);
+    /* [session 65 | 0x0801E5E0] the status-page re-draw re-renders the
+     * VFO rows with the LIVE values (the orig's BFB8 trace: y=29 drawn
+     * twice with the same records) — not the stale static scaffold. */
+    vfo_freq_row(0x1Du, ui_vfo_blk_a);
+    vfo_freq_row(0x4Cu, ui_vfo_blk_b);
     display_fill_rect(29u, 106u, 18u, 20u, 0xEFBE);;
     cell8x16_ch(0x23u, 0x6Cu, 0x30u);
     cell8x16_ch(0x23u, 0x74u, 0x30u);
