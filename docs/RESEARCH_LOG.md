@@ -4677,3 +4677,23 @@ The §5.4 gate = met. Commits 9bf8bbc, 25815e2.
 - The CK2 peer pair = pending (the next pass).
 - The session-58's CK3 292/292 claim = now understood as the pre-bridge-era
   result; the current recon's = the stub regression to fix, NOT to park.
+
+## Session 70 (cont. 8) — the CK3 investigation: the $A00 consumer chain mapped; the RF-side apply = the SPI2-hardware path (the open item)
+
+- The consumer chain (the decompiled): the frame-ready flag (FLAG_BANK+9
+  bit0) → func_08013e58 (the command decoder) → the $A00 case →
+  **FUN_0801da10** = the UI REDRAW: 7 fill-rectangle calls to
+  **FUN_0801d3b4** (the window-set FUN_0801b9c8 + the color-pair fill loop:
+  0xefbe/0x001f/0xe020/0xf01e/0x20c2/0x13a2) + the text draws
+  (FUN_0801cb60/FUN_0801cd32) + FUN_0801f970/FUN_0801f6f4/FUN_0801fcd0/
+  FUN_0801fc50. The display-side $A00 consumer = the redraw, NOT the radio.
+- The RF-side apply (the 292 rf_write events = the AT1846S regs 0x30/0x04/
+  0x0A/0x13/0x1F/0x31... in ck3_rf_orig.txt) = routes through the SPI2
+  hardware path (the trace header: SPI2=sp2_fontflash.py) — NOT the GPIO
+  bit-bang (the FUN_0802692e = the read-only poll). The rf_write callers =
+  the next decompile target; the recon's empty router_protocol_bridge stub
+  (0x0800FE58 = the tail-call thunk into the text-draw) = the naming is
+  misleading — the real bridge = the SPI2 write cluster.
+- The recon's rf_write/rf_read = the noinline-pinned (the hook-stable);
+  the ck3-recon hooks = re-derived (0x08004f08/0x08004fb4).
+- The decompiles = docs/rea/rea_decompile_a00_consumer_da10_d3b4.c.
