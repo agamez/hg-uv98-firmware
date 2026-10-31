@@ -4735,3 +4735,24 @@ CK3 parity.
   init (the giant init replay through the rf.c primitives) for the CK3
   parity — the 2-run budget.
 - The decompiles = docs/rea/rea_decompile_cks3_rfsend_bootradio_2689a_2d080.c.
+
+## Session 70 (cont. 11) — the channel topology resolved: the PB9 = SHARED (the I2C SDA + the radio SPI data); the pb_stream = the pb_displaybus.py model
+
+- **pb_stream.log = written by pb_displaybus.py** (the GPIOB substitute,
+  the session-49 harness peripheral; the stock STM32F1GPIOPort was removed
+  in session 47 for the software-I2C ACK workaround). Truncated AT
+  PERIPHERAL INIT per run (the 'w' open) — no era-truncation issue; every
+  ODR/BSRR/BRR/CRL/CRH write logged.
+- **The PB9 line = SHARED (the session-61 design): the I2C SDA (the clock
+  = PA11) AND the radio SPI DATA (the clock = PA15, the CS = PA8/PA12).**
+  The IDR arbitration = via the RAM bridge 0x2000F808/0x2000F809 (the
+  radio-model read-phase drives the line).
+- ⟹ The CK4 BRR/BSRR census = MIXED I2C + radio traffic on PB9. The
+  orig 9,274 BRR vs the rec 17,587 = the I2C-vs-radio mix differs because
+  the recon boots without the radio init (the ~400 rf_sends = the PB9
+  events missing) while its I2C side runs more. The CK4 ODR = 100.00%
+  (the display data = the PB8-15 parallel bus = unaffected).
+- The fix path for both CK3 and the CK4 FULL-stream gate = the SAME: the
+  recon's boot-time radio init (the giant init 0x08026A1E replay through
+  the rf.c primitives — the table already exists in rf.c) + the verify the
+  I2C-side parity. The 2-run budget applies after the implementation.
