@@ -1059,6 +1059,7 @@ static void rssi_refresh(void)
 #include "key13_pb9_stream.h"
 #include "key13_tail104.h"
 #include "key14_tune_frame.h"
+#include "key11_end_frame.h"
 
 /* [session 69 | DATA-DERIVED p3k14/p3k11_orig] the key-14 SCAN mode: the
  * press = the scan + the first 5 kHz step (the s1 renders at the press
@@ -1074,8 +1075,9 @@ static void rssi_refresh(void)
  * MSB-first. The RSSI idle refresh is replaced by the scan while the
  * scan is on. */
 static uint32_t ui_freq = 136125u;   /* the VFO frequency, kHz (the fresh EE = 136.125) */
-static uint8_t ui_scan;              /* the scan mode */
+static uint8_t ui_scan;              /* the scan mode: 1 = the key-14 (the frame per slice), 2 = the key-11/12 (the display-only fast sweep) */
 static uint16_t ui_scan_pass;        /* the passes since the scan start (the tick pacing) */
+static uint8_t ui_scan_end;          /* the key-11/12 release phases: 0 = the held, 1..2 = the deceleration slices, 3 = the end frame */
 
 static void pb9_code(uint8_t c)
 {
@@ -1139,6 +1141,24 @@ static void key14_tune_slice(void)
 {
     key14_row_display();
     key14_frame_send();
+}
+
+/* [session 69 | DATA-DERIVED p3k11_short_orig.stream] the key-11/12 END
+ * frame: the same PLL encoding (V = ui_freq - 135168, the field 922..932;
+ * the second burst's field region = past the 1,846 capture cut). */
+static void key11_frame_send(void)
+{
+    uint32_t v = ui_freq - 135168u;
+    uint32_t i;
+
+    for (i = 0u; i < KEY11_END_FRAME_LEN; i++) {
+        uint8_t c = KEY11_END_FRAME[i];
+
+        if (i >= 922u && i <= 932u)
+            c = (uint8_t)((v >> (932u - i)) & 1u);
+        pb9_code(c);
+        pb9_bit_delay();
+    }
 }
 
 
@@ -1393,6 +1413,23 @@ void ui_task(void *p_arg)
                              * 218120..219115 — see session 68). */
                             at1846s_rssi_poll(RF_CHIP_VHF);  /* the active slot */
                             ui_menu_screen_continue();
+                        } else if (key == 11u || key == 12u) {
+                            /* [session 69 | DATA-DERIVED p3k11/p3k12_orig]
+                             * the keys 11/12 = the SCAN (the display-only
+                             * fast sweep): the press = the scan + the first
+                             * +5 kHz step + the display-only tune slice (NO
+                             * PB9 frame per slice - the PLL is programmed
+                             * ONCE at the end). The held passes sweep ~6
+                             * slices per pass (the orig's render-paced
+                             * 4,702-event slices; 59 slices in the 0.4-s
+                             * hold); the release = 2 deceleration slices
+                             * then ONE end frame (the AT1846S program to
+                             * the final freq; the byte-identical streams
+                             * for both keys). */
+                            ui_scan = 2u;
+                            ui_scan_end = 0u;
+                            ui_freq += 5u;
+                            key14_row_display();
                         } else if (key == 14u) {
                             /* [session 69 | DATA-DERIVED p3k14_orig] the
                              * key 14 = the SCAN start: the first 5 kHz step
@@ -1462,7 +1499,34 @@ void ui_task(void *p_arg)
          * fire count in the p3k1 window only by coincidence and leaked 3
          * fires into the p3-key6 pre-press window. */
         ui_rssi_pass++;
-        if (ui_scan != 0u) {
+        if (ui_scan == 2u) {
+            /* [session 69 | DATA-DERIVED p3k11_orig] the key-11/12 scan:
+             * the held = 6 display-only slices per pass (the render-paced
+             * cadence; the press pass already rendered s1); the release =
+             * 2 deceleration slices then ONE end frame; after the end
+             * frame the scan is over and the RSSI refresh stays killed
+             * [INFERRED: the capture ends at the frame; the key-13
+             * precedent kills it]. */
+            uint8_t k;
+
+            if (ADC2_DR != 0u) {
+                for (k = 0u; k < 6u; k++) {
+                    ui_freq += 5u;
+                    key14_row_display();
+                }
+            } else {
+                ui_scan_end++;
+                if (ui_scan_end <= 2u) {
+                    ui_freq += 5u;
+                    key14_row_display();
+                } else {
+                    key11_frame_send();
+                    ui_scan = 0u;
+                    ui_scan_end = 0u;
+                    ui_rssi_kill = 1u;
+                }
+            }
+        } else if (ui_scan != 0u) {
             /* [session 69 | DATA-DERIVED p3k14_orig] the scan = RENDER-
              * PACED: one TUNE SLICE every pass, back-to-back (the orig's
              * slice pitch = exactly 6,698 events from the press slice on;

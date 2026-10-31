@@ -4258,3 +4258,41 @@ the uniform bit-bang; the recon = the uniform calibrated rate. The
 stream comparison = the event ORDER/CONTENT (the wall = invisible in
 the pb_stream.log), so the differentials = the content-exact; the
 surplus = the recon's extra in-window slices only.
+
+## Session 69 (cont. 9) — the REA-first doctrine (the GOAL.md rewrite); the key-11 recon-side bug found and fixed (89.77%)
+
+**THE DOCTRINE (user-directed, now GOAL.md §0):** REA decompilation = the
+primary instrument and the source of the reconstruction's C; the Renode
+replay (p3diff + the CK channels) = the TEST bench only (compare, assert,
+verify). At most 2 replay calibration runs per question, then REA the
+handler and fix from the C. Hand-decoding assembly/literal pools to answer
+behavior questions = prohibited. The standing task = GOAL.md §5.0: every
+recovered function validated against fresh REA pseudocode
+([REA-C-VALIDATED]), divergences fixed.
+
+**The key-11/12 root cause = a RECON-side control-flow bug** (not a decode
+gap): the periodic machine wrote `if (ui_scan != 0u) { the key-14 body }
+else if (ui_scan == 2u) { the key-11/12 machine }` — the `!= 0u` catch-all
+swallows `ui_scan == 2u`, so the key-11/12 machine was UNREACHABLE and the
+-O2 compiler dead-code-eliminated key11_frame_send + KEY11_END_FRAME (the
+nm evidence: zero key11 symbols in the linked ELF at 120,123 text; the -O0
+compile shows both). The "impossible" emitted frames = the inlined key-14
+path (the two tables share bytes 0..919, the same head). Branch order
+swapped (`ui_scan == 2u` first); the ELF now = 122,359 text (+2,236 = the
+table + the machine linked).
+
+**p3-key11-short after the fix: prefix = 428,838 = 51 display slices exact
+(89.77%)** — was 41.54%. The remaining residual: the recon's
+release/end-frame trigger fires ~10 slices early (the orig's end frame =
+after 61 display slices at the stream end; the recon's = after 51). Per the
+doctrine this is now an REA question: decompile the key-11/12 vtable
+press/release handlers + the scan repeat machinery, fix the model from the
+C. The GDB route (machine StartGdbServer 3333 + gdb-multiarch) is set up as
+the fallback instrument; `sysbus.cpu StartGdbServer` is NOT the correct
+invocation (machine scope is).
+
+**Debug-methodology note (the -O2 trap):** the edit-then-make races and the
+inlining hid the bug for several runs; GOAL.md §2 now records the trap: when
+the size/symbols do not move after an edit or a behavior contradicts the
+source, verify the ELF contents (`arm-none-eabi-nm`, the .rodata sections)
+and check that no earlier `if` swallows the branch.
