@@ -4070,3 +4070,55 @@ passes. The c3-era "14.4 ms pass" note was a mis-fitted artifact.
   covered.
 - make test-host green; the recon's key-scan ADC2 read warnings are the
   pre-existing per-pass pattern (unchanged density).
+
+## Session 69 (cont. 4) — the key matrix: codes 2/3 = the direct band-digit select; the RSSI burst = render-paced with the hold-pause
+
+**The matrix batch** (the 12 generated pairs, codes 2/3/11/12/13/14 x
+short/long; the B/C groups = the documented single-tag harness boundary):
+key-2/3 = the placeholder-band family (the 6-slice short / 5-slice long
+burst); key-11/12 = one big animated screen (477,704 short / 2,800,492
+long); key-13 = a "CH 002" screen (204,670); key-14 = the FREQUENCY step
+(the live rows read 136.130 -> 136.135 -> 136.140: the 5 kHz step key, so
+the recon's live row must become frequency-state-driven).
+
+**The burst/pause model (the stream ground truth).** The orig's RSSI burst
+renders the row slices back-to-back at the display bus rate (~16-20k ev/s)
+and FREEZES mid-slice-2 at exactly L=196,979 (the row/APRS boundary = the
+render poll) while any key is held, in every hold length tested (the 0.4 s
+and the 3 s scenarios both show the identical freeze point); the release
+resumes and the capture window cuts the last slice. The recon equivalent:
+one slice per 11 passes (~0.458 s, the render-paced cadence; 5 slices land
+in the p3k1 window, 6 in p3k2-short's, both matching the original), the
+fires 3+ suspended while KEY_CODE_BYTE != 0xFF, the fire 1-2 exempt, the
+menu press kills (the p3-key6 evidence). The %69 and the 24-pass guesses
+were window coincidences; the 11-pass + pause satisfies every scenario.
+
+**The band digit (three corrections, all font-matched).** The first guess
+(key 2 AND 3 step 1->2) failed on p3k3: the orig's key-3 first cell = '1';
+the second guess (the key 2 only) failed again: the orig's key-3 first cell
+= '3' (the 12x20 font match on the actual cells). FINAL: the keys 1/2/3 =
+the DIRECT digit select — the placeholder row's first digit = the key's
+value (the boot = 1, the key 2 press = '2', the key 3 press = '3'), the VFO
+frequency untouched (the live row = 136.125 in all three).
+
+**Fresh differentials (the 11-pass + pause + digit-select build,
+110,511 text):** p3-key1 = 219,256/220,539, prefix = 219,256 = 100% of the
+orig; p3-key6 = 303,907/303,907 = 100.00% (all markers identical);
+p3k2-short = 226,682/227,965, prefix = 226,682 = 100%; p3k2-long =
+219,256/220,539 = 100%; p3k3-short = 226,682/227,965 = 100%; p3k3-long =
+219,256/220,539 = 100%. The +1,283-1,284 tails = the accepted artifact
+class (the recon's last slice completes where the orig's capture cuts it
+mid-render). make test-host green.
+
+**The key-13 decode (the next implementation):** the press = the "CH 002"
+screen (the 53x20 EFBE clear fill, the APRS block, the freq row, the '00'
+subs, 'C'/'H' + '0'/'0'/'2', the label sweep) followed by a 6,077-event
+EEPROM-save I2C bitbang (BRR x3406 + BSRR x1820 + CRH x851 = the SCL/SDA
+toggles and the direction flips for the 0x4D-byte write - the GOAL 5.4
+ee_save parity item; the recon's current eeprom_write emits 4,081 events
+and must match the orig's bit timing).
+
+**Instruments:** /tmp/opencode/segment.py (the full stream segmenter: the
+cells with the font match, the fills, the raw runs), matrixcells2.py, and
+covgen.py (the 5.5 static pass: 685 prologue functions, 305 bl-reachable,
+68 cited) remain session tools.

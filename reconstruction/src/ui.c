@@ -969,6 +969,8 @@ void ui_menu_screen_continue(void)
 static uint8_t ui_rssi_kill;   /* the menu press killed the refresh task */
 static uint16_t ui_rssi_pass;  /* the dispatch pass counter */
 static uint8_t ui_rssi_fire;   /* the refresh index, 1-based */
+static uint8_t ui_band = 1u;   /* [session 69] the band digit (1|2), stepped
+                                * by the key-2/3 press edges (p3k2/p3k3) */
 
 static void rssi_tail_replay(void)
 {
@@ -981,9 +983,20 @@ static void rssi_tail_replay(void)
 
 static void rssi_row_placeholder(void)
 {
-    static const uint8_t dg[7] = {'1', '-', '-', '.', '-', '-', '-'};
+    /* [session 69 | DATA-DERIVED p3k2/p3k3_orig] the first digit = the BAND
+     * number ('1' at boot, '2' after the key-2/3 step), the rest = the
+     * placeholder dashes: the VFO frequency itself is untouched by the
+     * step (the live row stays 136.125 in both). */
+    uint8_t dg[7];
     uint8_t i;
 
+    dg[0] = (uint8_t)('0' + ui_band);
+    dg[1] = '-';
+    dg[2] = '-';
+    dg[3] = '.';
+    dg[4] = '-';
+    dg[5] = '-';
+    dg[6] = '-';
     for (i = 0u; i < 7u; i++)
         cell12x20(29u, (uint8_t)(22u + 12u * i), dg[i]);
     cell8x16_ch(35u, 108u, '-');
@@ -1190,6 +1203,16 @@ void ui_task(void *p_arg)
                              * 218120..219115 — see session 68). */
                             at1846s_rssi_poll(RF_CHIP_VHF);  /* the active slot */
                             ui_menu_screen_continue();
+                        } else if (key == 1u || key == 2u || key == 3u) {
+                            /* [session 69 | DATA-DERIVED p3k1/p3k2/p3k3_orig]
+                             * the keys 1/2/3 = the DIRECT band/digit select:
+                             * the RSSI placeholder row's first digit = the
+                             * key's value (the boot state = 1, the key 2
+                             * press = '2', the key 3 press = '3' - the font
+                             * match on all three first cells). The VFO
+                             * frequency itself is untouched (the live row
+                             * stays 136.125 in all three). */
+                            ui_band = key;
                         }
                         /* [session 61 | 0x0801A13A RECOVERED] the keys 1/2
                          * have NO short-press action: they increment the
@@ -1224,17 +1247,22 @@ void ui_task(void *p_arg)
                 }
             }
         }
-        /* [session 69] the RSSI-task periodic refresh: the fire 1 at the
-         * first post-boot dispatch pass, then once per 24 passes (24 x
-         * 41.667 ms = 1.000 s, the p3k1_orig slice spacing); suppressed off
-         * the idle screen and killed permanently by the menu press (the
-         * p3-key6/p3k1 evidence). The earlier %69 guess reached the same
-         * fire COUNT in the p3k1 window only by coincidence (its 2.07 s
-         * period vs the original's 1.000 s) and leaked 3 fires into the
-         * p3-key6 pre-press window. */
+        /* [session 69] the RSSI-task periodic refresh: the burst = one
+         * VFO-row slice per 11 passes (~0.458 s = the orig's render-paced
+         * cadence: 5 slices land in the p3k1 window, 6 in p3k2-short's,
+         * both matching the original's slice counts), starting with fire 1
+         * at the first post-boot dispatch pass. The fires 3+ are SUSPENDED
+         * while any key is held (the orig's render poll sits at the
+         * row/APRS boundary: the p3k1/p3k2 streams freeze at exactly
+         * L=196,979 during the hold and resume at the release); suppressed
+         * off the idle screen; killed permanently by the menu press (the
+         * p3-key6 evidence). The %69-era model (2.07 s) reached the same
+         * fire count in the p3k1 window only by coincidence and leaked 3
+         * fires into the p3-key6 pre-press window. */
         ui_rssi_pass++;
         if (ui_rssi_kill == 0u && REG8(UI_STATE_ADDR) == 0x00u &&
-            (uint16_t)(ui_rssi_pass % 24u) == 1u) {
+            (uint16_t)(ui_rssi_pass % 11u) == 1u &&
+            (ui_rssi_fire < 2u || REG8(KEY_CODE_BYTE) == 0xFFu)) {
             rssi_refresh();
         }
         REG16(APP_STATE + 0x166)++;

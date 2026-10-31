@@ -1,0 +1,24 @@
+# p3-key14-long-orig.resc - session 69: the key matrix cell
+# (code 14 = the A-ladder idx 7, ADC 761 in 661..861),
+# the long press (hold 3.0s). Fresh-EE: the driver deletes
+# ee_image.bin before the run.
+using sysbus
+mach create "p3k14longorig"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:05.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('PRE scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+echo "=== key-14 tag (761) ==="
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 761
+emulation RunFor "00:00:3.0"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('P1 scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
+emulation RunFor "00:00:1.5"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('REL scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+quit

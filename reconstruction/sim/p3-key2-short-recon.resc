@@ -1,0 +1,22 @@
+# p3-key2-short-recon.resc - session 69: the recon mirror of
+# p3-key2-short-orig.resc (code 2 = the A-ladder idx 5,
+# ADC 1645, the short press, hold 0.4s).
+using sysbus
+mach create "p3k2shortrec"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006800
+sysbus WriteDoubleWord 0x00000004 0x08004165
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:05.990"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('PRE scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+echo "=== key-2 tag (1645) ==="
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 1645
+emulation RunFor "00:00:0.4"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('P1 scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
+emulation RunFor "00:00:2.0"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('REL scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+quit
