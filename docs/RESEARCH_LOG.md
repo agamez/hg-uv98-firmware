@@ -4714,3 +4714,24 @@ FUN_0802689A (the AT1846S register send) callers:
 The next decompile target = the giant init function's entry + its caller
 (the $A00 apply chain), then the recon's SPI2-side reconstruction for the
 CK3 parity.
+
+## Session 70 (cont. 10) — the CK3 ROOT SOLVED: the original's boot DOES run the radio init (the giant init via func_0x0802d080); the recon = the deliberate no-radio boot — the session-62 note needs re-examination
+
+- **FUN_0802689A = the GPIO bit-bang AT1846S write** (the decompile): the
+  CS 0x8000 (the PB15) low, the 8/10-iteration delays, the 3-byte send
+  (the FUN_08026838 = the CS select), the FUN_08026838(4) = the CS high,
+  the BRR 0x200 (the PB9 low). ⇒ the AT1846S traffic = GPIOB-VISIBLE
+  (the pb_stream channel!), NOT hidden on the SPI2 hardware peripheral.
+- **The giant init = 0x08026A1E** (the ~200 rf_sends), called from:
+  **func_0x0802d080 (the boot, ×2 — the AT1846S init at boot for both
+  chips)** and **FUN_0801acfc (the A/B applier, ×2)**.
+- ⟹ the original's boot = the radio init = the ~400 rf_sends = the GPIOB
+  events. The recon = the deliberate no-radio boot (the session-62's
+  display-parity note). **The session-62 note and the CK4 ODR=100%
+  (150,701) vs the session-58's 160,753 = the same tension** — the likely
+  resolution = the old pb_displaybus truncation at the peripheral init
+  (the followup.md §2) cut the pre-init traffic differently across eras.
+  NEXT: resolve the truncation question, then the recon-side boot radio
+  init (the giant init replay through the rf.c primitives) for the CK3
+  parity — the 2-run budget.
+- The decompiles = docs/rea/rea_decompile_cks3_rfsend_bootradio_2689a_2d080.c.
