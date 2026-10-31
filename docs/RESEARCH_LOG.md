@@ -4756,3 +4756,25 @@ CK3 parity.
   recon's boot-time radio init (the giant init 0x08026A1E replay through
   the rf.c primitives — the table already exists in rf.c) + the verify the
   I2C-side parity. The 2-run budget applies after the implementation.
+
+## Session 70 (cont. 12) — the CK3 harness-timing fix: the apply FIRES (194 events vs 0)
+
+- **ROOT: the ck3-recon harness injected the $A00 frame at t=2.0 s, but the
+  dispatcher's reply-wait window = ~1.39 s (200 × time_dly(5))** — the
+  frame landed after the window, so the reply-gated radio apply never ran
+  (the rf_write = 0). The session-62 "no radio at boot" = the fresh-EE
+  no-peer behavior; with the peer frame IN the window the apply runs.
+- **The fix: the frame injected at t=0.49 s** (inside the window; the post
+  extended to 4.5 s for the same total). The re-run = **194 events** (the
+  190 RFW + the 4 RFRD) vs the 0 before — the reply-gated apply works.
+- The compare vs the ck3_rf_orig.txt (the LE buf parse: {reg, pad,
+  val-lo, val-hi} → the val = bs[2] | bs[3]<<8): the orig = 290 writes
+  (the boot-init table head 0x30/1, 0x30/4, 0x04/0FD0, 0x0A/7EA0...), the
+  rec = 190 writes + 4 reads starting with 2 pre-apply reg-13 reads. The
+  sequences differ in the chip ordering/values — the remaining CK3 work =
+  the per-event alignment (the next pass).
+- The session-62 note correction: the original's boot DOES emit radio
+  init traffic on the AT1846S bit-bang (the GPIOB-visible, the func_0x0802d080
+  → the giant init ×2); the "no radio traffic" observation = the
+  display-stream-era reading. The pb_stream BRR/BSRR census = the mixed
+  I2C+radio (the shared PB9) as logged in the cont. 11.
