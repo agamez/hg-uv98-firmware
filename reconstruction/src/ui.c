@@ -1109,9 +1109,16 @@ void ui_task(void *p_arg)
                          * original - excluded above). */
                 }
             } else if (key == 1u || key == 2u) {
-                /* [0x801A13A] the held-key counter: the gates re-checked
-                 * per pass; at 40 passes -> the screen 0x83. */
-                if (key != 0xFFu &&
+                /* [0x801A13A + session 69 gate evidence] the whole
+                 * branch requires the band byte 0x200050E8 == 0x67
+                 * ('g', the RF-active screen). In the model the band
+                 * stays 0x00, so the hold path is inert: the orig's
+                 * 3 s key-1 hold (p3k1_orig.stream) leaves scr 0x00 and
+                 * emits only the RSSI-task periodic VFO-row refreshes —
+                 * no 0x83 switch. The session-61 hold counter stays for
+                 * the band-machine slice. */
+                if (REG8(UI_STATE_ADDR) == 0x67u &&
+                    key != 0xFFu &&
                     ((REG8(FLAG_BANK + 2u) >> 2u) & 1u) == 0u) {
                     ui_key_hold++;
                     if (ui_key_hold == 40u) {

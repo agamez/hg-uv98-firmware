@@ -3971,3 +3971,42 @@ column-major rec[c] bit-r layout), /tmp/opencode/scan2.py (the structure
 scanner). Debug captures p3k6_rec77/78/79.stream + the resc variants remain
 untracked. The 5,874-event junk = 22 cells × 267 events (13 "CALL:"+callsign
 + 9 "BAT:0.8 V"; 17 windows visible to the window scanner).
+
+## Session 69 (cont. 2) — p3-key1 differential: the band gate fixed, the periodic refresh = the open slice
+
+**Scenario.** New matched pair sim/p3-key1-orig.resc + sim/p3-key1-recon.resc:
+the key-1 = ADC2_DR 2047 (the A-ladder i4 band 1947..2147,
+data/ram_tables_recovered.bin: A i0=(2431,2231) i3=(3253,3053) i4=(2147,1947)
+i5=(1745,1545); the observed anchors 2300=code10, 3100=code13 fit) injected
+at the emulated 6.0 s, held 3 s, released, run to 10.5 s, fresh-EE.
+
+**The orig (p3k1_orig.stream, 219,256 events):** the boot = byte-identical to
+p3k6's first 189,036. The 3 s key-1 hold = INERT: scr 0x200050E8 stays 0x00,
+no 0x83 switch, no polls. Post-boot the stream = 30,220 events of the
+RSSI-task PERIODIC VFO-row refresh in 5 cycles at ~1 s (starts L189037,
+193008, 196979, 205688, 213114):
+- cycles 1-2 (row-only): 7x 12x20 freq cells (22..105, y29..48, d=480 each)
+  + 2x 8x16 sub-cells (108..115/116..123, y35..50, d=256);
+- cycles 3-5 (row + labels): 4x 6x10 (133..156, y18..27) + 2x 6x10
+  (136..147, y29..38) + 3x 6x10 (133..150, y39..48, the third d=224) + the
+  freq row (7x480 + one d=720 = 18-wide cell at 106..123) + the 2 sub-cells
+  + an 11-cell 6x10 label sweep (y18..27 at x 5..97 + one at 22..27,50..59).
+All primitives = the recon's existing vfo_freq_row/cell6x10/cell8x16; only
+the trigger + the sequence + the ~1 s timing are new.
+
+**The recon bug (FIXED).** The session-61 hold-counter implementation left
+the gate open: the recon switched to scr 0x83 and rendered the boot-shaped
+screen0 (+69k events) where the orig stays idle. Session 61 already
+documented the real gate: the whole 0x801A13A branch requires the band byte
+0x200050E8 == 0x67 ('g', the RF-active screen) and was parked on the band
+machine. Fix: the recon's key-1/2 hold branch now requires
+UI_STATE_ADDR == 0x67. After the fix (p3k1_rec2.stream): the recon = scr 00
+throughout, prefix = 189,036 = 100% of its own stream (silent post-boot),
+make test-host green, build 108,999 text.
+
+**Open (the next p3-screens slice).** The RSSI-task periodic refresh: the
+recon has no periodic layer. Decode items: the ~1 s tick source vs the 30-
+tick dispatch pass; the row-only vs row+label cycle shapes (the labels
+appear from cycle 3); the interaction with the menu state (p3-key6 shows NO
+refreshes while 0x35 is open and none in 9 s of post-release capture, which
+bounds the trigger); the d=720 18-wide cell and the d=224 6x10 variant.

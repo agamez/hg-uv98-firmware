@@ -1,8 +1,5 @@
-# p3-key1.resc - session 61: the key-1 hold -> screen 0x83 differential
-# (the ORIGINAL). The tag 2000 (the A-ladder entry 5 = the key code 1)
-# applied at 6 s and held 3 s; the observable = the screen byte
-# 0x200050E8 (0x00 -> 0x83 at the 40-pass hold counter) + the display
-# delta.
+# p3-key1-recon.resc - session 69: the recon mirror of p3-key1-orig.resc
+# (the key-1 = ADC 2047, the hold 3 s -> the 40-pass screen 0x83).
 using sysbus
 mach create "p3k1rec"
 machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
@@ -10,15 +7,14 @@ sysbus WriteDoubleWord 0x00000000 0x20006800
 sysbus WriteDoubleWord 0x00000004 0x08004165
 sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
 sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
-# no r9 hook for the recon
 emulation RunFor "00:00:00.010"
 sysbus WriteDoubleWord 0xE000E018 0x00000000
 emulation RunFor "00:00:05.990"
-python "m = emulationManager.CurrentEmulation.Machines[0]; print('PRE scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
-sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2000
+echo "=== key-1 tag (2047) ==="
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2047
 emulation RunFor "00:00:03"
-python "m = emulationManager.CurrentEmulation.Machines[0]; print('HELD scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('P1 scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
 sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
-emulation RunFor "00:00:02"
+emulation RunFor "00:00:01.5"
 python "m = emulationManager.CurrentEmulation.Machines[0]; print('REL scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
 quit
