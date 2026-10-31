@@ -3542,3 +3542,35 @@ the REA MCP decompiles (the evidence for every fix below).
   bit-count mismatch candidate = the AT1846S transaction alignment =
   the same root (the CK3 channel = the byte-level SPI, the PB9 stream
   = the bit-level, the two must agree).
+
+## Session 61 (cont. 12) - the orig's stream 2582+ = the I2C transactions bit-aligned; the recon's 2583 = the foreign BRR
+
+- The helper-trace transaction decode (the captured 74 STARTs / 144
+  BYTEs / 93 RDBYTEs / 35 STOPs):
+  * the FIRST EE transaction = the settings context read: START, 0xA0,
+    0x0A, 0x00 (the page 0x0A00 = the SETTINGS_CTX source!), restart,
+    0xA1, 77 RDBYTEs, STOP = the 77-byte context read, bit-exact.
+  * the SECOND era (the helper 21243+) = the per-byte page writes:
+    (START, 0xA0, the addr-hi, the addr-lo, the data, STOP) x N with
+    the ~5-event gaps = the ack-poll/write loop of the defaults
+    programming.
+- THE PB_STREAM ALIGNMENT: the orig's event 2582 = the I2C's first
+  CROUT; the (CRH, BSRR, BRR) pairs at 2582-2587 = the two STARTs
+  (the SDA-high/low visible pairs); the 2588+ = the 0xA0 byte's CROUT
+  + the SDA bits (the BSRR=1, the BRR=0: 1,0,1,0,0,0,0,0) - the
+  perfect bit-level match to the helper Rosetta. THE ORIGINAL'S I2C =
+  FULLY ACCOUNTED AT THE EVENT LEVEL.
+- THE RECON'S DIVERGENCE = at the same boundary: the recon's 2582 =
+  the CRH (the sda_output's 0x30 RMW) but the 2583 = a BRR (the SDA
+  LOW) where the orig has the second CRH - the recon's pre-I2C PB9
+  state/ordering artifact (the radio's data line = left LOW vs the
+  I2C's expectation, or an extra/foreign write at the entry). THE ROOT
+  = now a 1-2 instruction window at the I2C entry + the transaction
+  census (the orig = the 422 starts in 0.4 s = the write-poll loop
+  cadence vs the recon's page-write loop).
+- THE NEXT MOVE (the root attack, attempt 1 = continuing): dump the
+  recon's 2570-2600 window, map each event to the recon's source
+  (the eeprom.c vs rf.c), fix the entry sequence to the orig's
+  (the SDA released-high BEFORE the first CRH if that is the delta),
+  then re-run the fresh-EE ck4 pair -> the event census -> the
+  PB9-masked full compare -> the byte-exact press window (the 213).
