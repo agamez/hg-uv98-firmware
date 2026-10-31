@@ -4296,3 +4296,55 @@ inlining hid the bug for several runs; GOAL.md §2 now records the trap: when
 the size/symbols do not move after an edit or a behavior contradicts the
 source, verify the ELF contents (`arm-none-eabi-nm`, the .rodata sections)
 and check that no earlier `if` swallows the branch.
+
+## Session 69 (cont. 10) — the dispatch function decompiled: the key-11/12 repeat model in C (the first REA-forced decompile)
+
+**The instrument breakthrough (REA is king, in practice):** Ghidra's
+auto-analysis (422 functions) never discovered the key-dispatch region — the
+raw-binary load leaves indirect-call/task-body regions unidentified, and
+neither the MCP nor the CLI decompiles an address without an existing
+procedure. Remedy: the mechanical prologue scan (the `0xB5xx` byte pattern,
+the data-derived instrument) over the undiscovered gap 0x8019d8a..0x801a3a8
+found EXACTLY ONE entry: **0x08019dcc itself** (push {r4-r7,lr}) — the
+session-61 poll site is a function ENTRY. Then Ghidra headless (the same
+engine REA drives) with a reusable script (`docs/rea/ReaCreateDecomp.java`):
+set TMode=1, disassemble, createFunction, decompile. The Ghidra 12 gotcha:
+.py scripts need PyGhidra (unavailable in bare headless); .java works.
+
+**The dispatch C (263 lines, `docs/rea/dispatch_08019dcc.c`) — the key
+handling ground truth:**
+- `key = key_get_code()` stored to the latch; `key == 0xFF` = the release
+  tail: the flag clears + **the hold counter (u32 at r5+0x21) = 0**.
+- Every key branch calls `func_0x08020c9e()` FIRST, then increments the
+  hold counter and gates the action on it — keys 11/12:
+  `if (counter > 39) { vtbl[slot*0x10+4](key); if (slot[2] != 0) {
+  vtbl[slot*0x10+8](key); slot[2] = 0; } }` — the handler fires EVERY pass
+  once the hold exceeds 40 (the auto-repeat), the second vtable call (+8)
+  is a once-gated per-slot call.
+- key 13: `if (counter == 40) FUN_08022cb4()` — the once-at-40 fire
+  (matches the recon's executor model).
+- key 14: `if (counter == 40) FUN_08021238(1)` — once-at-40, the handler =
+  the settings-consumer family function with arg 1.
+- keys 18/19/20 (the C-group): the direct consumer calls with the
+  settings-shadow args (+0x21/+0x23/+0x25 regions), some gated on the
+  shadow bytes; keys 1/2 on screen 0x67: the 0x83 switch at count 40 with
+  the +0x168 substate (the session-61 model, now C-confirmed).
+- The vtable = stride 0x10 per slot: +4 = the press handler, +8 = the
+  gated second call; the base pointer `_DAT_0801a3a4` is runtime-assigned
+  by the screen machine (per-screen handler tables).
+
+**The open question (the next REA step, precise now):** the observed
+p3k11/p3k14 streams render tune slices from the PRESS PASS, but the C gates
+the vtable calls on `counter > 39`. The unaccounted piece = the pre-counter
+`func_0x08020c9e()` (present in every key branch) and the per-key timestamp
+helper `func_0x08021a50(key)` (the session-61 "per-key timestamps"
+0x0801b2a0 = the auto-repeat table) — decompiling those two resolves the
+press-pass render path and the true repeat cadence. The vtable base value
+and the key-11/12 handler identities follow from the screen machine's
+assignment (the vtable words in flash are recognizable as consecutive odd
+thumb addresses).
+
+**Validated [REA-C-VALIDATED] this session (zero divergences):**
+`key_scan` 0x080281A6, `key_get_code` 0x080282FC (via REA MCP
+batch_decompile; the bands 661..3253/671..1751, the upper-first pair
+layout, the maps, the A→B→C order, the lock gate — all match the recon C).
