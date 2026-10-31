@@ -3718,3 +3718,26 @@ the original's RSSI-poll architecture identified via REA.**
 - The debug-only resc variants (p3-key6-cb60lr/-recon-hook/-recon-rfw/
   -recon-sbit/-recon-w7.resc) = untracked, NOT committed (the workaround
   register: reconstruction/sim/).
+
+**Session 64, part 2 — the orig's poll call chain fully mapped (the RF
+rework blueprint).**
+- The three 0x08024xxx callers of the poll (0x0801ACFC) = the SCREEN
+  RENDERERS: 0x080241BC (83 instr, <- 0x802195a), 0x0802445E (152,
+  <- 0x8024106), 0x080247CC (212, <- 0x8024106 + 0x8024c24). Each ends
+  with 0x0801acfc(slot) near the tail — the poll = the LAST step of a
+  screen render, hence the render-gated cadence (the orig's 5 polls in
+  11 s = the 5 render passes reaching the poll).
+- The orig's RF layer primitives: 0x0802689A = the register-write engine
+  (the (chip, {reg,val}) struct form; the bit-bang in 0x08026838/0x08026786);
+  0x080272E2 = the irq-locked single-write wrapper (0x0802b1e0 + 0x0802689a);
+  0x080272A4 = the gpio_reconfig_plain (the band -> 0x9EA9/0x9AA9 via
+  0x0802689a); 0x08027156 = the per-band channel-apply sequence (the
+  block-b-class table writes). The poll body: the rf_read(0x0802692e)
+  (chip, 0x0A) -> the RSSI strh [slot+0x122]; if slot==1 && the flag bit
+  clear: the write(0x0A) via 0x0802692e + the 0x38-mask store + 0x0802689a;
+  then 0x080272a4(chip, 1); then 0x08024d08(halfword).
+- The recon rework plan (the next session): remove the free-running
+  rssi_task poll cadence; integrate the poll as the last step of the
+  screen render path; keep the poll shape = the rf_read(chip,0x0A) + the
+  mode-set + the gpio-reconfig; then re-diff (the 58-bit preamble may
+  dissolve with the restructure — if not, attribute it then).
