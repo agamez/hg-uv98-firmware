@@ -3898,3 +3898,20 @@ Date: 2026-10-31 (closing continuation of session 67/68)
   press-era interactions (the recon's press poll lands 20352 events
   later than the orig's — the press/key-6 menu-interaction era is the
   next target, then the release era's +6659).
+
+## Session 68 pt2 — the press-era order fix: the poll sits INSIDE the menu render
+Date: 2026-10-31
+
+- The orig's press flow = [fill#1 (18,1,158,92) = the 29,083-event clear][the
+  press poll (218120..219115)][the post-poll dynamic (219118..238685 =
+  19,567 events)]. The recon rendered everything before polling.
+- ui_menu_screen_build split: build() = ui_state_set(0x35) + the clear fill
+  only; ui_menu_screen_continue() = the remaining fills + the text layer;
+  the press branch = build() -> at1846s_rssi_poll(VHF) -> continue().
+- RESULT: the press poll now lands at the EXACT orig position (218120); the
+  identical prefix = 219119 events (72.10%). The post-poll era diverges in
+  CONTENT: the orig draws [the selection-bar fill window (3,10,20,35)-class
+  + the row text], the recon draws its scaffold fills #2-13 + the stand-in
+  text. The post-poll dynamic layer = the next decode (the orig's
+  219118..238685 = the selection bar + the 5 row strings, 19,567 events).
+- The release polls remain +6,659 late (the release-era render diff).

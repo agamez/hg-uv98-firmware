@@ -865,10 +865,22 @@ uint8_t key_get_code(void)
  * ink/class args and invented "确定/取消 at 0x08045A44" — superseded. The
  * original re-renders periodically (the RSSI-task screen machine); the
  * recon renders once per press. */
+/* [session 68 | the press-era order fix] the original's menu render is
+ * INTERRUPTED by the press poll: the big clear fill (18,1,158,92 =
+ * the 29,083-event continuous ODR run) executes FIRST, then the
+ * FUN_08019910-site RSSI poll (p3k6_orig.stream 218120..219115), then
+ * the remaining fills + the text layer (the orig's 219118..238685
+ * post-poll era). ui_menu_screen_build() therefore covers only the
+ * clear; ui_menu_screen_continue() carries the rest and is wired
+ * between the poll and the dispatch tail in the press branch. */
 void ui_menu_screen_build(void)
 {
     ui_state_set(0x35u);
     display_fill_rect(18u, 1u, 158u, 92u, 0xEFBEu);
+}
+
+void ui_menu_screen_continue(void)
+{
     display_fill_rect(1u, 1u, 158u, 16u, 0xEFBEu);
     display_fill_rect(1u, 4u, 72u, 16u, 0xEFBEu);
     /* text(1, 108, " ", 0, 4) — the class-4 text = pending */
@@ -1037,10 +1049,12 @@ void ui_task(void *p_arg)
                             ui_menu_screen_build();
                             /* [session 66 | FUN_08019910 site 0x8019ba5]
                              * the press path activates the slot once,
-                             * right after the screen render (the RD-hook
-                             * poll 3, the stream 218120..219115 — the
-                             * menu paint's immediate tail). */
+                             * right after the menu's clear fill (the
+                             * orig's poll sits between the 29k clear and
+                             * the remaining fills: the stream
+                             * 218120..219115 — see session 68). */
                             at1846s_rssi_poll(RF_CHIP_VHF);  /* the active slot */
+                            ui_menu_screen_continue();
                         }
                         /* [session 61 | 0x0801A13A RECOVERED] the keys 1/2
                          * have NO short-press action: they increment the
