@@ -4697,3 +4697,20 @@ The §5.4 gate = met. Commits 9bf8bbc, 25815e2.
 - The recon's rf_write/rf_read = the noinline-pinned (the hook-stable);
   the ck3-recon hooks = re-derived (0x08004f08/0x08004fb4).
 - The decompiles = docs/rea/rea_decompile_a00_consumer_da10_d3b4.c.
+
+## Session 70 (cont. 9) — the rf_send caller map (the mechanical BL scan)
+
+FUN_0802689A (the AT1846S register send) callers:
+- **0x08026A00-0x08027Fxx = the GIANT init-table function** (~200 rf_send
+  calls) — the AT1846S full-register init block. The CK3's 292-event
+  reference trace = dominated by this table ⇒ the $A00 settings apply
+  triggers the radio init path (the write cluster, then the scattered
+  apply sites). The recon's "NO radio traffic at boot" (session 62) = the
+  DISPLAY-stream observation; the radio init = the SPI2-hardware-path
+  events, gated behind the $A00 apply.
+- 0x0801A9xx-0x0801AAxx = the tone wrapper (the ck3-tonediag hooks).
+- The scattered apply sites: 0x0801B028, 0x08021708-0x08021A4A, 0x080224EE,
+  0x080243CA-0x08024DB2, 0x08025EC4-0x08025F6A.
+The next decompile target = the giant init function's entry + its caller
+(the $A00 apply chain), then the recon's SPI2-side reconstruction for the
+CK3 parity.
