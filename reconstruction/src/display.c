@@ -505,3 +505,95 @@ void display_led_write(uint16_t word, uint8_t flag)
     }
     GPIO_BSRR(GPIOD_BASE) = 2u;                 /* latch high           */
 }
+
+/* ---- [FUN_0801CB60 | RECOVERED session 61] the class-parameterized text
+ * walker — the original's generic string draw (p1 = y, p2 = x, verified by
+ * the boot callsign row: y fixed, x advancing). The 5th/6th args of the
+ * callees are stack-passed (AAPCS), so the class arrives on the stack; the
+ * observed menu calls used cls 3 (advance +8 = adv[3], the class-3 cell,
+ * the class-3 wrap threshold 0x98).
+ *
+ * Walk: while (*s && *s != 0xFF):
+ *   - byte < 0x81 or the next byte < 0x81  -> ASCII cell path:
+ *       0x0801C99E pre-wrap (x > thr[cls] -> x = 6, y += lin[cls]; the
+ *       class-3 'h'-band variant 0x9E is not reachable in the modeled
+ *       state), then the BCD bias (*s < 10 -> +0x30, mutating the caller's
+ *       buffer exactly like the original — only ever fires on RAM strings;
+ *       the flash-resident UI strings are all >= 0x20), then the class-3
+ *       glyph cell (0x0801C95E -> 0x0801BFB8), then 0x0801CAC0
+ *       post-advance (x += adv[cls]).
+ *   - otherwise a GB2312 pair -> the CJK path 0x0801C914, whose font-flash
+ *       fetch is guarded off in the platform model (p3-text.resc: zero
+ *       CJK/FFR calls in 7 s on the original) -> nothing is emitted and
+ *       the cursor still advances 16 px (no wrap check).
+ *
+ * The ink -> (fg, bg) pair is the 0x0801BFB8 table; the ink 3/4 swap bit is
+ * *(uint8_t *)(DAT_0801c910 + 0x18) with DAT_0801c910 = 0x20004E68 = the
+ * settings context (ui.h SETTINGS_CTX). The inv variants reproduce the
+ * param_5 != 0 branch of the same table. Classes without a recovered cell
+ * blitter emit nothing (none is reachable from the screens decoded so
+ * far). */
+void display_draw_text_cls(uint8_t y, uint8_t x, const uint8_t *s, uint8_t ink,
+                           uint8_t cls, uint8_t inv)
+{
+    static const uint8_t thr[10] = {0x9Bu, 0x9Au, 0x99u, 0x98u, 0x96u,
+                                    0x94u, 0x94u, 0x91u, 0x8Du, 0x90u};
+    static const uint8_t lin[10] = {7u, 10u, 12u, 16u, 16u, 16u, 20u, 15u, 24u, 32u};
+    static const uint8_t adv[10] = {6u, 6u, 7u, 8u, 10u, 12u, 12u, 15u, 19u, 16u};
+    uint8_t swap = (*(volatile uint8_t *)(0x20004E68u + 0x18u)) != 0u;
+
+    if (cls > 9u)
+        return;
+    while (*s != 0u && *s != 0xFFu) {
+        if ((*s < 0x81u) || (s[1] < 0x81u)) {
+            uint16_t fg, bg;
+            const uint8_t *rec;
+
+            if (x > thr[cls]) {
+                x = 6u;
+                y = (uint8_t)(y + lin[cls]);
+            }
+            if (*s < 10u)
+                ((uint8_t *)s)[0] = (uint8_t)(s[0] + 0x30u);   /* BCD bias */
+            rec = asset_table_get(cls, *s);
+            if (inv == 0u) {
+                switch (ink) {
+                case 0u:  fg = 0x0000u; bg = 0xEFBEu; break;
+                case 1u:  fg = 0x001Fu; bg = 0xEFBEu; break;
+                case 2u:  fg = 0x0000u; bg = 0x8D5Eu; break;
+                case 3u:  fg = 0xF800u; bg = swap ? 0x0000u : 0xEFBEu; break;
+                case 4u:  fg = swap ? 0xEFBEu : 0x0000u;
+                          bg = swap ? 0x0000u : 0xEFBEu;         break;
+                case 5u:  fg = 0x13A2u; bg = 0xEFBEu; break;
+                case 6u:  fg = 0x58E1u; bg = 0xEFBEu; break;
+                default:  fg = 0x0000u; bg = 0xEFBEu; break;   /* caller's pair, unmodeled */
+                }
+            } else {
+                switch (ink) {
+                case 1u:   fg = 0xEFBEu; bg = 0x001Fu; break;
+                case 3u:   fg = 0xEFBEu; bg = 0xF800u; break;
+                case 4u:   fg = swap ? 0x0000u : 0xEFBEu;
+                           bg = swap ? 0x0000u : 0xEFBEu; break;
+                case 5u:   fg = 0xEFBEu; bg = 0x13A2u; break;
+                case 8u:   fg = 0xF800u; bg = 0x001Fu; break;
+                case 9u:   fg = 0x13A2u; bg = 0x001Fu; break;
+                case 10u:  fg = 0xEFBEu; bg = 0x0000u; break;
+                default:   fg = 0x0000u; bg = 0x0000u; break;
+                }
+            }
+            if (rec != 0) {
+                switch (cls) {
+                case 1u: display_blit_glyph_cell_6x10(y, x, rec, fg, bg); break;
+                case 3u: display_blit_glyph_cell(y, x, rec, fg, bg); break;
+                case 6u: display_blit_glyph_cell_12x20(y, x, rec, fg, bg); break;
+                default: break;   /* cell geometry not yet recovered */
+                }
+            }
+            s++;
+            x = (uint8_t)(x + adv[cls]);
+        } else {
+            s += 2;
+            x = (uint8_t)(x + 16u);
+        }
+    }
+}

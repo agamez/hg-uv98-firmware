@@ -1,0 +1,24 @@
+# p3-text.resc - session 61: the menu-window text-call trace on the ORIGINAL.
+# Hooks: cb60 r0-r5 (y,x,str,ink,cls,a5), 0x801C95E r0-r4, bfb8 r0-r5,
+# cjk16_fetch r0-r2, font_flash_read r0-r1. MARKER before the key tag.
+using sysbus
+mach create "p3text"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x08042900 "from Antmicro.Renode.Peripherals.CPU import RegisterValue; self.SetRegister(9, RegisterValue.Create(0x08040000, 32))"
+cpu AddHook 0x0801CB60 "self.Log(LogLevel.Info, 'RD ' + str(self.GetRegister(0).RawValue) + ' ' + str(self.GetRegister(1).RawValue) + ' p=' + str(self.GetRegister(2).RawValue) + ' ink=' + str(self.GetRegister(3).RawValue) + ' cls=' + str(self.GetRegister(4).RawValue) + ' a5=' + str(self.GetRegister(5).RawValue))"
+cpu AddHook 0x0801C95E "self.Log(LogLevel.Info, 'WR ' + str(self.GetRegister(0).RawValue) + ' ' + str(self.GetRegister(1).RawValue) + ' p=' + str(self.GetRegister(2).RawValue) + ' ink=' + str(self.GetRegister(3).RawValue) + ' r4=' + str(self.GetRegister(4).RawValue))"
+cpu AddHook 0x0801BFB8 "self.Log(LogLevel.Info, 'CELL ' + str(self.GetRegister(0).RawValue) + ' ' + str(self.GetRegister(1).RawValue) + ' g=' + str(self.GetRegister(2).RawValue) + ' ink=' + str(self.GetRegister(3).RawValue) + ' inv=' + str(self.GetRegister(4).RawValue) + ' cls=' + str(self.GetRegister(5).RawValue))"
+cpu AddHook 0x08024E78 "self.Log(LogLevel.Info, 'CJK buf=' + str(self.GetRegister(0).RawValue) + ' gb=' + str(self.GetRegister(1).RawValue & 0xFFFF))"
+cpu AddHook 0x08024F28 "self.Log(LogLevel.Info, 'FFR addr=' + str(self.GetRegister(0).RawValue) + ' len=' + str(self.GetRegister(1).RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:05.990"
+python "print('PRESS-MARK')"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2300
+emulation RunFor "00:00:01"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('P1 scr=%02x' % int(m['sysbus'].ReadByte(0x200050E8)))"
+quit

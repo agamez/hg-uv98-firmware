@@ -707,10 +707,11 @@ uint8_t key_get_code(void)
  * (p1, p2, p3, p4) directly (the window = the cols p1..p1+p3-1?? no:
  * 0x2A = the x-axis from (p2, p2+p3-1), 0x2B = the y-axis from
  * (p1, p1+p4-1); the recon's session-52-corrected mapping matches). The
- * text layer (the class-4 draw 0x0801CB60: " " pads, "H"/"W" markers, the
- * CJK 确定/取消 labels at 0x08045A44/0x08045A4C) = the next decode; the
- * glyph streams here = pending. The original re-renders periodically (the
- * RSSI-task screen machine); the recon renders once per press. */
+ * text layer = the session-61 p3-text decode (the 5 settings-list rows +
+ * the selection bar, below). An earlier r0-r3-only trace mislabeled the
+ * ink/class args and invented "确定/取消 at 0x08045A44" — superseded. The
+ * original re-renders periodically (the RSSI-task screen machine); the
+ * recon renders once per press. */
 void ui_menu_screen_build(void)
 {
     ui_state_set(0x35u);
@@ -723,14 +724,28 @@ void ui_menu_screen_build(void)
     display_fill_rect(111u, 30u, 120u, 16u, 0xEFBEu);
     display_fill_rect(111u, 1u, 5u, 16u, 0xEFBEu);
     display_fill_rect(111u, 157u, 2u, 16u, 0xEFBEu);
-    /* text(111, 6, 确定, 0, 4); text(111, 125, 取消, 0, 4) — pending */
     display_fill_rect(29u, 106u, 18u, 20u, 0xEFBEu);
-    /* text(18, 80/92/55, " ", 0, 4); text(18, 30/5, "   ", 0, 4);
-     * text(18, 68, "W", 0, 4); text(50, 22, "H", 0, 4) — pending */
     display_fill_rect(64u, 133u, 24u, 10u, 0xEFBEu);
     display_fill_rect(76u, 106u, 18u, 20u, 0xEFBEu);
-    /* text(64, 80/92/55, " ", 0, 4); text(64, 30/5, "   ", 0, 4);
-     * text(64, 68, "W", 0, 4) — pending */
+    /* [session 61 | p3-text.resc] the text layer, drawn after all fills:
+     * the 5 settings-list strings (the flash slots 0x08043B20 + 12*i:
+     * "01.本机设置" "02.站点类型" "03.GPS 设置" "04.信号设置"
+     * "05.信号类型") walked at (20 + 17*i, 3) with the ink 4, cls 3, inv 0.
+     * The GB2312 tails emit nothing (the CJK font-fetch guard is off in
+     * the platform model) but advance the cursor 16 px per pair. Then the
+     * selection: the row 0 re-walked with the ink 1, inv 1 (the blue bar);
+     * the original does this as a direct per-char loop, not through the
+     * string walker (no cb60 entry in the trace). */
+    {
+        uint8_t i;
+
+        for (i = 0u; i < 5u; i++) {
+            display_draw_text_cls((uint8_t)(20u + 17u * i), 3u,
+                                  (const uint8_t *)(0x08043B20u + 12u * (uint32_t)i),
+                                  4u, 3u, 0u);
+        }
+        display_draw_text_cls(20u, 3u, (const uint8_t *)0x08043B20u, 1u, 3u, 1u);
+    }
 }
 
 void ui_task(void *p_arg)

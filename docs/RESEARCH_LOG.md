@@ -3450,3 +3450,58 @@ the REA MCP decompiles (the evidence for every fix below).
   decode from FUN_0801BFB8's param_6==6 case), the colors from the ink
   table. This bypasses the string/glyph-fetch layer entirely - the
   cells ARE the rendered output.
+
+## Session 61 (cont. 10) - the menu text layer IMPLEMENTED; the byte-exact gate now rooted at the I2C master
+
+- THE MENU TEXT = implemented (commit this session):
+  * display_draw_text_cls(y, x, s, ink, cls, inv) in display.c = the
+    FUN_0801CB60 walker: the pre-wrap table (thr/lin per class, the
+    class-3 0x98; the 'h'-band 0x9E variant not modeled), the BCD bias
+    (<10 -> +0x30 on the caller's buffer), the class-indexed glyph cell
+    (the classes 1/3/6 = the existing blitters; the others = none yet),
+    the post-advance (adv per class), the CJK pairs = no emit + x += 16
+    (the 0x0801C914 fetch guard off in the platform model - the
+    p3-text.resc zero CJK/FFR evidence), the 0x0801BFB8 ink table with
+    the inv variants and the ink 3/4 swap bit = SETTINGS_CTX+0x18.
+  * ui_menu_screen_build: the 5 strings (the flash slots 0x08043B20 +
+    12*i = "01.本机设置" "02.站点类型" "03.GPS 设置" "04.信号设置"
+    "05.信号类型") at (20+17i, 3), the ink 4, cls 3, inv 0; then the
+    row-0 selection redraw (the ink 1, inv 1 = the blue bar) as a
+    direct call (the original redraws without a cb60 entry).
+  * BUILD GREEN 108,491 text; the host tests pass.
+- THE DIFFERENTIAL (the fresh-EE p3-key6 pair): the press delta = the
+  recon +49,435 vs the original +49,648 = the text layer closed all but
+  **213 events** (the 22 cells x 267 = 5,874 vs the original's 6,087).
+  The trajectory 00->35->00 = identical on both. The byte-exact window
+  compare = BLOCKED by the pre-existing boot divergence (below) - the
+  window contents differ from idx 0 in the ODR bit 9 (PB9) state.
+- **THE ROOT BLOCKER (the CK4 regression vs the phase-0 claim):** the
+  fresh-EE boot streams diverge at event 2582 (the first-boot EE-load
+  era, right after the TFT DISPON 0x29). THE CENSUS (the fresh-EE 3 s):
+  the orig CRH 7,105 (the 44434-out 4,427 + the 44444-in 2,678) vs the
+  recon 5,073 (3,134 + 1,939); the BRR 17,736 vs 20,383; the BSRR
+  10,017 vs 9,366. The orig's 0.4 s hook census: 422 i2c_starts, 832
+  i2c_bytes, 150 i2c_reads (the sda_in 982 / the sda_out 1612) = the
+  retry-heavy transaction pattern; the recon's counts = structurally
+  lower on the CRH and higher on the BRR. The orig's per-bit visible
+  unit in the EE-load reads = (CRH->in, CRH->out, the SDA value) - the
+  per-bit direction switches that the current send/read-byte decodes
+  (0x080285B6/0x08028666 = the CRH once per byte) do NOT produce ->
+  there is another per-bit CRH writer in the orig's I2C path (or the
+  decompiles = the wrong slices). The orig also LEAVES PB9 (the SDA)
+  HIGH after the I2C era: all the later display ODR writes = 0x02xx vs
+  the recon's 0x00xx = the SDA idle state bleeds into every display
+  byte (the display bus_write preserves the ODR high byte).
+- THE CONSEQUENCES: (a) the CK4 "boot event-identical" = currently NOT
+  true at the event level under the fresh-EE first-boot path - the
+  phase-0/1/2 verifications must have run the marker-EE (the not-first
+  boot) or the ODR-only compare; the p3-key6 reruns with the marker EE
+  diverge the same way (the event 2582). (b) the menu screen's
+  byte-exact gate = blocked on the I2C root, not on the UI layer.
+- THE NEXT MOVE (the genuine root attack, attempt 1): decode the orig's
+  I2C event-level sequence per transaction (the retry policy, the
+  per-bit CRH writer, the SDA leave-state) - the instrument = the
+  targeted hooks at 0x08028448/0802846A/080284F2/080285B6/08028666 +
+  the GPIO helper 0x0802375e (the IDR read) + the stream census
+  alignment; then align eeprom.c to the exact event stream and re-gate
+  the CK4 fresh. THEN the menu window compare closes the 213.
