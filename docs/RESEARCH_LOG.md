@@ -4149,3 +4149,112 @@ prefix = 204,670 = 100.00%; p3k13-long = 204,670/204,670 = 100.00% (every
 marker identical: PRE/P1/REL = 189037/204671/204671 both sides).
 p3-key1 = 219,256/220,539 = 100% of the orig; p3-key6 = 303,907/303,907 =
 100.00% - the neighbors unaffected. make test-host green.
+
+## Session 69 (cont. 6) — key-14 and key-11/12: the scan/tune-slice family decoded; PARKED on the PB9 tune-frame protocol (the root blocker)
+
+**The decode.** The keys 14 AND 11/12 (the 11/12 streams are byte-identical
+to each other) start the same SCAN mode: the press = the scan + the first
+5 kHz step (the s1 = '136.130' AT the boot-end pass), then one TUNE SLICE
+per render-paced period: the freq row ('136.130' -> '136.135' -> ... '136.255'),
+the 18x20 fill, the '00' subs, and a PB9 serial frame. The key-14 short =
+26 slices (136.125 + 26x5 kHz by 8.4 s); the sweep CONTINUES past the
+release (the scan is a mode, not a key state). The key-14's +153k REL
+delta = the scan slices themselves (no separate release render).
+
+**The PB9 tune frame = FREQUENCY-ENCODED.** The per-slice PB9 frames
+(2,252 events in the key-14) differ between slices in 999/2,252 positions
+- the PLL tuning bytes change with the frequency. A verbatim table replay
+impossible (unlike the key-13's constant settings-save frame): the PB9
+serial protocol (the frame format, the frequency encoding, the 256 ODR
+events inside the frame) = the decode required. The key-11/12 slices
+(4,702 framed events) carry the interleaved PB9 content too.
+
+**PARKED with evidence** (the timebox rule; the return = after the PB9
+protocol decode): the key-14 and the key-11/12 differentials. The parked
+set = exactly the two remaining injectable codes' families; the
+PB9 head-serial protocol = the ROOT blocker to attack next (the GOAL 2
+root-attack rule) - the key-13's constant frame + the LED stream + the
+rssi_bus_tail = the three existing PB9 transcripts to decode the protocol
+from. The scan model (the freq state, the 5 kHz steps, the render-paced
+tune slices) = implemented-ready design pending the frame encoder.
+
+**The matrix state: the codes 1/2/3/10/13 = 100% of the orig (5/8); the
+14 and the 11/12 = the parked pair above.**
+
+## Session 69 (cont. 7) — the PB9 head-serial protocol CRACKED (the root blocker attacked)
+
+**The frame anatomy** (the key-14 scan, the 26 frames): each tune frame =
+1,996 PB9 events = TWO 996-bit AT1846S SPI bursts separated by the CRH
+direction-flip pairs at the positions 996/997 and 1994/1995 (the same
+996-bit size as the RSSI poll bursts - the PB9 carries the AT1846S SPI to
+the tuner). The frames = the pure 4-code events (BRR/BSRR = the bits, the
+CRH = the direction).
+
+**The frequency encoding (the Rosetta = the 26 known-frequency frames):**
+- The 12-bit field at the positions 921..932 = the PLL counter, LINEAR:
+  962 + (f_kHz - 136135) - the slope exactly 1 per kHz (962, 967, 972,
+  977... for 136.135, 136.140, 136.145...; the MSB-first bit order).
+- The second burst's 11-bit field at 1920..1930 = the same counter minus 5
+  (957, 962, 967...).
+- The 4 mode bits at 634/641 (set) and 653/905 (cleared) flip at the first
+  post-press frame and stay.
+- The press's own transition frame (the s1) = the different register
+  content (the field 2813) = the static fresh-EE table.
+
+**The implementation design (the next slice):** the tune frame = the
+template (the frames[1] verbatim) + the field patcher (the two counter
+fields computed from the freq state, the 4 mode bits fixed) - the scan
+mode: the press = the scan + the step + the transition frame; the 8-pass
+tick = the freq += 5 kHz + the patched frame; the RSSI gate = the scan
+mode replaces the idle refresh. This unlocks the key-14 AND the key-11/12
+(the same scan family) AND relates to the 5.4 ee_save item (the PB9
+transport).
+
+## Session 69 (cont. 8) — the key-14 SCAN implemented; the differentials = the orig's full stream reproduced as a prefix
+
+**The correction to cont. 7:** the earlier frame extraction (the
+decode_i2c.py parse of the stale p3k14_short_orig.stream) mis-aligned the
+frames. Re-extraction from the fresh driver capture
+(p3-key14-short_orig.stream), slice-relative (the frame = the slice
+offsets 4702..6697), case-insensitive:
+
+- The frame = 996 bit events + the CRH direction flips at 996/997 +
+  996 bit events + the flips at 1994/1995 = 1,996 events, UNIFORM across
+  the sweep. There is NO transition frame: the "field 2813" and the
+  "mode bits flip at the first frame" = the misparse artifacts.
+- The mode bits 634/641/653/905 = (1,1,0,0) CONSTANT in every frame.
+- The ONLY varying = the two 11-bit fields at 922..932 and 1920..1930,
+  BOTH = the same counter V = f_kHz - 135168 (962 @ 136.130, 1082 @
+  136.250; the slope = exactly 1 per kHz; linear across the 25 full
+  frames). The 12th bit (the bit 11) = 0 always in the captured range.
+
+**The implementation** (reconstruction/src/ui.c + key14_tune_frame.h):
+`ui_freq` (the kHz, boot 136125), `ui_scan`; the key-14 press = the scan
++ the first +5 kHz step + the tune slice (the row '136.xxx' cells from
+ui_freq + the 18x20 EFBE fill + the '00' subs + the patched frame); the
+scan = RENDER-PACED: one slice every pass, back-to-back (the orig's
+slice pitch = exactly 6,698 events from the press slice on: 3,437 row +
+731 fill + 534 subs + 1,996 frame), the sweep continues past the
+release, the RSSI idle refresh is replaced while the scan is on. The
+frame sender = the template + the two 11-bit field patches + the PB9
+bit-bang delay loop (the asm 1111-iter x ~1.2 cyc = the calibrated
+~3,340 cycles/event; the 2-run calibration budget spent: the 1,000-iter
+run = 28.93 slices in the 2.0-s post-release window, the 1,111-iter run
+= 27.70 vs the orig's 25.85).
+
+**The differential results (the driver, fresh-EE):**
+- p3-key14-short: the prefix = 362,176 = 100% OF THE ORIG'S FULL STREAM
+  (the recon = 374,615 = +12,439 = the pacing surplus); every orig event
+  reproduced exactly, the first divergence = NONE within the orig.
+- p3-key14-long: the prefix = 517,228 = 100% OF THE ORIG'S FULL STREAM
+  (the recon = 536,854 = +19,626); the same.
+
+**The parked residual (the documented boundary):** the slice CONTENT =
+100% both captures; the WALL PACING = non-stationary in the orig (the
+held-short era = 0.133 s/slice, the held-long = 0.078, the free-run =
+0.0875 decelerating to 0.118 by t=4.5 s) = the RTOS scheduler
+interaction (the key-scan task vs the render task), not producible by
+the uniform bit-bang; the recon = the uniform calibrated rate. The
+stream comparison = the event ORDER/CONTENT (the wall = invisible in
+the pb_stream.log), so the differentials = the content-exact; the
+surplus = the recon's extra in-window slices only.

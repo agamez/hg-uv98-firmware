@@ -1058,6 +1058,89 @@ static void rssi_refresh(void)
  * silent) - the press kills the refresh task like the menu key. */
 #include "key13_pb9_stream.h"
 #include "key13_tail104.h"
+#include "key14_tune_frame.h"
+
+/* [session 69 | DATA-DERIVED p3k14/p3k11_orig] the key-14 SCAN mode: the
+ * press = the scan + the first 5 kHz step (the s1 renders at the press
+ * pass), then one TUNE SLICE per 8 passes (~0.335 s = the render-paced
+ * cadence: the slice = 3,437 row + 731 fill + 534 subs + 1,996 frame =
+ * 6,698 events, matching the orig's slice pitch). The freq state steps
+ * +5 kHz per slice; the sweep continues past the release (the scan = a
+ * mode). The frame = a 996-bit burst + the CRH direction flips at
+ * 996/997 + a 996-bit burst + the flips at 1994/1995, UNIFORM across the
+ * sweep; the two 11-bit PLL counter fields at 922..932 and 1920..1930
+ * both = ui_freq - 135168 [INFERRED calibration: 962 @ 136.130 MHz, the
+ * slope 1 per kHz, linear across the 25 known-frequency frames], the
+ * MSB-first. The RSSI idle refresh is replaced by the scan while the
+ * scan is on. */
+static uint32_t ui_freq = 136125u;   /* the VFO frequency, kHz (the fresh EE = 136.125) */
+static uint8_t ui_scan;              /* the scan mode */
+static uint16_t ui_scan_pass;        /* the passes since the scan start (the tick pacing) */
+
+static void pb9_code(uint8_t c)
+{
+    switch (c) {
+    case 0u: GPIO_BRR(GPIOB_BASE) = 0x200u; break;
+    case 1u: GPIO_BSRR(GPIOB_BASE) = 0x200u; break;
+    case 2u: GPIO_CRH(GPIOB_BASE) = 0xBBB44444u; break;
+    default: GPIO_CRH(GPIOB_BASE) = 0xBBB44434u; break;
+    }
+}
+
+/* [session 69 | INFERRED calibration] the orig's PB9 bit-bang pacing: the
+ * tune slice = 0.0875 s wall measured (25.85 slices in the 2.0-s
+ * post-release window; the display part is fast), so the frame's 1,996
+ * events carry ~3,000 cycles each (the delay loop = 1,000 x 3 cycles).
+ * The calibration budget = 2 runs per the working method. */
+static void pb9_bit_delay(void)
+{
+    __asm volatile (
+        "ldr r0, =1111\n"
+        "1: subs r0, #1\n"
+        "bhi 1b\n"
+        ::: "r0", "cc");
+}
+
+static void key14_frame_send(void)
+{
+    uint32_t v = ui_freq - 135168u;
+    uint32_t i;
+
+    for (i = 0u; i < KEY14_TUNE_FRAME_LEN; i++) {
+        uint8_t c = KEY14_TUNE_FRAME[i];
+
+        if (i >= 922u && i <= 932u)
+            c = (uint8_t)((v >> (932u - i)) & 1u);
+        else if (i >= 1920u && i <= 1930u)
+            c = (uint8_t)((v >> (1930u - i)) & 1u);
+        pb9_code(c);
+        pb9_bit_delay();
+    }
+}
+
+static void key14_row_display(void)
+{
+    uint32_t mhz = ui_freq / 1000u;
+    uint32_t khz = ui_freq % 1000u;
+
+    cell12x20(29u, 22u, (uint8_t)('0' + mhz / 100u));
+    cell12x20(29u, 34u, (uint8_t)('0' + (mhz / 10u) % 10u));
+    cell12x20(29u, 46u, (uint8_t)('0' + mhz % 10u));
+    cell12x20(29u, 58u, '.');
+    cell12x20(29u, 70u, (uint8_t)('0' + khz / 100u));
+    cell12x20(29u, 82u, (uint8_t)('0' + (khz / 10u) % 10u));
+    cell12x20(29u, 94u, (uint8_t)('0' + khz % 10u));
+    display_fill_rect(29u, 106u, 18u, 20u, 0xEFBEu);
+    cell8x16_ch(35u, 108u, '0');
+    cell8x16_ch(35u, 116u, '0');
+}
+
+static void key14_tune_slice(void)
+{
+    key14_row_display();
+    key14_frame_send();
+}
+
 
 static void key13_tail104_replay(void)
 {
@@ -1310,6 +1393,18 @@ void ui_task(void *p_arg)
                              * 218120..219115 — see session 68). */
                             at1846s_rssi_poll(RF_CHIP_VHF);  /* the active slot */
                             ui_menu_screen_continue();
+                        } else if (key == 14u) {
+                            /* [session 69 | DATA-DERIVED p3k14_orig] the
+                             * key 14 = the SCAN start: the first 5 kHz step
+                             * + the tune slice (the row + the uniform
+                             * patched frame) in the press pass; the scan
+                             * then ticks every 8 passes (the loop below).
+                             * The scan = a mode: it continues past the
+                             * release and replaces the RSSI idle refresh. */
+                            ui_scan = 1u;
+                            ui_freq += 5u;
+                            ui_scan_pass = 0u;
+                            key14_tune_slice();
                         } else if (key == 1u || key == 2u || key == 3u) {
                             /* [session 69 | DATA-DERIVED p3k1/p3k2/p3k3_orig]
                              * the keys 1/2/3 = the DIRECT band/digit select:
@@ -1367,7 +1462,19 @@ void ui_task(void *p_arg)
          * fire count in the p3k1 window only by coincidence and leaked 3
          * fires into the p3-key6 pre-press window. */
         ui_rssi_pass++;
-        if (ui_rssi_kill == 0u && REG8(UI_STATE_ADDR) == 0x00u &&
+        if (ui_scan != 0u) {
+            /* [session 69 | DATA-DERIVED p3k14_orig] the scan = RENDER-
+             * PACED: one TUNE SLICE every pass, back-to-back (the orig's
+             * slice pitch = exactly 6,698 events from the press slice on;
+             * the slice wall period = the frame's bit-bang duration inside
+             * key14_frame_send). The sweep continues past the release and
+             * replaces the RSSI idle refresh while the scan is on. The
+             * press pass itself already rendered s1 in the dispatch. */
+            if (ui_rssi_pass > 1u) {
+                ui_freq += 5u;
+                key14_tune_slice();
+            }
+        } else if (ui_rssi_kill == 0u && REG8(UI_STATE_ADDR) == 0x00u &&
             (uint16_t)(ui_rssi_pass % 11u) == 1u &&
             (ui_rssi_fire < 2u || REG8(KEY_CODE_BYTE) == 0xFFu)) {
             rssi_refresh();
