@@ -4629,3 +4629,27 @@ post, the key11-long timing):**
   AT1846S SPI pair, no traffic in the CK3 window); item 5 = closed; item 3
   = folded into COVERAGE.md. **The §5.3 decode-item list = COMPLETE** as a
   gate input; the COVERAGE.md pass = the next phase.
+
+## Session 70 (cont. 6) — THE COVERAGE LEDGER COMPLETE: zero UNCLASSIFIED rows
+
+**The decompile-batch sweep (the headless instrument, all real code, 0
+bad-instruction):**
+- 0x0800E000-0x0800FFFF: 62 functions (the mode-dispatch table cluster
+  0x0800E130 = the per-mode key-10 menu dispatch over the 'E'/'F'/'I'/'T'...
+  tables)
+- 0x08010000-0x08019FFF: 154 functions
+- 0x0801A000-0x08029FFF: 104 functions
+- 0x0802D000-0x0802DFFF: 26 functions (the RTOS-entry/main-task region)
+- Plus the earlier: the docs/rea decompile corpus (330 unique addresses)
+  and the recon-annotation cites (68).
+
+**The class boundaries (verified by decompile sampling):**
+- 0x0802A000-0x0802CFFF = the vendor block [VENDOR | RECOVERED]: the
+  uC-OS-II core (the stat math 0x0802A0F4, the PendSV context switch
+  0x0802B23A), the compiler aeabi runtime (the 64-bit divide 0x0802C5AA)
+- 0x08042000+ = the const/data regions [DATA]: the prologue-scan false
+  positives (the bad-instruction decompiles 0x08043016, 0x08046002)
+
+**docs/COVERAGE.md = 685 rows: 645 RECOVERED (the recon source annotations
+or the REA decompile cites under docs/rea/) + 40 DATA = ZERO UNCLASSIFIED.**
+The §5.4 gate = met. Commits 9bf8bbc, 25815e2.
