@@ -79,14 +79,15 @@ static void dispatcher_task(void *arg)
  * value feeds the S-meter state (0xFFF = invalid). */
 static void rssi_task(void *arg)
 {
+    /* [session 66 | FUN_0801ab36 REARCHITECTURE] the original's per-slot
+     * activate is NOT free-running: REA + the Renode hook census show its
+     * rf_read (0x0802692E) fires exactly 5x in the p3-key6 scenario, from
+     * FUN_08022a98 (the both-slot refresh, sites 0x8022ae7/0x8022b07) at
+     * the boot end and at the release, and FUN_08019910 (site 0x8019ba5)
+     * at the key-10 press — never on a 500 ms cadence. The poll moved to
+     * the ui.c call sites; the task blocks forever. */
     (void)arg;
     for (;;) {
-        at1846s_rssi_poll();
-        uint32_t rssi = rf_read(RF_CHIP_VHF, 0x0Du) & 0xFFFu;
-        if (rssi != 0xFFF) {
-            /* original updates the S-meter state consumed by the
-             * status-text dispatcher ("-9.0 dB" .. "-0 dB", "NN S")       */
-        }
         time_dly(500);
     }
 }

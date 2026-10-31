@@ -13,13 +13,14 @@
 void rf_bus_gpio_init(void);            /* 0x080267AA (Renode space): PA9/PA15/PA8/PA12 outputs, CS idle high */
 void rf_cs_select(int mode);            /* 0x08022838: 0 -> CS0, 1 -> CS1, other -> both */
 void rf_write(uint8_t chip, uint8_t reg, uint16_t val);  /* 0x0802289A */
+void rf_write_raw_frame(uint8_t chip, uint8_t b0, uint16_t val);  /* [s66] unmasked first byte */
 uint32_t rf_read(uint8_t chip, uint8_t reg);             /* 0x0802292E, reg|0x80 */
 
 /* Boot-time register programming (session 49: captured 50-write table). */
 void at1846s_boot_init(uint8_t chip);   /* the unrolled init block, both chips */
 void at1846s_boot_init_block_b(uint8_t chip);  /* bank-1 tail, re-run in reconfig */
 void at1846s_boot_default_apply(void);  /* [DATA-DERIVED] power-on default channel flow */
-void at1846s_rssi_poll(void);           /* [RECOVERED session 62] the 500 ms poll RF refresh */
+void at1846s_rssi_poll(void);           /* [DATA-DERIVED s66] the per-slot activate RF burst */
 
 /* Register-level operations recovered from the image. */
 void at1846s_set_frequency(uint8_t chip, uint32_t freq_hz); /* 0x08023200..: MHz*16000 -> 0x29/0x2A */

@@ -3775,3 +3775,41 @@ result, reverted pending a deeper decode.**
   callers 0x8024106/0x802195a/0x8024c24 = the render dispatch) and gate
   the recon's build/poll to the same pass schedule before re-attempting
   the integration.
+
+**Session 66 — the RSSI poll re-architected to the REAL original model
+(FUN_0801ab36); the poll content is now byte-exact.**
+- Renode hook census of the original (p3-key6-orig-rf.resc /
+  p3-key6-orig-poll.resc): rf_read (0x0802692E) fires EXACTLY 5x in the
+  p3-key6 scenario, always from lr=0x801ac6b = FUN_0801ab36 (0x801AB36-
+  0x801ACFB) — the session-64 "poll = 0x0801ACFC" claim pointed one
+  function late; the REAL per-slot activate = FUN_0801ab36 (params ->
+  apply 0x08027156 -> dly(0x28) -> rf_read(chip,0x0D) -> store
+  slot[0x11E+chip*2] &= 0x8000 -> if zero the re-init path, never taken
+  fresh). The three "renderers" (0x080241BC/45E/7CC) and 0x0802195A never
+  execute in this scenario.
+- Trigger census: the 5 polls = [FUN_08022a98 x2 calls = the both-slot
+  refresh (its dual-band branch = poll(other chip) then poll(active)),
+  once at the boot end (RD wall 6.05/6.11) and once at the release
+  (100.77/100.85)] + [FUN_08019910 site 0x8019ba5 once at the key-10
+  press (35.56)]. NOT free-running: the recon's 500 ms rssi_task retired
+  to a dly loop.
+- The poll burst decoded byte-exact from p3k6_orig.stream 187041..188038:
+  996 PB9 bits = 39 x 25-bit words (block_b 24 + tone pair 2 + raw tail
+  13, first bytes 0xBA/0xFD carry R/W=1) + 13-event gap + rf_read(0x0D)
+  cmd 8, then CRH-in/out. ZERO ODR writes — the poll transport is
+  PB9-only (the clock on the unlogged PD0-class port), NOT the
+  GPIOA-CS/CLK rf_write SPI used at boot. Session-62's shape
+  (gpio_reconfig + Phase-Y apply) RETRACTED.
+- The session-53 LED stream/tail replays are WARM-boot-only artifacts:
+  the ui_led_stream pattern occurs 0x in p3k6_orig.stream (fresh) vs 2x
+  in the recon's pre-fix stream (the boot-end build + the release
+  build). Both gated on ui_ee_warm like the ee359 burst.
+- RESULT: the recon's poll content now matches the orig's byte-for-byte
+  (the 1,996-event poll pair = identical), emitted at the three correct
+  architectural moments (boot end x2, press x1, release x2). Residual:
+  the recon's status-page build still ends with a ~170-event display
+  chunk the fresh original draws only AFTER its poll pair (positions
+  flipped), so this scenario diffs 505 blocks (was 472 with the old
+  free-running wrong-content polls). Next: identify the build-tail
+  chunk (the set-window 0x2A + ~29-byte draw after the RX-bar era) and
+  re-order it to the orig's schedule, then re-diff.

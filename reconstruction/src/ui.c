@@ -85,6 +85,7 @@
 #include "hwregs.h"
 #include "eeprom.h"
 #include "display.h"
+#include "rf.h"
 
 #define REG8(a)   (*(volatile uint8_t *)(a))
 #define REG16(a)  (*(volatile uint16_t *)(a))
@@ -671,9 +672,17 @@ static void ui_screen0_build(void)
         cell8x16(0x1Fu, 0x0Du, left_arrow);
     }
     cell8x16_ch(0x4Eu, 0x0Du, 0x20u);
-    display_led_stream_replay();   /* [DATA-DERIVED] the 4,458-event LED burst @ODR#152,036 */
-    display_fill_rect(97u, 30u, 90u, 10u, 0xEFBE);;
-    display_led_tail_replay();     /* [DATA-DERIVED] the 25-event burst @ODR#153,847 */
+    /* [session 66 correction] the LED stream/tail replays AND the
+     * (97,30,90,10) fill came from the session-53 WARM-boot capture
+     * (@ODR#152,036 era). The fresh-EE original emits NONE of them (the
+     * ui_led_stream pattern occurs 0x in p3k6_orig.stream), and their
+     * position pushed the whole post-build window out of alignment.
+     * Gated on ui_ee_warm exactly like the ee359 burst. */
+    if (ui_ee_warm) {
+        display_led_stream_replay();   /* the 4,458-event warm LED burst */
+        display_fill_rect(97u, 30u, 90u, 10u, 0xEFBE);;
+        display_led_tail_replay();     /* the 25-event warm burst        */
+    }
     /* [session 65 | 0x0801E5E0] the status-page re-draw re-renders the
      * VFO rows with the LIVE values (the orig's BFB8 trace: y=29 drawn
      * twice with the same records) — not the stale static scaffold. */
@@ -895,6 +904,14 @@ void ui_task(void *p_arg)
     ui_boot_scene();      /* [0x0802D178 order: the periph init, the task
                            * creators, then the boot scene] */
     ui_screen0_build();   /* the status page: the first runtime pass */
+    /* [session 66 | FUN_08022a98 the both-slot refresh] the original's
+     * boot end refreshes both slots back-to-back (the RD-hook census:
+     * the polls 1+2 = the FUN_08022a98 sites 0x8022ae7/0x8022b07, the
+     * stream 187041..189034 = 2x (39 frames + gap + read)). The PB9
+     * bit pattern is chip-independent in the observed data; the CS
+     * selects stay on the VHF slot for both. */
+    at1846s_rssi_poll();
+    at1846s_rssi_poll();
 
     /* [session 61 | 0x802490e enter equivalent] the periodic session
      * manager's enter branch sets FLAG_BANK+2 bit2 (the RX/scan session,
@@ -948,6 +965,13 @@ void ui_task(void *p_arg)
                     if (REG8(UI_STATE_ADDR) == 0x35u) {
                         ui_state_set(0x00u);
                         ui_screen0_build();
+                        /* [session 66 | FUN_08022a98] the release
+                         * re-renders the status page then refreshes both
+                         * slots (the RD-hook polls 4+5, the stream
+                         * 301912..303905, right after the BFB8 g4
+                         * re-render). */
+                        at1846s_rssi_poll();
+                        at1846s_rssi_poll();
                     }
                 } else if (((REG8(FLAG_BANK + 2u) >> 2u) & 1u) == 0u) {
                         REG8(FLAG_BANK + 6u) &= 0x7Fu;   /* 0x8019fea */
@@ -1002,6 +1026,12 @@ void ui_task(void *p_arg)
                              * class-4 draw 0x0801CB60) = the next decode;
                              * the glyphs here = the stand-in. */
                             ui_menu_screen_build();
+                            /* [session 66 | FUN_08019910 site 0x8019ba5]
+                             * the press path activates the slot once,
+                             * right after the screen render (the RD-hook
+                             * poll 3, the stream 218120..219115 — the
+                             * menu paint's immediate tail). */
+                            at1846s_rssi_poll();
                         }
                         /* [session 61 | 0x0801A13A RECOVERED] the keys 1/2
                          * have NO short-press action: they increment the

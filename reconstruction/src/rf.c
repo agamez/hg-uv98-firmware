@@ -167,6 +167,31 @@ void rf_write(uint8_t chip, uint8_t reg, uint16_t val)
     rf_delay(8);
 }
 
+/* [session 66 | the poll-tail writer] the rf_write body with the first
+ * frame byte UNMASKED: the orig's poll frames 27-39 carry first bytes
+ * with the R/W bit and values above 0x7F (0xBA/0xFD/0x76 raw patterns),
+ * which the reg&0x7F masking of rf_write would clobber. [DATA-DERIVED,
+ * p3k6_orig.stream frames 27-39.] */
+void rf_write_raw_frame(uint8_t chip, uint8_t b0, uint16_t val)
+{
+    uint8_t frame[3];
+
+    frame[0] = b0;
+    frame[1] = (uint8_t)(val >> 8);
+    frame[2] = (uint8_t)(val & 0xFFu);
+    GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_CLK);
+    rf_delay(8);
+    rf_cs_select(chip);
+    rf_delay(10);
+    for (int i = 0; i < 3; i++)
+        rf_send_byte(frame[i]);
+    rf_delay(8);
+    rf_cs_select(2);
+    GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_CLK);
+    GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_DATA);
+    rf_delay(8);
+}
+
 /* [0x080266F6 | RECOVERED session 62] the RF DATA line (PB9) -> input
  * mode: the {0x200, mode 4} spec via the 0x08023678 helper = ONE CRH
  * store (bbb44444). The rf_read path switches PB9 to input right after
@@ -509,20 +534,67 @@ static void at1846s_poll_gap_replay(void)
 }
 
 
+/* [session 66 | the poll transport] the orig's poll burst is PB9-ONLY in
+ * the stream (998 events = 647 BRR + 349 BSRR + 1x CRH-in + 1x CRH-out;
+ * ZERO ODR writes — the clock lives on an unlogged port, the PD0-class
+ * serial like display_led_write). The rf_write/rf_read SPI transport
+ * (the GPIOA CS/CLK ODR writes) is the BOOT's bus, not the poll's. These
+ * raw helpers emit the same PB9 bit stream with no GPIOA traffic. */
+
+static void poll_send_byte(uint8_t b)
+{
+    for (int i = 7; i >= 0; i--) {
+        if ((b >> i) & 1u)
+            GPIO_BSRR(GPIOB_BASE) = 0x200u;
+        else
+            GPIO_BRR(GPIOB_BASE) = 0x200u;
+        b = (uint8_t)(b << 1);
+    }
+}
+
+static uint32_t poll_read_reg(uint8_t reg)
+{
+    uint32_t v = 0;
+
+    poll_send_byte((uint8_t)(reg | 0x80u));
+    rf_data_input();                                /* [0x08026966] */
+    for (int i = 15; i >= 0; i--)
+        v = (v << 1) | ((GPIO_IDR(GPIOB_BASE) & RF_DATA) ? 1u : 0u);
+    rf_data_output();                               /* [0x080266D4] */
+    return v;
+}
+
 void at1846s_rssi_poll(void)
 {
-    at1846s_boot_init_block_b(RF_CHIP_VHF);
-    at1846s_tone_pair_boot(RF_CHIP_VHF, 0u, 5u);
-    at1846s_poll_gap_replay();
-    at1846s_gpio_reconfig(RF_CHIP_VHF, 1);           /* 0x9BA9            */
+    /* [DATA-DERIVED session 66 | FUN_0801ab36 RF slice, byte-exact from
+     * p3k6_orig.stream 187041..188038 = the poll = 39 24-bit words + the
+     * constant 13-event gap + the rf_read(chip,0x0D) command tail, all
+     * PB9-only. Words 1-24 = the boot's block_b register values, 25-26 =
+     * the tone pair, 27-39 = the raw tail (first bytes carry R/W=1/raw
+     * patterns, 0xBA/0xFD > 0x7F). The session-62 shape (rf_write SPI
+     * transport + gpio_reconfig + the Phase-Y apply) is RETRACTED: the
+     * orig's poll emits no 0x30-mode writes and no GPIOA traffic. */
+    static const struct { uint8_t b0; uint16_t val; } words[39] = {
+        { 0x15, 0x1F00 }, { 0x32, 0x7564 }, { 0x3A, 0x44C3 }, { 0x3C, 0x1930 },
+        { 0x3F, 0x29D2 }, { 0x48, 0x1E3C }, { 0x59, 0x0A50 }, { 0x60, 0x101E },
+        { 0x62, 0x3767 }, { 0x65, 0x248A }, { 0x66, 0xFF2E }, { 0x7F, 0x0001 },
+        { 0x06, 0x0024 }, { 0x07, 0x0214 }, { 0x08, 0x0224 }, { 0x09, 0x0314 },
+        { 0x0A, 0x0324 }, { 0x0B, 0x0344 }, { 0x0C, 0x0384 }, { 0x0D, 0x1384 },
+        { 0x0E, 0x1B84 }, { 0x0F, 0x3F84 }, { 0x12, 0xE0EB }, { 0x7F, 0x0000 },
+        { 0x48, 0x1E3C }, { 0x49, 0x0203 }, { 0x1F, 0xF0FC }, { 0xBA, 0x9183 },
+        { 0x00, 0x62C4 }, { 0x00, 0x5250 }, { 0x57, 0xC268 }, { 0x01, 0x00D2 },
+        { 0x0C, 0x92D8 }, { 0x21, 0x3183 }, { 0x06, 0x002C }, { 0x76, 0x3148 },
+        { 0x06, 0x1155 }, { 0xFD, 0x0183 }, { 0x06, 0x0183 },
+    };
 
-    /* the Phase-Y apply (identical to the default-apply's Phase Y)     */
-    at1846s_standby(RF_CHIP_VHF, 0);
-    at1846s_ctcss_off(RF_CHIP_VHF);
-    at1846s_standby(RF_CHIP_VHF, 0);
-    at1846s_set_band_config(RF_CHIP_VHF, 0, 0);
-    at1846s_set_frequency(RF_CHIP_VHF, 0);
-    at1846s_mode_rx(RF_CHIP_VHF, 0);                 /* 0x7006, 0x70A6    */
+    for (unsigned i = 0; i < sizeof(words) / sizeof(words[0]); i++) {
+        poll_send_byte(words[i].b0);
+        poll_send_byte((uint8_t)(words[i].val >> 8));
+        poll_send_byte((uint8_t)(words[i].val & 0xFFu));
+        GPIO_BRR(GPIOB_BASE) = 0x200u;   /* the trailing DATA-low */
+    }
+    at1846s_poll_gap_replay();           /* the 13-event gap */
+    (void)poll_read_reg(0x0D);           /* the RSSI read    */
 }
 
 /* [0x08023200.. | RECOVERED] program the VCO frequency.
