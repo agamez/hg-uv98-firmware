@@ -3505,3 +3505,40 @@ the REA MCP decompiles (the evidence for every fix below).
   the GPIO helper 0x0802375e (the IDR read) + the stream census
   alignment; then align eeprom.c to the exact event stream and re-gate
   the CK4 fresh. THEN the menu window compare closes the 213.
+
+## Session 61 (cont. 11) - the I2C bit-level = VERIFIED CORRECT (the helper Rosetta); the root = the transaction level
+
+- The GPIO-helper hook trace (0x08023780 BSRR / 0x08023788 BRR /
+  0x0802375E IDR + the I2C entries, 26,684 events at ~0.2 s) = the
+  protocol-level Rosetta for the original:
+  * the START (0x080284F2) = CROUT, SDA-high (BS 0x200), SCL-high (the
+    GPIOA 0x800 = invisible in the pb_stream), SDA-low, SCL-low;
+  * the send byte (0x080285B6) = CROUT + the 8 x (the SDA value, the
+    SCL rise, the SCL fall) + the SDA-high ack tail + CRIN + the 9th
+    rise + ID 0x200 (the sample) + the fall = the PB9-visible 11
+    events/byte = EXACTLY the recon's i2c_send_byte;
+  * the read byte (0x08028666) = CRIN once + the per-bit (the SCL
+    toggle on the GPIOA + ID 0x200 sample) = the PB9-visible 1
+    event/byte = EXACTLY the recon's i2c_read_byte.
+  => THE I2C BIT-LEVEL = NOT THE DIVERGENCE. The eeprom.c master = the
+  bit-exact match to the original.
+- The helper trace's opening (the pre-I2C era) = the RADIO SPI bit
+  pattern: (BS 0x8000 = the PA15 CLK high, BR 0x8000 = the CLK low,
+  BR 0x200 = the PB9 data) x N = 3 events/bit, the data line left LOW
+  after the burst. The I2C's ack tail leaves PB9 HIGH (the BS 0x200
+  before CRIN; the reads write no SDA) = the orig's post-I2C PB9 =
+  HIGH = the display ODR 0x02xx. The recon's PB9 = LOW at the same
+  point = the divergence = WHICH bus touched PB9 last and its leave
+  state - the radio/I2C interleaving or the leave-state differs at the
+  TRANSACTION level.
+- The transaction census (the orig 0.4 s): 422 starts / 832 bytes /
+  150 reads = far more EE transactions than the nominal boot load =>
+  the retry/poll loop structure differs from the recon's, OR a second
+  I2C consumer exists. THE OPEN ROOT: align the transaction sequence
+  (the call sites of the ee_load/ee_save/ee_read paths + the retry
+  policy) and the PB9 leave-state per bus, then re-gate the CK4 fresh.
+- The radio SPI's PB9 data = the BRR-dominant (the low bits) = the
+  recon's higher BRR census (20,383 vs 17,736) = the radio-vs-orig
+  bit-count mismatch candidate = the AT1846S transaction alignment =
+  the same root (the CK3 channel = the byte-level SPI, the PB9 stream
+  = the bit-level, the two must agree).
