@@ -3757,3 +3757,21 @@ boot now byte-identical end-to-end.**
   = the render tail (the recon's rssi_task = the free-running 500 ms
   emitter to be removed; the poll = the render-integrated 0x0801ACFC
   model). The 58-bit preamble attribution remains open.
+
+**Session 65, part 2 — the render-tail poll restructure attempt: mixed
+result, reverted pending a deeper decode.**
+- Moved at1846s_rssi_poll()+the 0x0D read from the free-running rssi_task
+  (retired to a dly loop) to the ui_screen0_build tail, per the 0x0801ACFC
+  render-integration blueprint. RESULT: the RF volume moved the right way
+  (29,295 -> 11,112 HL bits after 187,041 vs the orig's 5,220) but the
+  block count REGRESSED (472 -> 780): the recon's burst spans became
+  (187041,191498)=4457b, (193310,193334)=25b, (203678,204634)=956b,
+  (323173,327630)=4457b, (339810,340766)=956b... — the 4,457-bit bursts
+  are suspiciously the ui_led_stream replay size, hinting the LED-replay
+  call sites interact with the build count (ui_screen0_build fires more
+  than the orig's 5 render passes). REVERTED to commit 471557f (the
+  472-block state) while the render-pass accounting is decoded. Next:
+  count the orig's ui_screen0_build-equivalent renders (the 0x08024xxx
+  callers 0x8024106/0x802195a/0x8024c24 = the render dispatch) and gate
+  the recon's build/poll to the same pass schedule before re-attempting
+  the integration.
