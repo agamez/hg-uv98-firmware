@@ -1,5 +1,5 @@
-# p3-key12-short-orig.resc - session 69: the key matrix cell
-# (code 12 = the A-ladder idx 2, ADC 2979 in 2879..3079),
+# p3-key11-short-orig.resc - session 69: the key matrix cell
+# (code 12 = the A-ladder idx 2, ADC 2979 in 2629..2829),
 # the short press (hold 0.4s). Fresh-EE: the driver deletes
 # ee_image.bin before the run.
 using sysbus

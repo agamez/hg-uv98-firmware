@@ -1,5 +1,5 @@
-# p3-key12-short-recon.resc - session 69: the recon mirror of
-# p3-key12-short-orig.resc (code 12 = the A-ladder idx 2,
+# p3-key11-short-recon.resc - session 69: the recon mirror of
+# p3-key11-short-orig.resc (code 12 = the A-ladder idx 2,
 # ADC 2979, the short press, hold 0.4s).
 using sysbus
 mach create "p3k12shortrec"

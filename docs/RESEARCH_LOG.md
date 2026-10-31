@@ -4490,3 +4490,33 @@ of the orig's 6.17-7.69 slices/pass band.
 - OPEN: the render SIM-time gap (the recon's slice = 0.54-1.11 ms vs the
   orig's 5.4-6.8 = the I2C bit pacing ×6-10) = the next §5.0 item; the
   p3k12 capture (the DOWN direction) = the matrix cell.
+
+## Session 70 (cont.) — the key-12 cell: the orig = the key-11's content + a deterministic ±2-event I2C phase jitter; the recon = the key-11-exact; PARKED with evidence
+
+**The p3k12_orig capture (fresh, the tag 2979):** the total = 477,704 =
+the EXACT p3k11_orig total; P1 = 467,351 = the same; REL = 477,705 = the
+same. **The key-12 = the SAME +5 UP sweep as the key-11** — confirms the C
+(func_08026318's SHARED case `(param_1 == 0xc) || (param_1 < 0xc)` = the
+same enqueue target for both keys; the earlier session's "byte-identical
+streams for both keys" note). The recon's DOWN branch was wrong — removed;
+the engine = the shared UP for both keys (the build = 122,299 text).
+
+**The residual = the ORIG-INTERNAL I2C phase jitter:** diff(p3k11_orig,
+p3k12_orig) = 48,212 lines = 24,106 ±2-event shifts (the 02ef/02be vs
+0200 ODR idle pairs) SCATTERED over ~10% of the stream, net zero (the
+identical totals). The p3k11_orig = jitter-FREE (the recon's 475,858
+prefix = the 61-slice match proves it); the p3k12_orig = jittered. A
+p3k11_orig RE-RUN reproduced the 8-event gap EXACTLY (the deterministic
+per-scenario, NOT run-to-run variance) — the jitter = KEY-12-specific in
+the original's own display I2C (the clock-stretch/ACK timing). The recon
+(deterministic, = the p3k11_orig exactly) cannot reproduce the orig's
+internal bus jitter at the 2-event granularity.
+
+**The runs:** the noinline pinning of the 5 render/PB9 functions (the
+caller-independent codegen, the build robustness); the p3k12-short × 2 +
+the p3k11-short-var × 1. **p3-key12-short: prefix = 191,564 (36.50% of the
+longer) — PARKED: the divergence = the orig's own ±2 jitter, the content =
+identical to the key-11's (which matches at 99.61%).** The p3k12-long =
+skipped (the same jitter class). The key-12's recon-side model = CORRECT
+(the shared UP engine); the remaining delta = the orig-internal bus
+jitter, not a decode gap.

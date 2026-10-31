@@ -1088,7 +1088,7 @@ static void rssi_refresh(void)
  * MSB-first. The RSSI idle refresh is replaced by the scan while the
  * scan is on. */
 static uint32_t ui_freq = 136125u;   /* the VFO frequency, kHz (the fresh EE = 136.125) */
-static uint8_t ui_scan;              /* the scan mode: 1 = the key-14 (the frame per slice), 2 = the key-11 UP sweep, 3 = the key-12 DOWN sweep [REA-C] */
+static uint8_t ui_scan;              /* the scan mode: 1 = the key-14 (the frame per slice), 2 = the key-11/12 UP sweep [REA-C: the shared enqueue case] */
 static uint16_t ui_scan_pass;        /* the passes since the scan start (the tick pacing) */
 static uint8_t ui_scan_end;          /* the key-11/12 release phases: 0 = the held, 1..2 = the deceleration slices, 3 = the end frame */
 
@@ -1133,7 +1133,7 @@ static void key14_frame_send(void)
     }
 }
 
-static void key14_row_display(void)
+__attribute__((noinline)) static void key14_row_display(void)
 {
     uint32_t mhz = ui_freq / 1000u;
     uint32_t khz = ui_freq % 1000u;
@@ -1150,7 +1150,7 @@ static void key14_row_display(void)
     cell8x16_ch(35u, 116u, '0');
 }
 
-static void key14_tune_slice(void)
+__attribute__((noinline)) static void key14_tune_slice(void)
 {
     key14_row_display();
     key14_frame_send();
@@ -1159,7 +1159,7 @@ static void key14_tune_slice(void)
 /* [session 69 | DATA-DERIVED p3k11_short_orig.stream] the key-11/12 END
  * frame: the same PLL encoding (V = ui_freq - 135168, the field 922..932;
  * the second burst's field region = past the 1,846 capture cut). */
-static void key11_frame_send(void)
+__attribute__((noinline)) static void key11_frame_send(void)
 {
     uint32_t v = ui_freq - 135168u;
     uint32_t i;
@@ -1197,7 +1197,7 @@ static void key13_tail104_replay(void)
     }
 }
 
-static void key13_pb9_replay(void)
+__attribute__((noinline)) static void key13_pb9_replay(void)
 {
     uint32_t k;
 
@@ -1219,7 +1219,7 @@ static void key13_pb9_replay(void)
     }
 }
 
-static void key13_screen(void)
+__attribute__((noinline)) static void key13_screen(void)
 {
     display_fill_rect(29u, 106u, 53u, 20u, 0xEFBEu);
     cell6x10(18u, 133u, 'A');
@@ -1428,20 +1428,25 @@ void ui_task(void *p_arg)
                             ui_menu_screen_continue();
                         } else if (key == 11u || key == 12u) {
                             /* [session 70 | REA-C: dispatch 0x8019dcc keys
-                             * 11/12 branch + FUN_080201aa (0x080201AA)] the
-                             * press only ARMS the drain state machine. The
-                             * sweep engine itself is RAW-TAG-GATED below
-                             * (the original's engine is render-bound at
-                             * ~144 Hz = 6.94 ms/slice and starts at the
-                             * first dispatch pass that samples the key
-                             * down, NOT at the debounced press detection:
-                             * p3k11-short slice 1 = 136.130 emitted exactly
-                             * at the tag write). FUN_080201aa: key 11 =
-                             * work_freq += step (per-VFO u16 at +0x2e),
-                             * key 12 = -= step, band-limit wrap at
-                             * [vfo*4+0x5a]/[+0x62] (no wrap in the captured
-                             * 61-step window; wrap = TODO-[C]). */
-                            ui_scan = (key == 11u) ? 2u : 3u;
+                             * 11/12 branch + func_08026318's SHARED case
+                             * ((param_1 == 0xc) || (param_1 < 0xc) = the
+                             * same enqueue target for BOTH keys) + the
+                             * p3k12_orig stream = BYTE-IDENTICAL to
+                             * p3k11_orig (the same 477,704 events, the
+                             * same +5 UP sweep)] the press only ARMS the
+                             * drain state machine. The sweep engine itself
+                             * is RAW-TAG-GATED below (the original's engine
+                             * is render-bound at ~144 Hz = 6.94 ms/slice
+                             * and starts at the first dispatch pass that
+                             * samples the key down, NOT at the debounced
+                             * press detection: p3k11-short slice 1 = 136.130
+                             * emitted exactly at the tag write). Both keys
+                             * sweep UP on the boot screen; the DOWN branch
+                             * of FUN_080201aa belongs to the screens 11/14
+                             * vtable path. The band wrap at [vfo*4+0x5a]/
+                             * [+0x62] (no wrap in the captured 61-step
+                             * window; wrap = TODO-[C]). */
+                            ui_scan = 2u;
                             ui_scan_end = 0u;
                         } else if (key == 14u) {
                             /* [session 69 | DATA-DERIVED p3k14_orig] the
@@ -1512,38 +1517,31 @@ void ui_task(void *p_arg)
          * fire count in the p3k1 window only by coincidence and leaked 3
          * fires into the p3-key6 pre-press window. */
         ui_rssi_pass++;
-        if (ADC2_DR == 2729u) {
-            /* [session 70 | REA-C: FUN_080201aa(0xb)] the key-11 sweep
-             * engine: RAW-TAG-GATED (2729 = the key-11 ADC code), NOT
-             * gated on ui_scan - the original's engine is RENDER-BOUND
-             * (a free-running consumer task, NOT pass-quantized): the
+        if (ADC2_DR == 2729u || ADC2_DR == 2979u) {
+            /* [session 70 | REA-C: func_08026318's SHARED 11/12 case + the
+             * p3k12_orig stream = byte-identical to p3k11_orig] the key-11
+             * AND key-12 sweep engine: RAW-TAG-GATED, NOT gated on
+             * ui_scan - the original's engine is RENDER-BOUND (a
+             * free-running consumer task, NOT pass-quantized): the
              * measured orig pace = 148 slices/s in the 0.4-s hold
              * (6.76 ms/slice) and 185 slices/s in the 3.0-s hold
              * (5.42 ms/slice) - the non-stationary RTOS pacing (the
              * key-14 parked-boundary class). The recon quantizes to
              * 7 slices per 41.667-ms dispatch pass (the middle of the
-             * orig's 6.1-7.7 slices/pass band): p3k11-short = the
+             * orig's 6.17-7.69 slices/pass band): p3k11-short = the
              * content-exact prefix + the pacing surplus (the key-14
-             * shape), p3k11-long = the byte-exact stream. */
+             * shape), p3k11-long = the byte-exact stream. BOTH keys
+             * sweep UP (+5 kHz per slice, 136.130..136.430). */
             uint8_t k;
             for (k = 0u; k < 7u; k++) {
                 ui_freq += 5u;
                 key14_row_display();
             }
-        } else if (ADC2_DR == 2979u) {
-            /* [session 70 | REA-C: FUN_080201aa(0xc)] the key-12 = the
-             * mirror: work_freq -= step (the DOWN sweep). [REA-C-INFERRED
-             * direction; no p3k12 capture yet]. */
-            uint8_t k;
-            for (k = 0u; k < 7u; k++) {
-                ui_freq -= 5u;
-                key14_row_display();
-            }
-        } else if (ui_scan == 2u || ui_scan == 3u) {
+        } else if (ui_scan == 2u) {
             /* [session 70 | REA-C: the dispatch release path fires the
              * vtbl press ONCE per short press (0 < counter < 40) =
-             * FUN_08019910(0xb/0xc) = ONE more step slice (the 61st),
-             * then the end frame. The orig's post-release window = the
+             * FUN_08019910(key) = ONE more step slice (the 61st), then
+             * the end frame. The orig's post-release window = the
              * 60th-slice completion + the 61st + the PB9 end frame
              * (1,996 events, cut at ~1,843 by the capture quit). The
              * drain = 1 slice + the frame. After the frame the scan is
@@ -1551,11 +1549,7 @@ void ui_task(void *p_arg)
              * silent; the key-13 precedent). */
             if (ui_scan_end == 0u) {
                 ui_scan_end = 1u;
-                if (ui_scan == 2u) {
-                    ui_freq += 5u;
-                } else {
-                    ui_freq -= 5u;
-                }
+                ui_freq += 5u;
                 key14_row_display();
             } else {
                 key11_frame_send();
