@@ -4385,3 +4385,38 @@ layout, the maps, the A→B→C order, the lock gate — all match the recon C).
   slice renderer) and re-derive the p3k11/p3k14 render path from the C
   BEFORE any further recon changes or replay runs (the REA-first doctrine).
   The recon's key-11/12 model is flagged SUSPECT-against-C until then.
+
+## Session 69 (cont. 12) — func_08021a50/func_0801cfd0 decompiled: the fine-tune pair drives a BAR display; the +5-slice origin still open
+
+- **func_08021a50 = a mode gate, not the repeat driver:** returns 0xFF
+  (block) or 0 (allow) from the mode byte at _DAT_08021b98+0x1e
+  (states 0/1/2) and the key < 0x12 test. The dispatch's third key-branch
+  condition = this permission check.
+- **func_0801cfd0 = a horizontal BAR-graph renderer:** mode 0 =
+  FUN_0801cd32(x, 1, 0x9e, 0x10) (one 158x16 fill); mode 1 = a loop of
+  FUN_0801cf5e(x + i*0x11, value, 4, color) — 17-px-stride 4-px cells over
+  a 20-byte value array, with a screen-gate (skips when the screen byte is
+  0x0b/0x0c) and an unrecovered jumptable tail at 0x0801d06e.
+- **The key-11/12 fine-tune pair therefore renders an S-meter-like BAR
+  display** (the 20-byte ctx = the bar values; the step pair updates the
+  ctx and sets the redraw flag), NOT the VFO frequency row.
+- **THE UNRESOLVED PARADOX (explicit):** the p3k11/p3k14 originals render
+  VFO-row tune slices ('136.130', '136.135', ... at +5 kHz per slice,
+  4,702 events, no PB9 frame for key-11) from the press pass onward, but
+  the decompiled C gives (a) the vtable call gated on hold-counter > 39,
+  (b) the key-11/12 press handlers = the fine-tune pair with the bar
+  display, (c) func_08020c9e = a small flag setter, (d) func_08021a50 =
+  a mode gate. None of these produces the observed series. Candidate
+  explanations to test NEXT, in order: (1) the 20-byte ctx refresh
+  func_0801cfd0(1, ...) mode-1 path + func_0801cf5e = the actual VFO-row
+  cell writer (the 0x11 stride needs checking against the 12x20 digit
+  stride); (2) the dispatch's vtable base pointer _DAT_0801a3a4 is
+  runtime-assigned by the screen machine — the slot*0x10 indexing may
+  resolve to a DIFFERENT table than the flash one I found (the flash
+  table at 0x8040AEC may belong to the fine-tune screen only); (3) the
+  key-11/12 streams may be produced by the periodic screen machine
+  (FUN_08019910) reacting to the fine-tune state, not by the press path.
+- The recon's key-11/12 model stays SUSPECT-against-C (flagged cont. 11):
+  no recon changes for these keys until the paradox resolves — the REA
+  chain continues: func_0801cf5e, the screen machine's vtable assignment,
+  then the recon fix, then ONE p3diff assert.
