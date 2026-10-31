@@ -4576,3 +4576,32 @@ post, the key11-long timing):**
   the release-path tail (the candidates narrowed to the func_0x08027ef4 /
   the FUN_08022a98 cluster — the §5.0 item continues).
 - The decompiles = docs/rea/rea_decompile_ptt_ab_chain_19f70_22930.c.
+
+## Session 70 (cont. 4) — the §5.3 decode-item batch 2: items 1/2/4 classification
+
+- **Item 4 (the RX/TX signal path) — CLOSED for the fresh-EE configuration:**
+  the task-2 (0x0801B704, the 500 ms) = the **dual-watch squelch poll**: the
+  wait(500)-while-[0x119] loop, then `func_0x080234cc` = gated by the two
+  dual-watch flag bytes (the DAT_0802358c/90 literals) → FUN_0802692e =
+  the **AT1846S GPIO bit-bang SPI register READ** (the CS 0x8000 = the PB15,
+  the 10/4-iteration setup delays, the 16-bit clock loop over the 0x200
+  MISO bit, the FUN_08026712 = the command byte) → FUN_080272e2 = the
+  AT1846S register WRITE wrapper (0x9ba9/0x9aa9 = the frames one bit apart =
+  the squelch gate on/off, the critical section FUN_0802b1e0/1e8,
+  FUN_0802689a = the bit-bang send). The flags = the settings = the
+  fresh-EE = OFF ⇒ no SPI traffic in the CK3 window ⇒ the CK3 292/292
+  baseline stays clean. The recon's task-2 = the blocked-forever
+  equivalent (the no events). The "PTT synthesizer 0x08019F70" = the
+  re-classified VFO A/B applier (the cont. 3); the TX keying = the AT1846S
+  register writes via the same bit-bang (FUN_0802689a cluster).
+- **Item 1 ($A09 downstream) — CLASSIFIED:** the FLAG_BANK+9 bit0
+  (0x2000509D bit0) reader = func_08013e58's top gate (the serial command
+  decoder); the $A09 case = memcmp(FUN_08023610) against the 5-byte
+  "$A09" then the 2-byte tail at 0x8014118. FUN_08023610 = the libc
+  memcmp (the word-wise), FUN_0801d9a0 = the libc memset.
+- **Item 2 (the S-meter scheduler) — PARTIAL:** the [0x2000469C+0x76]
+  writers = FUN_08019910's keys-11/12 branches (the [0x76] = the
+  last-key 0xb/0xc) + the screen-0x67 branch. The RSSI sweep
+  difference-matching = already done via the rssi_refresh channel (the
+  p3k1/2/3 = 100%).
+- The decompiles = docs/rea/rea_decompile_squelch_serial_chain_2692e_272e2_23610.c.
