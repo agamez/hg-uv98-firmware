@@ -4605,3 +4605,27 @@ post, the key11-long timing):**
   difference-matching = already done via the rssi_refresh channel (the
   p3k1/2/3 = 100%).
 - The decompiles = docs/rea/rea_decompile_squelch_serial_chain_2692e_272e2_23610.c.
+
+## Session 70 (cont. 5) — the §5.3 items 3/5 status; the phase-4 item sweep summary
+
+- **Item 5 (the EEPROM write path) — CLOSED:** the PB9 head-serial save =
+  the key-13's key13_pb9_replay (the 6,077-event frame) = validated 100.00%
+  both press lengths (the session 69); the I2C eeprom_write(0x0A00, 0x4D)
+  = the wrong-transport p2 guess, already REMOVED from the recon. No I2C
+  EEPROM save exists on the main CPU (the AT24C512 = the 8051's own bus).
+- **Item 3 (the 0x20004E40 radio-state region) — PARTIAL:** no direct
+  literal references to 0x20004E40 anywhere in the image; the region is
+  reached through the 0x20004E18 base (2 literal sites: 0x80100cc's owner
+  and the pre-slot-7 function) and through the 0x20004E68 (APP2) base with
+  negative/adjacent offsets. The slot-7 press handler (0x8016A6D) = a
+  small key dispatcher over APP2 (the key 10 = the menu + the GPIO 0x400
+  toggle; the keys 11/12 = the other static step functions). The
+  field-by-field classification folds into the COVERAGE.md pass (the
+  every-function/region rows) rather than a standalone item.
+- **The phase-4 item scoreboard:** item 1 = classified (the func_08013e58
+  gate + the memcmp machinery); item 2 = classified (the [0x76] writers =
+  the FUN_08019910 key branches; the RSSI sweep = done via rssi_refresh);
+  item 4 = closed for the fresh-EE config (the dual-watch = the gated
+  AT1846S SPI pair, no traffic in the CK3 window); item 5 = closed; item 3
+  = folded into COVERAGE.md. **The §5.3 decode-item list = COMPLETE** as a
+  gate input; the COVERAGE.md pass = the next phase.
