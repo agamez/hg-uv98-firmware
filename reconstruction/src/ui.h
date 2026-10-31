@@ -70,6 +70,9 @@ void ui_state_set(uint8_t screen);         /* 0x08010530: screen switch    */
 uint8_t key_get_code(void);                /* 0x080282FC: the Round N slice*/
 void ui_list_select(uint8_t a, uint8_t b, uint32_t entry); /* 0x08010D06 */
 
+extern uint8_t ui_ee_warm;                 /* [session 62] the warm-boot
+                                            * flag (the valid magic)       */
+
 /* Input policy. */
 void key_event(uint8_t key_id, uint8_t src, uint8_t pressed); /* 0x0801E044 */
 int  key_state_test(uint8_t state_byte);                      /* 0x0801B28E */

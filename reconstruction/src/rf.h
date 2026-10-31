@@ -19,6 +19,7 @@ uint32_t rf_read(uint8_t chip, uint8_t reg);             /* 0x0802292E, reg|0x80
 void at1846s_boot_init(uint8_t chip);   /* the unrolled init block, both chips */
 void at1846s_boot_init_block_b(uint8_t chip);  /* bank-1 tail, re-run in reconfig */
 void at1846s_boot_default_apply(void);  /* [DATA-DERIVED] power-on default channel flow */
+void at1846s_rssi_poll(void);           /* [RECOVERED session 62] the 500 ms poll RF refresh */
 
 /* Register-level operations recovered from the image. */
 void at1846s_set_frequency(uint8_t chip, uint32_t freq_hz); /* 0x08023200..: MHz*16000 -> 0x29/0x2A */

@@ -51,25 +51,38 @@ static void dispatcher_task(void *arg)
 {
     (void)arg;
     protocol_send_cmd(0);            /* CMD_A00_READ — boot settings fetch */
-    /* [session 49] The original applies its power-on default RF channel
-     * ~3.1 s virtual after boot (plain-boot trace, no peer). The event
-     * ORDER is what CK3 compares; the wall-clock gap is a §7(c) timing
-     * boundary (the original's task/delay chain is not reconstructed). */
-    at1846s_boot_default_apply();
+    /* [session 62] the radio apply is REPLY-GATED: with no peer (the
+     * fresh-EE differential harness) the original performs NO radio
+     * work at boot — its first RF traffic is the RSSI task's first
+     * poll (p3k6_orig/p3k6_rec streams agree bit-for-bit until the
+     * 187041 poll). The full default apply (the CK3 peer-harness
+     * content) runs only when the 0x216-byte $A00 settings frame
+     * actually arrives; ~1 s bounded wait then idle. */
+    for (uint32_t n = 0u; n < 200u; n++) {
+        if ((protocol_flags_read() & 0x01u) &&
+            protocol_rx_len() == 0x216u) {     /* the REAL $A00 reply    */
+            protocol_flags_clear(0x01u);
+            at1846s_boot_default_apply();
+            break;
+        }
+        time_dly(5);
+    }
     for (;;) {
         time_dly(5);
     }
 }
 
 /* prio 13 [0x08017704 | RECOVERED cadence + RF read]: 500 ms RSSI poll.
- * The RF register read (0x0801F4CC via the bit-bang helper at 0x0802292E,
- * register 0x1F, 12-bit value, 0xFFF = invalid) is RECOVERED; the S-meter
- * distribution goes to the 6-byte status feed. RF transport SCAFFOLD. */
+ * The poll = the per-poll RF refresh (at1846s_rssi_poll: block_b + tone
+ * pair + the gap replay + the GPIO reconfig + the Phase-Y apply + the
+ * rf_read, session 62 frame-decode of the 996-bit bursts); the read
+ * value feeds the S-meter state (0xFFF = invalid). */
 static void rssi_task(void *arg)
 {
     (void)arg;
     for (;;) {
-        uint32_t rssi = 0xFFF;    /* original: read RF reg 0x1F here        */
+        at1846s_rssi_poll();
+        uint32_t rssi = rf_read(RF_CHIP_VHF, 0x0Du) & 0xFFFu;
         if (rssi != 0xFFF) {
             /* original updates the S-meter state consumed by the
              * status-text dispatcher ("-9.0 dB" .. "-0 dB", "NN S")       */
@@ -148,12 +161,13 @@ void hw_init(void)
     /* the 0x4D-byte settings load moved to ui_boot_scene() [0x0801B738
      * runs it after the task creators, per the recovered main task]. */
     /* RF chip init [0x080227AA call site RECOVERED]: bus GPIO config
-     * (0x080267AA, session 49 decompile) then the 50-register AT1846S
-     * init table applied to chip 1 then chip 0 (session 49 trace,
-     * analysis/traces/ck3_rf_orig.txt events 1-100). */
+     * (0x080267AA, session 49 decompile). The AT1846S register init
+     * does NOT run here: the fresh-EE boot stream goes display init ->
+     * the vendor replay -> straight into the I2C context read with NO
+     * radio traffic (session 62 — the 2,400-bit init block the recon
+     * used to emit at this point is the dispatcher's default-apply
+     * content, which runs later from the dispatcher task). */
     rf_bus_gpio_init();
-    at1846s_boot_init(RF_CHIP_UHF);   /* cs mode 1 = first-configured chip */
-    at1846s_boot_init(RF_CHIP_VHF);   /* cs mode 0 = second chip           */
 }
 
 /* ---- main -------------------------------------------------------------------

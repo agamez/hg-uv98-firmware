@@ -12,7 +12,7 @@ sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
 emulation RunFor "00:00:00.010"
 sysbus WriteDoubleWord 0xE000E018 0x00000000
 emulation RunFor "00:00:05.990"
-python "m = emulationManager.CurrentEmulation.Machines[0]; print('PRE scr=%02x L=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log'))))"
+python "m = emulationManager.CurrentEmulation.Machines[0]; print('PRE scr=%02x L=%d flag=%02x rxlen=%d' % (int(m['sysbus'].ReadByte(0x200050E8)), sum(1 for _ in open('/home/sslayer/hguv98-sim/pb_stream.log')), int(m['sysbus'].ReadByte(0x20001EC4)), int(m['sysbus'].ReadByte(0x20001A50))))"
 echo "=== key-6 tag (2300) ==="
 sysbus Tag <0x4001284C 0x4> "ADC2_DR" 2300
 emulation RunFor "00:00:01"

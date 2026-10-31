@@ -233,10 +233,26 @@ static void ui_factory_reset(uint8_t *st)
 {
     static const char msg[13] = "RESET WAIT...";
     uint8_t blk[16];
+    /* [session 63 | 0x0801B2E8 disassembly] the reset draws the text
+     * FIRST (scheme 4), before zeroing the 0x4D context. The scheme-4
+     * pair = (fg 0x0000, bg 0xEFBE), SWAPPED when the app blank flag
+     * [SETTINGS_CTX+0x18] is set — the same ink-swap bit display.c's
+     * draw_text_cls models. On the fresh EE the ee_load (directly into
+     * the context, 0x0801a6d8) leaves 0xFF at +0x18, so the fresh-boot
+     * cells = glyph pixels 0xEFBE on 0x0000 background: p3k6_orig
+     * cell 2882..3137 = 84x 0x0000 + 44x 0xEFBE (the inverted pair vs
+     * the session-52 run whose image carried +0x18=0x00). The boot fill
+     * (0x0801CD32) then sees +0x18=0 after the memset and emits 0xEFBE
+     * (p3k6_orig 13082..54040). */
+    uint16_t fg4 = 0x0000u, bg4 = 0xEFBEu;
+    if ((*(volatile uint8_t *)(SETTINGS_CTX + 0x18u)) != 0u) {
+        fg4 = 0xEFBEu;
+        bg4 = 0x0000u;
+    }
 
     for (uint32_t i = 0; i < 13u; i++) {
         const uint8_t *g = &ui_ascii8x16_font[(uint32_t)(uint8_t)msg[i] * 16u - 0x200u];
-        display_blit_glyph_cell(0x30u, (uint8_t)(0x20u + i * 8u), g, 0x0000u, 0xEFBEu);
+        display_blit_glyph_cell(0x30u, (uint8_t)(0x20u + i * 8u), g, fg4, bg4);
     }
     mem_fill(st, 0x4D, 0x00);
     mem_copy(&st[0x44], (const void *)0x0804594Cu, 4);   /* the magic word */
@@ -259,16 +275,40 @@ static void ui_factory_reset(uint8_t *st)
     eeprom_write(0x0A00u, 0x4Du, st);         /* FUN_0801A6EA the save  */
 }
 
-uint8_t ui_ee_settings[0x4D];   /* the settings image (file scope: the
-                                 * scan-time save writes it too) [s55] */
+uint8_t ui_callsign[9];         /* [session 62] the 0x1800 callsign block,
+                                 * read once at the boot scene; the
+                                 * screen0 build draws it after "CALL:"
+                                 * with the CB60 BCD bias (the fresh-EE
+                                 * 0x00 bytes render as eight '0' cells —
+                                 * p3k6_orig.stream 95094..100969 = the 13
+                                 * + 9 cell rows, 22 x 267 events) */
+uint8_t ui_ee_warm;             /* [session 62] 1 = the boot found the
+                                 * valid settings magic (the warm path):
+                                 * the LED/0x0FA0 burst (ee359) runs on
+                                 * the warm boot only — the fresh-EE
+                                 * stream shows no such era in 6 s. */
 
 void ui_boot_scene(void)
 {
     static uint8_t ee_buf[16];
 
-    eeprom_read(0x0A00u, 0x4Du, ui_ee_settings);
-    if (mem_cmp(&ui_ee_settings[0x44], (const void *)0x0804594Cu, 4) != 0)
-        ui_factory_reset(ui_ee_settings);
+    /* [session 63 | RESTRUCTURED to the confirmed original wiring] the
+     * ee_load reads the 0x4D settings image STRAIGHT INTO the radio
+     * context at 0x20004E68 (RESEARCH_LOG session 51: "ee_load (0x4D
+     * @0x0A00 -> 0x20004E68; the recon's inferred wiring CONFIRMED").
+     * Consequence verified on p3k6_orig.stream: on the fresh EE the
+     * context = all 0xFF, so the app blank flag [ctx+0x18] reads SET
+     * during the factory-reset text (cells all-black) and only clears
+     * when the reset's default fields are written into the context
+     * before the boot fill (0xEFBE from seq 13082). The earlier
+     * separate ui_ee_settings buffer + post-reset copy had the flag
+     * still at its power-on 0 during the cells (bg 0xEFBE) — the exact
+     * first divergence of the fresh-EE CK4 pair. */
+    eeprom_read(0x0A00u, 0x4Du, (void *)SETTINGS_CTX);
+    if (mem_cmp((const void *)(SETTINGS_CTX + 0x44u), (const void *)0x0804594Cu, 4) != 0)
+        ui_factory_reset((void *)SETTINGS_CTX);
+    else
+        ui_ee_warm = 1u;   /* the valid-magic (warm) boot path        */
     /* [session 61 | RECOVERED] the settings image lands 1:1 in the radio
      * context at 0x20004E68 (the ee-marker experiment p2-eemarker.resc:
      * the ee bytes 2/5 appear at the ctx +2/+5; the dwell args =
@@ -277,7 +317,6 @@ void ui_boot_scene(void)
      * applied to the ctx (p2-marker.resc: a distinguishable-settings
      * $A00 leaves the ctx at the defaults - the frame lives in the
      * head's rxBuf mirror at 0x20003A84 only). */
-    mem_copy((void *)SETTINGS_CTX, ui_ee_settings, 0x4Du);
 
     /* [session 61 | 0x0801F1C4 RECOVERED] the S-meter step durations for
      * both VFOs: the ctx byte (2+idx) = the step index, mapped
@@ -301,17 +340,19 @@ void ui_boot_scene(void)
          * earlier wiring to display_led_write emitted a spurious 12-bit
          * PB9 word (0xEF) the original does not emit. */
         static uint16_t rf_boot_shadow[16];
-        rf_boot_shadow[8] = (uint16_t)(ui_ee_settings[0x19] * 0x10u + 0x5Fu);
+        rf_boot_shadow[8] = (uint16_t)(REG8(SETTINGS_CTX + 0x19u) * 0x10u + 0x5Fu);
     }
     display_fill_rect(0u, 0u, 0xA0u, 0x80u, 0xEFBEu);
     display_blit_image(0u, 0u, 0x80u, 0xA0u, ui_splash_image, 0xA000u);
-    {
-        uint8_t callsign[9];
-        eeprom_read(0x1800u, 9u, callsign);
-        if (callsign[0] == 0xFFu)
-            mem_copy(callsign, "NOCALL-7", 8u);   /* DAT_0801B9B0 [RECOVERED] */
-        /* draw_text(0x48, 0x2A, callsign, 0, 3): empty under the sim     */
-    }
+    /* [session 62] the callsign draw (the boot scene step 8): the 9-byte
+     * 0x1800 read lands in ui_callsign; the screen0 build renders it
+     * after the "CALL:" label with the CB60 BCD bias (0x00 -> '0'). The
+     * original's fresh stream draws 8 value cells (the 9th byte = the
+     * terminator slot); the draw happens in the screen0 label phase,
+     * immediately before the scan era. */
+    eeprom_read(0x1800u, 9u, ui_callsign);
+    if (ui_callsign[0] == 0xFFu)
+        mem_copy(ui_callsign, "NOCALL-7", 8u);   /* DAT_0801B9B0 [RECOVERED] */
     {
         volatile uint32_t i;               /* delay(2000) [0x0801BAA4 shape]   */
         for (uint32_t n = 0; n < 2000u; n++)
@@ -366,39 +407,58 @@ static void cell12x20(uint8_t y, uint8_t x, uint8_t ch)
     display_blit_glyph_cell_12x20(y, x, &ui_ascii12x20_font[(uint32_t)(ch - 0x20u) * 36u],
                                   0x0000u, 0xEFBEu);
 }
-static void ui_screen0_build(void)
+/* [session 62] the boot EE scan (the settings save + the VFO init +
+ * the 128-channel validity scan + the 8 VFO/config reads). Runs once,
+ * at the first screen0 build — see ui_screen0_build. */
+static void ui_screen0_scan(void)
 {
-    static const char line1[5] = "CALL:";
-    static const char line2[9] = "BAT:0.8 V";
-
-    for (uint32_t i = 0; i < 5u; i++)
-        display_blit_glyph_cell(0x48u, (uint8_t)(0x2Au + i * 8u),
-                                &ui_ascii8x16_font[(uint32_t)(uint8_t)line1[i] * 16u - 0x200u],
-                                0x0000u, 0xEFBEu);
-    for (uint32_t i = 0; i < 9u; i++)
-        display_blit_glyph_cell(0x58u, (uint8_t)(0x2Au + i * 8u),
-                                &ui_ascii8x16_font[(uint32_t)(uint8_t)line2[i] * 16u - 0x200u],
-                                0x0000u, 0xEFBEu);
-    /* [0x0801FDDC | RECOVERED session 53; session 55 op-map refinement]
-     * The original's scan burst (@ODR#89,225, 12,987 events) =
+    /* [0x0801FDDC | RECOVERED session 53; session 62 frame-decode]
      * 1. three 16-byte block reads: 0x0FD0, 0x0800, 0x0810 (the
      *    validation-range / VFO blocks),
      * 2. the settings save: 77 one-byte transactions @0x0A00..0x0A4C
-     *    (eeprom_write(0x0A00, 0x4D) — the data = the boot settings,
-     *    unchanged by the sim-state scan),
-     * 3. the 128 two-byte channel reads at 0x02 + 0x10*k,
-     * 4. the 8 VFO/config reads (0x0FCD(2), 0x0FCF(1), 0x0FB0(16),
-     *    0x0F90(16), 0x1FCD(2), 0x1FCF(1), 0x1FB0(16), 0x1F90(16)) —
-     *    moved here from the boot scene (session 55). */
+     *    (eeprom_write(0x0A00, 0x4D)),
+     * 3. the channel-1 read @0x002, then the VFO-A init: the 16-byte
+     *    default block @0x0000 (00 25 01 40 ... = 440.1250 MHz BCD)
+     *    and the settings save AGAIN (unchanged data),
+     * 4. the channel-2 read @0x012, then the VFO-B init: the 16-byte
+     *    default block @0x0010 (00 25 61 13 ... = 136.1250 MHz BCD)
+     *    and the settings save with the channel pointer bytes
+     *    0x41/0x42 = 02,
+     * 5. the remaining 126 two-byte channel reads @0x02 + 0x10*k,
+     * 6. the 8 VFO/config reads (0x0FCD(2), 0x0FCF(1), 0x0FB0(16),
+     *    0x0F90(16), 0x1FCD(2), 0x1FCF(1), 0x1FB0(16), 0x1F90(16)).
+     * [session 62 tx-decode of p3k6_orig.stream 100969..123811: the
+     * exact write-embedded structure W[77] R0002 W[16] W[77] R0012
+     * W[16] W[77] R0022..R07F2; the recon's flat W[77]+R[128] shape is
+     * RETRACTED.] */
     {
+        /* [DATA-DERIVED session 62] the VFO-init default blocks,
+         * transcribed from the original's write bursts; byte 12..13 =
+         * 00 02 (the factory-reset 0x0800 block uses 01 00 00 00) */
+        static const uint8_t vfo_a_init[16] = {
+            0x00, 0x25, 0x01, 0x40, 0x00, 0x25, 0x01, 0x40,
+            0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x02, 0x00, 0x00
+        };
+        static const uint8_t vfo_b_init[16] = {
+            0x00, 0x25, 0x61, 0x13, 0x00, 0x25, 0x61, 0x13,
+            0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x02, 0x00, 0x00
+        };
         uint8_t blk[16];
         uint8_t scanbuf[2];
 
         eeprom_read(0x0FD0u, 0x10u, blk);
         eeprom_read(0x0800u, 0x10u, blk);
         eeprom_read(0x0810u, 0x10u, blk);
-        eeprom_write(0x0A00u, 0x4Du, ui_ee_settings);
-        for (uint32_t ch = 1u; ch < 0x81u; ch++)
+        eeprom_write(0x0A00u, 0x4Du, (void *)SETTINGS_CTX);
+        eeprom_read(0x0002u, 2u, scanbuf);                    /* ch 1  */
+        eeprom_write(0x0000u, 0x10u, vfo_a_init);             /* VFO-A */
+        eeprom_write(0x0A00u, 0x4Du, (void *)SETTINGS_CTX);
+        eeprom_read(0x0012u, 2u, scanbuf);                    /* ch 2  */
+        eeprom_write(0x0010u, 0x10u, vfo_b_init);             /* VFO-B */
+        REG8(SETTINGS_CTX + 0x41u) = 2u;                      /* the   */
+        REG8(SETTINGS_CTX + 0x42u) = 2u;                      /* ptr   */
+        eeprom_write(0x0A00u, 0x4Du, (void *)SETTINGS_CTX);
+        for (uint32_t ch = 3u; ch < 0x81u; ch++)
             eeprom_read((uint16_t)(ch * 0x10u - 0xEu), 2u, scanbuf);
         eeprom_read(0x0FCDu, 2u, blk);
         eeprom_read(0x0FCFu, 1u, blk);
@@ -409,6 +469,44 @@ static void ui_screen0_build(void)
         eeprom_read(0x1FB0u, 0x10u, blk);
         eeprom_read(0x1F90u, 0x10u, blk);
     }
+}
+
+static void ui_screen0_build(void)
+{
+    static const char line1[5] = "CALL:";
+    static const char line2[9] = "BAT:0.8 V";
+
+    /* [session 62] the header rows: "CALL:" + the 8 callsign value
+     * cells (the CB60 BCD bias: the fresh-EE 0x00 bytes = '0') at
+     * y=0x48, then "BAT:0.8 V" at y=0x58 — the original's pre-scan gap
+     * = 13 + 9 = 22 cells of 267 events (p3k6_orig.stream
+     * 95094..100969). The EE scan block runs ONCE after them. */
+    for (uint32_t i = 0; i < 5u; i++)
+        display_blit_glyph_cell(0x48u, (uint8_t)(0x2Au + i * 8u),
+                                &ui_ascii8x16_font[(uint32_t)(uint8_t)line1[i] * 16u - 0x200u],
+                                0x0000u, 0xEFBEu);
+    for (uint32_t i = 0; i < 8u; i++) {
+        uint8_t ch = ui_callsign[i];
+        if (ch < 10u)
+            ch = (uint8_t)(ch + 0x30u);          /* the CB60 BCD bias    */
+        if (ch == 0u)
+            break;                               /* the terminator slot  */
+        display_blit_glyph_cell(0x48u, (uint8_t)(0x2Au + (5u + i) * 8u),
+                                &ui_ascii8x16_font[(uint32_t)ch * 16u - 0x200u],
+                                0x0000u, 0xEFBEu);
+    }
+    for (uint32_t i = 0; i < 9u; i++)
+        display_blit_glyph_cell(0x58u, (uint8_t)(0x2Au + i * 8u),
+                                &ui_ascii8x16_font[(uint32_t)(uint8_t)line2[i] * 16u - 0x200u],
+                                0x0000u, 0xEFBEu);
+    {
+        static uint8_t scanned;
+        if (scanned == 0u) {
+            scanned = 1u;
+            ui_screen0_scan();
+        }
+    }
+
     display_fill_rect(18u, 1u, 158u, 92u, 0xEFBEu);
     {   /* [session 55] the 2x read16 burst @ODR#118,308 (0x0800 + 0x0810,
          * the VFO A/B blocks) right after the content fill. */
@@ -554,10 +652,14 @@ static void ui_screen0_build(void)
     cell6x10(0x12u, 0x1Eu, 0x20u);
     cell6x10(0x12u, 0x24u, 0x20u);
     cell6x10(0x12u, 0x2Au, 0x20u);
-    {   /* [session 55] the 359-event burst @ODR#158,942: the original's
-         * ee_read(0x0FA0, 101) setup interleaved by the RTOS with
-         * LED-serial words — replayed [DATA-DERIVED] (see display.c). */
-        display_ee359_replay();
+    {   /* [session 55 + 62] the 359-event burst @ODR#158,942: the
+         * original's ee_read(0x0FA0, 101) setup interleaved by the RTOS
+         * with LED-serial words — replayed [DATA-DERIVED] (see
+         * display.c). WARM PATH ONLY: the fresh-EE boot stream has no
+         * such era (the LED/0x0FA0 task pair only runs once the
+         * settings are valid), so the replay is gated on ui_ee_warm. */
+        if (ui_ee_warm)
+            display_ee359_replay();
     };
     {
         /* [session 52 pt10 | DATA-DERIVED] the RX-bar indicator row:
@@ -848,7 +950,7 @@ void ui_task(void *p_arg)
                                     }
                                 }
                             }
-                            eeprom_write(0x0A00u, 0x4Du, ui_ee_settings);
+                            eeprom_write(0x0A00u, 0x4Du, (void *)SETTINGS_CTX);
                         } else if (key == 10u) {
                             /* [session 61 | RECOVERED] the menu key (the
                              * code 10 = the A-ladder entry 0; the tag 2300

@@ -3574,3 +3574,68 @@ the REA MCP decompiles (the evidence for every fix below).
   (the SDA released-high BEFORE the first CRH if that is the delta),
   then re-run the fresh-EE ck4 pair -> the event census -> the
   PB9-masked full compare -> the byte-exact press window (the 213).
+
+**Session 63 — the settings-context wiring corrected per 0x0801B738/0x0801B2E8
+disassembly; fresh-EE boot byte-identical through seq 172,707; the VFO display
+identified as the first state-driven gap.**
+- STALE-STREAM ARTIFACT RESOLVED: p3k6_rec.stream had not been re-copied after
+  the newer runs; the session-62 "apply Phase X at 187041" contradiction was an
+  artifact of diffing a stale capture against the current build. Rule adopted:
+  cp ~/hguv98-sim/pb_stream.log p3k6_rec.stream IMMEDIATELY after every run.
+- THE F8xx PROBES WERE LIVE-STACK CORRUPTION (removed): the recon linker places
+  .taskstacks at 0x20002968..0x20010000 (the pool grows DOWN from _etaskstacks),
+  so the session-62 probes at 0x2000F830-0x2000F83B sat inside task stack
+  regions — every poll's counter/tick writes clobbered live stack bytes. All
+  probes removed (rf.c apply/poll probes, main.c gate probes, protocol.c
+  proto_rx_count, rtos.c time_ticks + OS_TIME_GET_SET_EN back to 0).
+- REA (Ghidra) on the original image disassembles: 0x0801B738 (boot scene),
+  0x0801B2E8 (factory reset), 0x0801CD32 (fill), 0x0801CB60 (text renderer),
+  0x0801a6d8 (ee_load). Findings, all now implemented:
+  (1) 0x0801a6d8 = eeprom_read(0x0A00, 0x20004E68, 0x4D): the settings load
+      reads DIRECTLY INTO the radio context — ui_ee_settings buffer deleted;
+      ui_boot_scene reads into SETTINGS_CTX and ui_factory_reset operates on
+      the context itself (the post-reset mem_copy deleted). The S-meter
+      selectors, rf shadow [0x19], and the scan-time saves all re-pointed.
+  (2) The reset draws the "RESET WAIT..." text FIRST (0x0801cb60, scheme 4,
+      class 3), THEN memsets the 0x4D context to 0x00 and writes the default
+      fields (the field list matches the recon's recovered defaults exactly).
+  (3) The scheme-4 cell pair = (fg 0x0000, bg 0xEFBE) SWAPPED when the app
+      blank flag [SETTINGS_CTX+0x18] is non-zero (the same ink-swap bit the
+      draw_text_cls path models). Fresh EE: the load leaves 0xFF at +0x18, so
+      the fresh-boot cells = glyph 0xEFBE on 0x0000 (p3k6_orig cell
+      2882..3137 = 84x 0x0000 + 44x 0xEFBE); the session-52 run's image
+      carried +0x18=0x00 (unswapped). bg4 gate added to ui_factory_reset.
+  (4) The fill (0x0801CD32) color gate CONFIRMED: [0x20004E68+0x18] != 0 ->
+      pixels 0x0000 (else 0xEFBE). Gate implemented in display_fill_rect.
+      At the boot fill the flag is already 0 (the reset's memset) -> 0xEFBE
+      (p3k6_orig alt-run 13082..54040 = 40,958 ODR 0xEF/0xBE) — unchanged
+      behavior, gate added for fidelity.
+  (5) NEW: both the fill and the text renderer begin with a display-lock gate
+      ldrb [0x20005094+8], ands #1, bne-skip: when bit0 of 0x2000509C is set
+      the fill and ALL text output are suppressed entirely (not a color
+      change). Not boot-reachable (bit = 0); open item for the suspend/menu
+      paths. NOT yet implemented in the recon.
+- FRESH-EE CK4 RESULT: after (1)-(4) the recon's raw-value stream matches the
+  original byte-for-byte from seq 1 through 172,707 (the reset-wait cells, the
+  boot fill 0xEFBE, the splash, the scan era, the status-page build start).
+  First divergence = seq 172708 inside the FIRST 12x20 frequency cell
+  (window 0x2A cols 0x16-0x21, rows 0x1D-0x30).
+- THE 12x20 FONT + BLIT VERIFIED PERFECT: decoding the original's big cells
+  (240 px each, the window bytes 0x2A 00 16 00 21 / 0x2B 00 1D 00 30 / 0x2C)
+  identifies every glyph at score 240/240 against data/big12x20_font.bin
+  through display_blit_glyph_cell_12x20's band format. The font asset and the
+  blit are correct; the VALUE is not.
+- FIRST STATE-DRIVEN GAP: the original's status page renders the VFO
+  frequency from state: row 1 (rows 29-48) = "136.125", row 2 (rows 76-95) =
+  "00.125" (all cells 240/240 glyph matches). The recon draws the static
+  "000.000" scaffold transcription (the session-52 sim-state). 136.125 =
+  exactly the scan's VFO-B init value (EE 0x0010 block, BCD 00 25 61 13);
+  the VFO-A init written to EE 0x0000 = 440.125 does NOT appear on row 1.
+  OPEN: which EE block/state feeds each row and the load path (the boot's
+  0x0F90/0x0FB0/0x1F90/0x1FB0 reads return 0xFF on fresh EE) — next session
+  decompiles the VFO-state loader and the row renderer to wire the dynamic
+  value through.
+- Diff statistics: 880 changed blocks / 284,114 lines remain, dominated by
+  the VFO digits, the S-meter/icon cells between the rows, and downstream
+  state-driven content. The pre-press window byte-exactness work continues
+  from the VFO renderer.

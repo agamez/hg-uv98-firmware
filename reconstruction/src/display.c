@@ -189,6 +189,12 @@ void display_draw_text(uint16_t x, uint16_t y, const char *s, uint8_t style)
  * not reproduced here. */
 void display_fill_rect(uint8_t y, uint8_t x, uint8_t cols, uint8_t rows, uint16_t color)
 {
+    /* [session 63 | 0x0801CD32] the original overrides the pixel color
+     * with 0x0000 when the app blank flag [SETTINGS_CTX+0x18] is set
+     * (verified on p3k6_orig: the fresh-EE boot leaves the flag set
+     * until the factory defaults land in the context). */
+    if ((*(volatile uint8_t *)(0x20004E68u + 0x18u)) != 0u)
+        color = 0x0000u;
     GPIO_BSRR(GPIOC_BASE) = 2u;
     /* [session 52 fix] the original's FUN_0801B9C8 writes 0x2A from its
      * 2nd/4th args (the column axis) and 0x2B from its 1st/3rd (the row

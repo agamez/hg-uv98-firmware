@@ -83,6 +83,7 @@
 #include <stdint.h>
 
 #include "hwregs.h"
+#include "rtos.h"
 #include "rf.h"
 
 #define GPIOA_ODR       (*(volatile uint16_t *)(GPIOA_BASE + 0x0Cu))
@@ -166,26 +167,55 @@ void rf_write(uint8_t chip, uint8_t reg, uint16_t val)
     rf_delay(8);
 }
 
-/* [0x0802292E | RECOVERED] read frame: send reg|0x80 (R/W=1), turn the
- * bus around, clock 16 bits in. Original callers mask the result
- * conservatively (frames are 24-bit; return value widened to u32). */
+/* [0x080266F6 | RECOVERED session 62] the RF DATA line (PB9) -> input
+ * mode: the {0x200, mode 4} spec via the 0x08023678 helper = ONE CRH
+ * store (bbb44444). The rf_read path switches PB9 to input right after
+ * the command byte (0x08026966) and back to output at the tail
+ * (0x080266D4 @0x08026A08) — the pair the fresh-EE stream shows as the
+ * I+O CRH toggle at every RSSI poll. */
+static void rf_data_input(void)
+{
+    GPIO_CRH(GPIOB_BASE) = (GPIO_CRH(GPIOB_BASE) & ~0xF0u) | 0x40u;
+}
+
+/* [0x080266D4 | RECOVERED session 62] the RF DATA line (PB9) -> output
+ * (mode 3 = CRH bbb44434), the rf_read tail switch. */
+static void rf_data_output(void)
+{
+    GPIO_CRH(GPIOB_BASE) = (GPIO_CRH(GPIOB_BASE) & ~0xF0u) | 0x30u;
+}
+
+/* [0x0802292E | RECOVERED session 62 against 0x0802692E] read frame:
+ * CLK low -> CS select -> dly(10) -> send reg|0x80 (R/W=1) -> PB9 to
+ * INPUT (0x080266F6) -> dly(4) -> 16 x (CLK low, dly(4), CLK high,
+ * dly(4), IDR sample) -> CS select -> CLK high -> PB9 back to OUTPUT
+ * (0x080266D4) -> CLK low. GPIOB-visible footprint = the 8 command
+ * bits + the I/O CRH toggle (the session-58 "turnaround BRR" note is
+ * RETRACTED — the turnaround is the CRH switch, not a data write). */
 uint32_t rf_read(uint8_t chip, uint8_t reg)
 {
     uint32_t v = 0;
 
     rf_cs_select(chip);
     GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_CLK);
+    rf_delay(10);
     rf_send_byte((uint8_t)(reg | 0x80u));
-    GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_DATA);   /* turnaround */
-    rf_delay(8);
+    rf_data_input();                                /* [0x08026966] */
+    rf_delay(4);
     for (int i = 15; i >= 0; i--) {
-        GPIOA_ODR = (uint16_t)(GPIOA_ODR | RF_CLK);
-        rf_delay(10);
         GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_CLK);
-        v = (v << 1) | ((GPIOA_ODR & RF_DATA) ? 1u : 0u);
-        rf_delay(10);
+        rf_delay(4);
+        GPIOA_ODR = (uint16_t)(GPIOA_ODR | RF_CLK);
+        rf_delay(4);
+        v = (v << 1) | ((GPIO_IDR(GPIOB_BASE) & RF_DATA) ? 1u : 0u);
     }
-    rf_cs_select(2);
+    rf_cs_select(2);        /* [0x080269F8: cs_mode 4 = BOTH CS high — the
+                             * deselect clears the radio model's read-phase
+                             * SDA ownership; leaving the chip selected
+                             * wedges every later I2C ACK (session 62 fix) */
+    GPIOA_ODR = (uint16_t)(GPIOA_ODR | RF_CLK);     /* [0x08026A04] */
+    rf_data_output();                               /* [0x08026A08] */
+    GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_CLK);    /* [0x08026A12] */
     return v;
 }
 
@@ -446,6 +476,53 @@ void at1846s_boot_default_apply(void)
     at1846s_set_frequency(RF_CHIP_VHF, 0);
     at1846s_mode_tx(RF_CHIP_VHF, 0);                 /* 0x7006, 0x7046    */
     at1846s_gpio_reconfig_plain(RF_CHIP_VHF, 1);     /* 0x9EA9            */
+}
+
+/* [RECOVERED session 62 | the RSSI-task per-poll RF refresh] The
+ * original's 500 ms poll emits ONE ~996-bit radio burst before the
+ * rf_read (the fresh-EE stream: 5 bursts of 996 H/L events, each
+ * ending in the PB9 I/O CRH toggle). Frame-decoded (stride 25 = the
+ * 24-bit frame + the trailing DATA-low):
+ *   1. at1846s_boot_init_block_b(chip0)        24 frames (bits 0..599)
+ *   2. at1846s_tone_pair_boot(chip0, 0, code)   2 frames (0x48, 0x49)
+ *   3. the constant 13-event gap               5x BRR + 8x BSRR 0x200
+ *      [DATA-DERIVED session 62: identical in all five observed polls;
+ *      the generating call is not yet identified]
+ *   4. at1846s_gpio_reconfig(chip0, 1)          0x1F = 0x9BA9
+ *   5. the Phase-Y apply: standby, ctcss_off, standby, band config,
+ *      set_frequency, mode_rx (0x7006 + 0x70A6), rf_read(0x0D)
+ * The tone args (type 0, code 5) = the hook-verified boot values; the
+ * poll recomputes them from the live tick RAM exactly like the boot. */
+
+/* [DATA-DERIVED session 62] the constant 13-event poll gap (5x BRR,
+ * 8x BSRR, all 0x200 on PB9) between the tone pair and the GPIO
+ * reconfig — byte-identical in every observed poll burst. */
+static void at1846s_poll_gap_replay(void)
+{
+    static const uint8_t gap[13] = {0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1};
+    for (uint32_t i = 0; i < sizeof(gap); i++) {
+        if (gap[i] == 0u)
+            GPIO_BRR(GPIOB_BASE) = 0x200u;
+        else
+            GPIO_BSRR(GPIOB_BASE) = 0x200u;
+    }
+}
+
+
+void at1846s_rssi_poll(void)
+{
+    at1846s_boot_init_block_b(RF_CHIP_VHF);
+    at1846s_tone_pair_boot(RF_CHIP_VHF, 0u, 5u);
+    at1846s_poll_gap_replay();
+    at1846s_gpio_reconfig(RF_CHIP_VHF, 1);           /* 0x9BA9            */
+
+    /* the Phase-Y apply (identical to the default-apply's Phase Y)     */
+    at1846s_standby(RF_CHIP_VHF, 0);
+    at1846s_ctcss_off(RF_CHIP_VHF);
+    at1846s_standby(RF_CHIP_VHF, 0);
+    at1846s_set_band_config(RF_CHIP_VHF, 0, 0);
+    at1846s_set_frequency(RF_CHIP_VHF, 0);
+    at1846s_mode_rx(RF_CHIP_VHF, 0);                 /* 0x7006, 0x70A6    */
 }
 
 /* [0x08023200.. | RECOVERED] program the VCO frequency.

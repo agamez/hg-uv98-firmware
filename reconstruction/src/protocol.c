@@ -67,6 +67,27 @@ static char    rxBuf3[64];      /* [0x08023EFC -> 0x20004B94] the $A02 telemetry
                                  * 5-byte-prefix telemetry frames) */
 static uint32_t rxLen;
 
+/* [session 62] the flags/length accessor for the dispatcher's
+ * reply-gated boot path (see main.c dispatcher_task). */
+
+uint8_t protocol_flags_read(void)
+{
+    return proto_flags;
+}
+
+void protocol_flags_clear(uint8_t mask)
+{
+    proto_flags &= (uint8_t)~mask;
+}
+
+/* [session 62] the last frame's length — the dispatcher gates the radio
+ * apply on the REAL 0x216-byte $A00 settings reply (a spurious
+ * short-frame receipt must not trigger the boot apply). */
+uint32_t protocol_rx_len(void)
+{
+    return rxLen;
+}
+
 void protocol_frame_received(const uint8_t *frame, uint32_t len)
 {
     /* [session 50 matrix | RECOVERED routing; CORRECTED session 58 — the

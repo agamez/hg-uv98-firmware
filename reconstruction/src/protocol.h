@@ -27,6 +27,9 @@ void protocol_frame_received(const uint8_t *frame, uint32_t len);
  * - settings write: 519-byte frame "$A01," + 512 B + "\r\n"
  *   [0x08016702 | RECOVERED: 5-byte prefix memcpy + 514-byte body + send]. */
 void protocol_send_cmd(uint8_t cmd_id);        /* sends "$Axx\r\n"          */
+uint8_t protocol_flags_read(void);             /* [session 62] the ready-flag byte      */
+void protocol_flags_clear(uint8_t mask);       /* [session 62] the flag-bit clear       */
+uint32_t protocol_rx_len(void);                /* [session 62] the last frame's length  */
 void protocol_send_settings(const uint8_t body512[512]);
 void protocol_send_status_text(const char *text6);  /* 6-byte status feed   */
 
