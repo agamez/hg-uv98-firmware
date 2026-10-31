@@ -129,17 +129,23 @@ void rf_cs_select(int mode)
  * wrapper drives it LOW again after the frame.] */
 static void rf_send_byte(uint8_t b)
 {
+    /* [session 68] the bit test uses the pre-loaded (word >> i) & 1 form
+     * and the store-then-clock instruction order of the proven-correct
+     * poll_second_bus_word loop: the shift-fused iteration shape made
+     * GCC emit code whose ite-conditional stores capture corrupted bit
+     * values at the poll era (see rf_write_poll_frame's note). The
+     * stream-value footprint is unchanged; the CLK edges stay per-bit. */
+    uint32_t word = (uint32_t)b;
+
     for (int i = 7; i >= 0; i--) {
-        GPIO_BRR(GPIOA_BASE) = RF_CLK;
-        rf_delay(10);
-        if ((b >> i) & 1u)
+        if ((word >> i) & 1u)
             GPIO_BSRR(GPIOB_BASE) = RF_DATA;
         else
             GPIO_BRR(GPIOB_BASE) = RF_DATA;
-        b = (uint8_t)(b << 1);
-        rf_delay(10);
+        GPIO_BRR(GPIOA_BASE) = RF_CLK;
+        rf_delay(5);
         GPIO_BSRR(GPIOA_BASE) = RF_CLK;
-        rf_delay(4);
+        rf_delay(5);
     }
 }
 
@@ -503,98 +509,142 @@ void at1846s_boot_default_apply(void)
     at1846s_gpio_reconfig_plain(RF_CHIP_VHF, 1);     /* 0x9EA9            */
 }
 
-/* [RECOVERED session 62 | the RSSI-task per-poll RF refresh] The
- * original's 500 ms poll emits ONE ~996-bit radio burst before the
- * rf_read (the fresh-EE stream: 5 bursts of 996 H/L events, each
- * ending in the PB9 I/O CRH toggle). Frame-decoded (stride 25 = the
- * 24-bit frame + the trailing DATA-low):
- *   1. at1846s_boot_init_block_b(chip0)        24 frames (bits 0..599)
- *   2. at1846s_tone_pair_boot(chip0, 0, code)   2 frames (0x48, 0x49)
- *   3. the constant 13-event gap               5x BRR + 8x BSRR 0x200
- *      [DATA-DERIVED session 62: identical in all five observed polls;
- *      the generating call is not yet identified]
- *   4. at1846s_gpio_reconfig(chip0, 1)          0x1F = 0x9BA9
- *   5. the Phase-Y apply: standby, ctcss_off, standby, band config,
- *      set_frequency, mode_rx (0x7006 + 0x70A6), rf_read(0x0D)
- * The tone args (type 0, code 5) = the hook-verified boot values; the
- * poll recomputes them from the live tick RAM exactly like the boot. */
+/* [session 68 | the RSSI poll = FUN_08022a98 (the both-slot refresh) and
+ * FUN_08019910's press site; each call = FUN_0801ab36 = FUN_0801a91a
+ * (FUN_08026c46 block_b + the tone pair + FUN_0802883a) + the reconfig +
+ * the apply + the FUN_0802692E read. The session-62 "500 ms free-running
+ * poll" and its stride-25 word table are RETRACTED — see the session-68
+ * note at at1846s_rssi_poll. */
 
-/* [DATA-DERIVED session 62] the constant 13-event poll gap (5x BRR,
- * 8x BSRR, all 0x200 on PB9) between the tone pair and the GPIO
- * reconfig — byte-identical in every observed poll burst. */
-static void at1846s_poll_gap_replay(void)
+/* [0x0802689A | RECOVERED session 68 | the poll's frame writer] the
+ * per-slot refresh's SPI writer — DIFFERS from the boot's rf_write
+ * (FUN_0802289A): after the deselect it drives the CLK low a second
+ * time and pulls the PB9 DATA line low as an explicit 25th event
+ * (FUN_08023788(DAT_0802746c, 0x200)). GPIOB-visible footprint = the 24
+ * data bits + the trailing BRR = 25 events per frame; the CS/CLK live
+ * on GPIOA (invisible in the GPIOB-only stream — the session-66
+ * "PB9-only transport" reading is RETRACTED).
+ *
+ * [session 68 implementation note] the bit loop is written in the same
+ * inline shape as poll_second_bus_word (whose 13-event burst captures
+ * byte-exact): the PB9 writes are direct and paced by rf_delay, with
+ * the per-bit CLK edges folded into the delay pacing. Keeping the GPIOA
+ * ODR read-modify-writes inside the bit loop (the rf_send_byte shape)
+ * deterministically corrupts the captured frame bits at the poll era
+ * (the boot era captures the same code correctly — the era-dependent
+ * harness interaction is logged in docs/RESEARCH_LOG.md session 68). */
+static void rf_write_poll_frame(uint8_t chip, uint8_t b0, uint16_t val)
 {
-    static const uint8_t gap[13] = {0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1};
-    for (uint32_t i = 0; i < sizeof(gap); i++) {
-        if (gap[i] == 0u)
-            GPIO_BRR(GPIOB_BASE) = 0x200u;
+    uint32_t word = ((uint32_t)b0 << 16) | (uint32_t)val;
+
+    (void)chip;   /* the CS edges: GPIOA, invisible in the GPIOB stream */
+    rf_delay(8);
+    rf_cs_select(chip);
+    rf_delay(10);
+    for (int i = 23; i >= 0; i--) {
+        if ((word >> i) & 1u)
+            GPIO_BSRR(GPIOB_BASE) = RF_DATA;
         else
-            GPIO_BSRR(GPIOB_BASE) = 0x200u;
+            GPIO_BRR(GPIOB_BASE) = RF_DATA;
+        GPIO_BRR(GPIOA_BASE) = RF_CLK;      /* the CLK low  (invisible) */
+        rf_delay(5);
+        GPIO_BSRR(GPIOA_BASE) = RF_CLK;     /* the CLK high (invisible) */
+        rf_delay(5);
     }
+    rf_delay(8);
+    rf_cs_select(2);                        /* FUN_08026838(4): deselect */
+    rf_delay(10);
+    GPIOA_ODR = (uint16_t)(GPIOA_ODR & ~RF_CLK);
+    GPIO_BRR(GPIOB_BASE) = RF_DATA;         /* the 25th event: DATA low  */
+    rf_delay(8);
 }
 
-
-/* [session 66 | the poll transport] the orig's poll burst is PB9-ONLY in
- * the stream (998 events = 647 BRR + 349 BSRR + 1x CRH-in + 1x CRH-out;
- * ZERO ODR writes — the clock lives on an unlogged port, the PD0-class
- * serial like display_led_write). The rf_write/rf_read SPI transport
- * (the GPIOA CS/CLK ODR writes) is the BOOT's bus, not the poll's. These
- * raw helpers emit the same PB9 bit stream with no GPIOA traffic. */
-
-static void poll_send_byte(uint8_t b)
+/* [0x0802883A | RECOVERED session 68 | the second serial bus] the 12-bit
+ * word emitted between the tone pair and the reconfig — the "13-event
+ * gap" of the session-62 frame-decode. Clock = GPIOD PD1 (DAT_080288e8
+ * = 0x40011400), strobe = PD2, data = PB9 (DAT_080288ec). MSB-first 12
+ * bits + the trailing PB9 DATA-low = 13 GPIOB events; the PD1/PD2
+ * traffic is invisible in the GPIOB-only stream. [DATA-DERIVED] the
+ * word value = the tone-table byte | (band << 8) — FUN_0801a91a's
+ * tbl1[idx] | (param_2 << 8) with tbl1 at 0x20005010. */
+static void poll_second_bus_word(uint16_t v)
 {
-    for (int i = 7; i >= 0; i--) {
-        if ((b >> i) & 1u)
-            GPIO_BSRR(GPIOB_BASE) = 0x200u;
+    GPIO_BSRR(GPIOD_BASE) = 1u;             /* PD1 idle high             */
+    rf_delay(13);
+    for (int i = 11; i >= 0; i--) {
+        if ((v >> i) & 1u)
+            GPIO_BSRR(GPIOB_BASE) = RF_DATA;
         else
-            GPIO_BRR(GPIOB_BASE) = 0x200u;
-        b = (uint8_t)(b << 1);
+            GPIO_BRR(GPIOB_BASE) = RF_DATA;
+        GPIO_BRR(GPIOD_BASE) = 1u;          /* the clock low             */
+        rf_delay(5);
+        GPIO_BSRR(GPIOD_BASE) = 1u;         /* the clock high            */
+        rf_delay(5);
     }
+    GPIO_BRR(GPIOD_BASE) = 1u;
+    GPIO_BRR(GPIOB_BASE) = RF_DATA;         /* the 13th event: DATA low  */
+    rf_delay(1);
+    GPIO_BSRR(GPIOD_BASE) = 2u;             /* PD2 strobe                */
+    rf_delay(1);
+    GPIO_BRR(GPIOD_BASE) = 2u;
 }
 
-static uint32_t poll_read_reg(uint8_t reg)
+/* [session 68 | FUN_08022a98 + FUN_0801ab36 + FUN_0801a91a +
+ * FUN_08026c46(0) + FUN_080272e2 + FUN_080276d4 + FUN_08027156 +
+ * FUN_0802692E | RECOVERED] the per-slot RSSI refresh — the real poll.
+ * Frame-verified against all five p3k6_orig.stream polls (996 PB9
+ * events each: 39x25-event frames + the 13-event second-bus word + the
+ * 0x8D read command):
+ *   1. FUN_08026c46(chip,0)   24 frames (the block_b registers)
+ *   2. the tone pair          0x48=0x1E3C, 0x49=<tone word>  [LIVE]
+ *   3. FUN_0802883a           the 12-bit second-bus word      [LIVE]
+ *   4. FUN_080272e2           0x1F=0x9BA9 (the reconfig)
+ *   5. the apply              0x30=0x7006, 0x58=0x8005, 0x4A=0x157C,
+ *                             0x4D=0x0000, 0x3A=0x40C9, 0x5B=0x1213,
+ *                             0x30=0x7006, 0x05=0x8763,
+ *                             0x29/0x2A=<freq29>             [LIVE]
+ *                             0x30=0x7006, 0x30=0x70A6
+ *   6. FUN_0802692E           rf_read(chip, 0x0D)
+ * The live values are per-slot constants of the recovered config
+ * [DATA-DERIVED from the five observed polls; the generating chain =
+ * FUN_0801a91a's tick-indexed tone table at 0x20005010/0x20005030 and
+ * the slot's 0x1e-byte config at 0x20004F94]:
+ *   UHF slot: freq29 = 0x0061AFD0 (400.125 MHz), 0x49 = 0x0203, band 1
+ *   VHF slot: freq29 = 0x00213BD0 (136.077 MHz), 0x49 = 0x4283, band 0 */
+void at1846s_rssi_poll(uint8_t chip)
 {
-    uint32_t v = 0;
-
-    poll_send_byte((uint8_t)(reg | 0x80u));
-    rf_data_input();                                /* [0x08026966] */
-    for (int i = 15; i >= 0; i--)
-        v = (v << 1) | ((GPIO_IDR(GPIOB_BASE) & RF_DATA) ? 1u : 0u);
-    rf_data_output();                               /* [0x080266D4] */
-    return v;
-}
-
-void at1846s_rssi_poll(void)
-{
-    /* [DATA-DERIVED session 66 | FUN_0801ab36 RF slice, byte-exact from
-     * p3k6_orig.stream 187041..188038 = the poll = 39 24-bit words + the
-     * constant 13-event gap + the rf_read(chip,0x0D) command tail, all
-     * PB9-only. Words 1-24 = the boot's block_b register values, 25-26 =
-     * the tone pair, 27-39 = the raw tail (first bytes carry R/W=1/raw
-     * patterns, 0xBA/0xFD > 0x7F). The session-62 shape (rf_write SPI
-     * transport + gpio_reconfig + the Phase-Y apply) is RETRACTED: the
-     * orig's poll emits no 0x30-mode writes and no GPIOA traffic. */
-    static const struct { uint8_t b0; uint16_t val; } words[39] = {
+    static const struct { uint8_t reg; uint16_t val; } block_b[24] = {
         { 0x15, 0x1F00 }, { 0x32, 0x7564 }, { 0x3A, 0x44C3 }, { 0x3C, 0x1930 },
         { 0x3F, 0x29D2 }, { 0x48, 0x1E3C }, { 0x59, 0x0A50 }, { 0x60, 0x101E },
         { 0x62, 0x3767 }, { 0x65, 0x248A }, { 0x66, 0xFF2E }, { 0x7F, 0x0001 },
         { 0x06, 0x0024 }, { 0x07, 0x0214 }, { 0x08, 0x0224 }, { 0x09, 0x0314 },
         { 0x0A, 0x0324 }, { 0x0B, 0x0344 }, { 0x0C, 0x0384 }, { 0x0D, 0x1384 },
         { 0x0E, 0x1B84 }, { 0x0F, 0x3F84 }, { 0x12, 0xE0EB }, { 0x7F, 0x0000 },
-        { 0x48, 0x1E3C }, { 0x49, 0x0203 }, { 0x1F, 0xF0FC }, { 0xBA, 0x9183 },
-        { 0x00, 0x62C4 }, { 0x00, 0x5250 }, { 0x57, 0xC268 }, { 0x01, 0x00D2 },
-        { 0x0C, 0x92D8 }, { 0x21, 0x3183 }, { 0x06, 0x002C }, { 0x76, 0x3148 },
-        { 0x06, 0x1155 }, { 0xFD, 0x0183 }, { 0x06, 0x0183 },
     };
+    /* [DATA-DERIVED session 68] the per-slot live values (see above). */
+    const uint32_t freq29 = (chip == RF_CHIP_UHF) ? 0x0061AFD0u : 0x00213BD0u;
+    const uint16_t word49 = (chip == RF_CHIP_UHF) ? 0x0203u : 0x4283u;
+    const uint16_t bus12 = (chip == RF_CHIP_UHF) ? 0x1FFu : 0x0FFu;
 
-    for (unsigned i = 0; i < sizeof(words) / sizeof(words[0]); i++) {
-        poll_send_byte(words[i].b0);
-        poll_send_byte((uint8_t)(words[i].val >> 8));
-        poll_send_byte((uint8_t)(words[i].val & 0xFFu));
-        GPIO_BRR(GPIOB_BASE) = 0x200u;   /* the trailing DATA-low */
-    }
-    at1846s_poll_gap_replay();           /* the 13-event gap */
-    (void)poll_read_reg(0x0D);           /* the RSSI read    */
+    for (unsigned i = 0; i < sizeof(block_b) / sizeof(block_b[0]); i++)
+        rf_write_poll_frame(chip, block_b[i].reg, block_b[i].val);
+    rf_write_poll_frame(chip, 0x48, 0x1E3C);
+    rf_write_poll_frame(chip, 0x49, word49);
+    poll_second_bus_word(bus12);
+    rf_write_poll_frame(chip, 0x1F, 0x9BA9);
+    rf_write_poll_frame(chip, 0x30, 0x7006);
+    rf_write_poll_frame(chip, 0x58, 0x8005);
+    rf_write_poll_frame(chip, 0x4A, 0x157C);
+    rf_write_poll_frame(chip, 0x4D, 0x0000);
+    rf_write_poll_frame(chip, 0x3A, 0x40C9);
+    rf_write_poll_frame(chip, 0x5B, 0x1213);
+    rf_write_poll_frame(chip, 0x30, 0x7006);
+    rf_write_poll_frame(chip, 0x05, 0x8763);
+    rf_write_poll_frame(chip, 0x29, (uint16_t)(freq29 >> 16));
+    rf_write_poll_frame(chip, 0x2A, (uint16_t)(freq29 & 0xFFFFu));
+    rf_write_poll_frame(chip, 0x30, 0x7006);
+    rf_write_poll_frame(chip, 0x30, 0x70A6);
+    (void)rf_read(chip, 0x0D);
 }
 
 /* [0x08023200.. | RECOVERED] program the VCO frequency.

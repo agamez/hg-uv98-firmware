@@ -683,30 +683,38 @@ static void ui_screen0_build(void)
         display_fill_rect(97u, 30u, 90u, 10u, 0xEFBE);;
         display_led_tail_replay();     /* the 25-event warm burst        */
     }
-    /* [session 65 | 0x0801E5E0] the status-page re-draw re-renders the
-     * VFO rows with the LIVE values (the orig's BFB8 trace: y=29 drawn
-     * twice with the same records) — not the stale static scaffold. */
-    vfo_freq_row(0x1Du, ui_vfo_blk_a);
-    vfo_freq_row(0x4Cu, ui_vfo_blk_b);
-    display_fill_rect(29u, 106u, 18u, 20u, 0xEFBE);;
-    cell8x16_ch(0x23u, 0x6Cu, 0x30u);
-    cell8x16_ch(0x23u, 0x74u, 0x30u);
-    cell6x10(0x12u, 0x1Eu, 0x20u);
-    cell6x10(0x12u, 0x24u, 0x20u);
-    cell6x10(0x12u, 0x2Au, 0x20u);
-    {   /* [session 55 + 62] the 359-event burst @ODR#158,942: the
-         * original's ee_read(0x0FA0, 101) setup interleaved by the RTOS
-         * with LED-serial words — replayed [DATA-DERIVED] (see
-         * display.c). WARM PATH ONLY: the fresh-EE boot stream has no
-         * such era (the LED/0x0FA0 task pair only runs once the
-         * settings are valid), so the replay is gated on ui_ee_warm. */
-        if (ui_ee_warm)
-            display_ee359_replay();
-    };
-    {
-        /* [session 52 pt10 | DATA-DERIVED] the RX-bar indicator row:
-         * the 90x10 1-bpp bitmap extracted from the original's stream. */
-        static const uint8_t rxbars[120] = {
+    /* [session 67 correction | RETRACTS the session-65 re-draw] the BFB8
+     * trace's "y=29/y=76 drawn twice with the same records" = the BOOT
+     * render (g2) and the RELEASE re-render (g4) — two separate passes,
+     * not two row renders inside one build. The fresh original draws the
+     * VFO rows exactly once per status-page build; this build already
+     * rendered them live at lines 613/648. Everything from here to the
+     * RX-bar blit (the second fill(29,106,18,20), the 0x23 cells, the
+     * 0x12 space cells, the ee359 burst and the blit) belongs to the
+     * session-52/53 WARM-boot capture era — the fresh-EE build ends at
+     * the cell8x16_ch(0x4Eu,0x0Du) space above (both streams byte-exact
+     * through 187040, the orig then polls). Gated on ui_ee_warm. */
+    if (ui_ee_warm) {
+        display_fill_rect(29u, 106u, 18u, 20u, 0xEFBE);;
+        cell8x16_ch(0x23u, 0x6Cu, 0x30u);
+        cell8x16_ch(0x23u, 0x74u, 0x30u);
+        cell6x10(0x12u, 0x1Eu, 0x20u);
+        cell6x10(0x12u, 0x24u, 0x20u);
+        cell6x10(0x12u, 0x2Au, 0x20u);
+        {   /* [session 55 + 62] the 359-event burst @ODR#158,942: the
+             * original's ee_read(0x0FA0, 101) setup interleaved by the
+             * RTOS with LED-serial words — replayed [DATA-DERIVED] (see
+             * display.c). WARM PATH ONLY: the fresh-EE boot stream has no
+             * such era (the LED/0x0FA0 task pair only runs once the
+             * settings are valid), so the replay is gated on ui_ee_warm. */
+            if (ui_ee_warm)
+                display_ee359_replay();
+        };
+        {
+            /* [session 52 pt10 | DATA-DERIVED] the RX-bar indicator row:
+             * the 90x10 1-bpp bitmap extracted from the original's warm
+             * stream (the fresh boot does not draw it). */
+            static const uint8_t rxbars[120] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -717,10 +725,11 @@ static void ui_screen0_build(void)
     0xFD, 0xFF, 0xF7, 0xEF, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0xFD, 0xFF, 0xF7, 0xEF, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0xFD, 0xFF, 0xF7, 0xEF, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,        };
-        /* [session 53] the original has a separate 359-event I2C burst
-         * right before this window (open item). */
-        display_blit_bitmap_1bpp(50u, 30u, 90u, 10u, rxbars, 0x0000u, 0xEFBEu);
-    };
+            /* [session 53] the original has a separate 359-event I2C burst
+             * right before this window (open item). */
+            display_blit_bitmap_1bpp(50u, 30u, 90u, 10u, rxbars, 0x0000u, 0xEFBEu);
+        };
+    }
 }
 
 /* ---- Round N (session 56): the keyscan chain [RECOVERED] ----------------
@@ -910,8 +919,8 @@ void ui_task(void *p_arg)
      * stream 187041..189034 = 2x (39 frames + gap + read)). The PB9
      * bit pattern is chip-independent in the observed data; the CS
      * selects stay on the VHF slot for both. */
-    at1846s_rssi_poll();
-    at1846s_rssi_poll();
+    at1846s_rssi_poll(RF_CHIP_UHF);   /* FUN_08022a98: !active (UHF) first */
+    at1846s_rssi_poll(RF_CHIP_VHF);   /* then the active (VHF) slot        */
 
     /* [session 61 | 0x802490e enter equivalent] the periodic session
      * manager's enter branch sets FLAG_BANK+2 bit2 (the RX/scan session,
@@ -970,8 +979,8 @@ void ui_task(void *p_arg)
                          * slots (the RD-hook polls 4+5, the stream
                          * 301912..303905, right after the BFB8 g4
                          * re-render). */
-                        at1846s_rssi_poll();
-                        at1846s_rssi_poll();
+                        at1846s_rssi_poll(RF_CHIP_UHF);   /* !active first */
+                        at1846s_rssi_poll(RF_CHIP_VHF);   /* the active    */
                     }
                 } else if (((REG8(FLAG_BANK + 2u) >> 2u) & 1u) == 0u) {
                         REG8(FLAG_BANK + 6u) &= 0x7Fu;   /* 0x8019fea */
@@ -1031,7 +1040,7 @@ void ui_task(void *p_arg)
                              * right after the screen render (the RD-hook
                              * poll 3, the stream 218120..219115 — the
                              * menu paint's immediate tail). */
-                            at1846s_rssi_poll();
+                            at1846s_rssi_poll(RF_CHIP_VHF);  /* the active slot */
                         }
                         /* [session 61 | 0x0801A13A RECOVERED] the keys 1/2
                          * have NO short-press action: they increment the

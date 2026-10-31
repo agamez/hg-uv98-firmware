@@ -3813,3 +3813,88 @@ result, reverted pending a deeper decode.**
   free-running wrong-content polls). Next: identify the build-tail
   chunk (the set-window 0x2A + ~29-byte draw after the RX-bar era) and
   re-order it to the orig's schedule, then re-diff.
+
+## Session 68 — the RSSI poll fully recovered (FUN_08022a98 tree); the poll channel goes byte-exact
+Date: 2026-10-31 (closing continuation of session 67/68)
+
+- **The rec72/rec73 "mystery bits" root-caused.** The recon's poll burst
+  (996 events, right structure, wrong values, deterministic across runs)
+  resisted every transform until the emitter was instrumented at three
+  levels: (a) entry hooks proved at1846s_rssi_poll fires exactly twice
+  at the boot end from the ui_task call sites; (b) Renode peripheral
+  access logging (LogPeripheralAccess gpioPortB) showed the peripheral
+  RECEIVING bits that match the stream (the logger is faithful, 1:1
+  with the CPU stores); (c) register-state hooks at the poll's store
+  instructions showed r1=0x40010000, r4=0x200, r3=0x15<<k — the loop
+  holding the CORRECT table bytes while the bus recorded different
+  bits. The same rf_send_byte shape captures correctly in the boot era
+  and corrupted in the poll era; the inline second-bus word captured
+  correctly in both. Working hypothesis (logged, not fully pinned): a
+  Renode execution artifact of the shift-fused iteration shape
+  (GCC's `mov.w r0, r0, lsl #1`-style fused loop feeding ite-conditional
+  `strmi.w/strpl.w` wide stores) in this era context. The fix is
+  behavioral, not theoretical: the bit loops are written in the
+  pre-loaded `(word >> i) & 1` form with store-then-clock ordering
+  (the shape that captures byte-exact everywhere).
+- **The poll = FUN_08022a98 (the both-slot refresh) -> FUN_0801ab36 ->
+  FUN_0801a91a, and the transport = FUN_0802689A** — NOT the
+  session-66 "PB9-only" tight emitter (RETRACTED). REA decompiles:
+  - FUN_08026712 = the per-bit sender: CLK low (PA15), dly 10, DATA
+    (PB9), dly 10, CLK high, dly 4 — MSB-first, one PB9 event per bit.
+  - FUN_08026838(chip) = the CS: 1 -> PA12 low/PA8 high, 0 -> PA8 low/
+    PA12 high, else both low; (4) = the deselect.
+  - FUN_0802689A(chip, {b0,hi,lo}) = the poll's frame writer: CLK low,
+    dly 8, CS, dly 10, 3 bytes (FUN_08026786), dly 8, deselect, dly 10,
+    CLK low again, **PB9 DATA-low (the 25th event)**, dly 8. GPIOB
+    footprint = 24 bits + the trailing BRR = 25 events/frame. The
+    boot's rf_write (FUN_0802289A) has NO trailing DATA-low = 24
+    events/frame — TWO different writers, now both recovered.
+  - FUN_0802883a(byte, band) = **the second serial bus**: clock GPIOD
+    PD1 (DAT_080288e8 = 0x40011400), strobe PD2, data PB9
+    (DAT_080288ec = 0x40010C00). 12 bits MSB-first (bit11 first),
+    dly 5 per edge, then CLK low + PB9 DATA-low (the 13th event) +
+    PD2 strobe. = the "constant 13-event gap" of session 62/66 — the
+    gap is a SECOND BUS WORD, not padding. Value = tbl1[idx] |
+    (band << 8), tbl1 at 0x20005010 (DAT_0801b59c).
+  - FUN_08026c46(chip,0) = the 24-word block_b init (byte-identical to
+    the recon's existing at1846s_boot_init_block_b table!).
+  - FUN_0801a91a(chip, band, arg) = the tone pair: 0x48=0x1E3C (sq 0),
+    0x49 = ((v-1)&0xFF)|((v&0xFF)<<7) with v = arg + tbl2[idx]&0x7F
+    (tbl2 at 0x20005030); idx = ((tick/100000 (DAT_0801b2e4) -
+    base16[RAM+0xea]) & 0xff)/step8[RAM+0xee] — the tick-indexed tone
+    tables; then FUN_0802883a.
+  - FUN_080272e2 = 0x1F=0x9BA9 (band 1) / 0x9AA9; FUN_08027110 = 0x30
+    0x7006/0x4006 (sq 3 = no write); FUN_080276d4 (sq 1 = the default
+    branch here: 0x58=0x8005, 0x4A=0x157C, 0x4D=0, 0x3A=0x40C9,
+    0x5B=0x1213); FUN_08027156 = 0x30=0x7006, 0x05=0x8763, 0x29/0x2A =
+    the freq29 halves, FUN_08027092 = 0x30=0x7006 + 0x30=0x70A6;
+    FUN_0802692E = rf_read(chip,0x0D) (cmd 0x8D + the CRH I/O pair).
+- **The five orig polls re-framed with the 13-event insert after word
+  25** (the session-66 stride-25 table was misaligned from word 26 on):
+  w0-23 block_b (fixed, = the session-66 table ✓), w24 0x48=0x1E3C,
+  w25 0x49 [LIVE], ins13 12-bit [LIVE], w26 0x1F=0x9BA9, w27 0x30=0x7006,
+  w28 0x58=0x8005, w29 0x4A=0x157C, w30 0x4D=0, w31 0x3A=0x40C9,
+  w32 0x5B=0x1213, w33 0x30=0x7006, w34 0x05=0x8763, w35 0x29 [LIVE],
+  w36 0x2A [LIVE], w37 0x30=0x7006, w38 0x30=0x70A6, tail 10001101
+  (0x8D). The session-66 tail words 27-39 (0xBA/0xFD raw patterns) were
+  framing artifacts — RETRACTED.
+- **The live values = per-slot constants in this scenario** [DATA-DERIVED
+  from the five polls; the generating chain documented above]:
+  UHF slot: freq29 = 0x0061AFD0 (400.125 MHz), 0x49 = 0x0203, bus12 =
+  0x1FF (band 1); VHF slot: freq29 = 0x00213BD0 (136.077 MHz), 0x49 =
+  0x4283, bus12 = 0x0FF (band 0). Poll order = FUN_08022a98's
+  poll(other) then poll(active): boot [UHF, VHF], press [VHF] (the
+  FUN_08019910 site), release [UHF, VHF].
+- **Implementation (rf.c/rf.h/ui.c)**: at1846s_rssi_poll(chip) rebuilt as
+  the FUN_0802689A frame writer + the second-bus word + the fixed
+  15-frame apply + rf_read(chip,0x0D); poll_send_byte/poll_read_reg/
+  at1846s_poll_gap_replay deleted; rf_send_byte recast in the
+  (word >> i) & 1 shape; the five ui.c call sites carry the slot.
+- **RESULT (p3k6_rec75 vs p3k6_orig)**: ALL FIVE POLLS BYTE-EXACT
+  (996/996 bits each, firstdiff=None). The identical stream prefix now
+  runs to event 218119 = 71.77% of the orig (was 187043/6.2% pre-fix).
+  The boot, the poll pair, and the ENTIRE menu render (189037..218119,
+  ~29k events) are byte-exact. Remaining divergence starts at the
+  press-era interactions (the recon's press poll lands 20352 events
+  later than the orig's — the press/key-6 menu-interaction era is the
+  next target, then the release era's +6659).
