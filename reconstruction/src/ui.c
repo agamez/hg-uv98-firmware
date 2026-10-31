@@ -407,6 +407,34 @@ static void cell12x20(uint8_t y, uint8_t x, uint8_t ch)
     display_blit_glyph_cell_12x20(y, x, &ui_ascii12x20_font[(uint32_t)(ch - 0x20u) * 36u],
                                   0x0000u, 0xEFBEu);
 }
+/* [session 63 | 0x0801CB60 class-6 path RECOVERED] the VFO frequency row:
+ * the read16 buffer's bytes 3,2,1 carry the frequency as big-endian BCD
+ * nibbles; the six digits render "d0 d1 d2 . d3 d4 d5" as class-6 (12x20)
+ * cells at the 12-px pitch from x=0x16, y=0x1D (row 1) / 0x4C (row 2).
+ * Verified against p3k6_orig (the BFB8 y=29/76 hook, all glyphs 240/240):
+ * the EE 0x0800 block 00 25 61 13 ... -> "136.125"; the 0x0810 block
+ * 00 25 01 40 ... -> "400.125" (corrects the session-55 "440.125" note:
+ * 40 01 25 00 = 40012500 = 400.12500 MHz). The orig reads each block
+ * immediately before rendering its row (the t=29.66/29.84 hooks). */
+static void vfo_freq_row(uint8_t y, const uint8_t *blk)
+{
+    static const uint8_t xs[7] = {0x16u, 0x22u, 0x2Eu, 0x3Au, 0x46u, 0x52u, 0x5Eu};
+    uint8_t d[6];
+
+    d[0] = (uint8_t)((blk[3] >> 4) & 0xFu);
+    d[1] = (uint8_t)(blk[3] & 0xFu);
+    d[2] = (uint8_t)((blk[2] >> 4) & 0xFu);
+    d[3] = (uint8_t)(blk[2] & 0xFu);
+    d[4] = (uint8_t)((blk[1] >> 4) & 0xFu);
+    d[5] = (uint8_t)(blk[1] & 0xFu);
+    cell12x20(y, xs[0], (uint8_t)('0' + d[0]));
+    cell12x20(y, xs[1], (uint8_t)('0' + d[1]));
+    cell12x20(y, xs[2], (uint8_t)('0' + d[2]));
+    cell12x20(y, xs[3], 0x2Eu);                        /* '.'            */
+    cell12x20(y, xs[4], (uint8_t)('0' + d[3]));
+    cell12x20(y, xs[5], (uint8_t)('0' + d[4]));
+    cell12x20(y, xs[6], (uint8_t)('0' + d[5]));
+}
 /* [session 62] the boot EE scan (the settings save + the VFO init +
  * the 128-channel validity scan + the 8 VFO/config reads). Runs once,
  * at the first screen0 build — see ui_screen0_build. */
@@ -569,18 +597,13 @@ static void ui_screen0_build(void)
     cell6x10(0x27u, 0x85u, 0x20u);
     cell6x10(0x27u, 0x8Bu, 0x20u);
     cell6x10(0x27u, 0x91u, 0x20u);
-    {   /* [session 55] read16(0x0800) @ODR#137,739 — the VFO A block,
-         * right before the first frequency row (0x1D) renders. */
+    {   /* [session 55/63] read16(0x0800) @ODR#137,739 — the VFO A block,
+         * right before the first frequency row (0x1D) renders; the orig
+         * renders the row's digits FROM this block (session 63). */
         uint8_t blk[16];
         eeprom_read(0x0800u, 0x10u, blk);
+        vfo_freq_row(0x1Du, blk);
     }
-    cell12x20(0x1Du, 0x16u, 0x30u);
-    cell12x20(0x1Du, 0x22u, 0x30u);
-    cell12x20(0x1Du, 0x2Eu, 0x30u);
-    cell12x20(0x1Du, 0x3Au, 0x2Eu);
-    cell12x20(0x1Du, 0x46u, 0x30u);
-    cell12x20(0x1Du, 0x52u, 0x30u);
-    cell12x20(0x1Du, 0x5Eu, 0x30u);
     display_fill_rect(29u, 106u, 18u, 20u, 0xEFBE);;
     cell8x16_ch(0x23u, 0x6Cu, 0x30u);
     cell8x16_ch(0x23u, 0x74u, 0x30u);
@@ -602,18 +625,13 @@ static void ui_screen0_build(void)
     cell6x10(0x56u, 0x85u, 0x20u);
     cell6x10(0x56u, 0x8Bu, 0x20u);
     cell6x10(0x56u, 0x91u, 0x20u);
-    {   /* [session 55] read16(0x0810) @ODR#145,359 — the VFO B block,
-         * right before the second frequency row (0x4C) renders. */
+    {   /* [session 55/63] read16(0x0810) @ODR#145,359 — the VFO B block,
+         * right before the second frequency row (0x4C) renders; the digits
+         * render FROM this block (session 63). */
         uint8_t blk[16];
         eeprom_read(0x0810u, 0x10u, blk);
+        vfo_freq_row(0x4Cu, blk);
     }
-    cell12x20(0x4Cu, 0x16u, 0x30u);
-    cell12x20(0x4Cu, 0x22u, 0x30u);
-    cell12x20(0x4Cu, 0x2Eu, 0x30u);
-    cell12x20(0x4Cu, 0x3Au, 0x2Eu);
-    cell12x20(0x4Cu, 0x46u, 0x30u);
-    cell12x20(0x4Cu, 0x52u, 0x30u);
-    cell12x20(0x4Cu, 0x5Eu, 0x30u);
     display_fill_rect(76u, 106u, 18u, 20u, 0xEFBE);;
     cell8x16_ch(0x52u, 0x6Cu, 0x30u);
     cell8x16_ch(0x52u, 0x74u, 0x30u);

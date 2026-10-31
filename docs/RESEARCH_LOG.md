@@ -3639,3 +3639,44 @@ identified as the first state-driven gap.**
   the VFO digits, the S-meter/icon cells between the rows, and downstream
   state-driven content. The pre-press window byte-exactness work continues
   from the VFO renderer.
+
+**Session 63, part 2 — the VFO frequency rows decoded and wired to state;
+match extends 172,707 -> 178,695 (880 -> 523 diff blocks).**
+- INSTRUMENTATION (the AddHook traces on the original, the resc variants
+  p3-key6-cb60/-bfb8/-win/-lr.resc = the debug-only files, NOT committed):
+  (a) CB60 (0x0801CB60) logs: the boot draws "RESET WAIT..." (y=48, sch=4),
+  "CALL:" (y=72, sch=0), the callsign "NOCALL-7" (y=72 x=82, sch=0 — the
+  fresh-EE 0x1800 read = 0xFF -> the same NOCALL-7 fallback the recon has),
+  "BAT:0.8 V" (y=88); the class-1 labels at y=18/64 ("   .CTC.L" etc.); the
+  channel list "01.."-"05.GPS .." at the key-6 menu (the press window).
+  (b) BFB8 (0x0801BFB8) logs: the VFO digit cells = BFB8 y=29/76 at the
+  x=22..94 step 12, records 0x803F6xx-0x803F7xx, drawn TWICE each (the
+  periodic re-draw). The records decode against the class-6 table
+  0x0803F490 = (ch-0x20)*36: row 1 = '1','3','6','.','1','2','5';
+  row 2 = '4','0','0','.','1','2','5'.
+  (c) set_window (0x0801B9C8) logs with LR: the digit windows carry
+  lr=0x801c619 (the BFB8 class-6 branch); the digit cells' own LR =
+  0x801c99b (the CB60 walker's cell wrapper 0x0801C95E) — the digits ride
+  the CB60 text path with the BCD bias (<0x0A -> +0x30).
+  (d) EE read (0x0801A3A8) logs: read16(0x0800 -> 0x20004F94) immediately
+  before the row-1 digits; read16(0x0810 -> 0x20004FB2) before row 2 —
+  exactly where the recon's session-55 scaffolding reads (and discards).
+- VFO ROW RENDER [RECOVERED]: the block's bytes 3,2,1 = the frequency in
+  big-endian BCD nibbles; the display = d0 d1 d2 '.' d3 d4 d5 with
+  d0=b3-hi, d1=b3-lo, d2=b2-hi, d3=b2-lo, d4=b1-hi, d5=b1-lo. The fresh
+  scan-init blocks give "136.125" (00 25 61 13) and "400.125"
+  (00 25 01 40 — CORRECTS the session-55 "440.125" note: 40 01 25 00 =
+  40012500 = 400.12500 MHz). ui.c vfo_freq_row() implements it; both
+  static "000.000" transcriptions replaced by the dynamic render fed by
+  the existing read16 calls. The 12x20 font + blit verified PERFECT
+  (every orig digit cell = a 240/240 glyph match against
+  data/big12x20_font.bin).
+- 0x0801D3B4 = the SOLID-rect scheme fill (0 -> 0x0000, 4 -> the
+  flag-gated 0x0000/0xEFBE, 1 -> 0x001F, 3 -> 0xE020, 7 -> 0xF01E,
+  6 -> 0x20C2, 5 -> 0x13A2); 0x0801BD3C = the 16x16 icon blit with the
+  SAME scheme-4 flag-gated swap (the third independent confirmation).
+- NEXT STATE-DRIVEN GAP: the first remaining divergence = seq 178696 =
+  the 6x10 label at (22,50): the original renders 'H', the recon's
+  session-52 transcription has 'L'. The status-page labels/marks are
+  state-driven (the VFO mode/name indicators?) — the next decompile
+  target is the CB60 caller that renders the label row.
