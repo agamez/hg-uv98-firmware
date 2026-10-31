@@ -4122,3 +4122,30 @@ and must match the orig's bit timing).
 cells with the font match, the fills, the raw runs), matrixcells2.py, and
 covgen.py (the 5.5 static pass: 685 prologue functions, 305 bl-reachable,
 68 cited) remain session tools.
+
+## Session 69 (cont. 5) — key-13 implemented: the CH 002 screen + the PB9 settings-save frame, 100.00% both press lengths
+
+**The implementation.** The key-13 press = the p2 ctx executor (the RAM
+clusters, kept) + the key13_screen() render (the 53x20 EFBE clear, the APRS
+top block 'A'/'P'/'R'/'S' + the 104-event PB9 tail, the live 136.125 row,
+the 18x20 fill, the '00' subs, the 'C'/'H' + '0'/'0'/'2' channel cells, the
+label sweep ending in 'L' - NOT 'H': the 12x20/6x10 font match on the
+orig's 120-byte cell) + key13_pb9_replay() (the 6,077-code settings-save
+frame over the PB9 head-serial link, key13_pb9_stream.h [DATA-DERIVED],
+byte-identical in the short and the long captures) + the RSSI kill (the
+p3k13 captures end silent - the refresh task does not resume, like the
+menu key). The recon's eeprom_write(0x0A00, 0x4D) call = REMOVED: the
+orig's save = the PB9 serial frame, not the I2C EEPROM (the p2 guess was
+the wrong transport; the ee_save bit-level parity = the 5.4 item).
+
+**Two corrections inside the slice** (the font match on the actual cells):
+the screen's trailing 104-event tail after the 'S' differs from the RSSI
+slice's rssi_bus_tail in its first position (BRR vs BSRR) - the key-13 got
+its own key13_tail104.h table; the sweep's last cell = 'L' vs the live
+row's 'H'.
+
+**Fresh differentials (117,483 text):** p3k13-short = 204,670/204,670,
+prefix = 204,670 = 100.00%; p3k13-long = 204,670/204,670 = 100.00% (every
+marker identical: PRE/P1/REL = 189037/204671/204671 both sides).
+p3-key1 = 219,256/220,539 = 100% of the orig; p3-key6 = 303,907/303,907 =
+100.00% - the neighbors unaffected. make test-host green.

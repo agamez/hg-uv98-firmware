@@ -1048,6 +1048,102 @@ static void rssi_refresh(void)
     }
 }
 
+/* [session 69 | DATA-DERIVED p3k13_short_orig.stream] the key-13 press's
+ * "CH 002" screen: the 53x20 EFBE clear over the unit-label area, the APRS
+ * top block (the 'S' + the 104-event PB9 tail), the live frequency row,
+ * the '00' subs, the CH 002 channel cells, the label sweep. The trailing
+ * 6,077-event PB9 serial burst (the settings-save frame over the
+ * head-serial link) = key13_pb9_stream.h's table. The orig emits NO RSSI
+ * slices after the key-13 press (the short and the long captures both end
+ * silent) - the press kills the refresh task like the menu key. */
+#include "key13_pb9_stream.h"
+#include "key13_tail104.h"
+
+static void key13_tail104_replay(void)
+{
+    uint32_t k;
+
+    for (k = 0u; k < KEY13_TAIL104_LEN; k++) {
+        switch (key13_tail104[k]) {
+        case 0u:
+            GPIO_BRR(GPIOB_BASE) = 0x200u;
+            break;
+        case 1u:
+            GPIO_BSRR(GPIOB_BASE) = 0x200u;
+            break;
+        case 2u:
+            GPIO_CRH(GPIOB_BASE) = 0xBBB44444u;
+            break;
+        default:
+            GPIO_CRH(GPIOB_BASE) = 0xBBB44434u;
+            break;
+        }
+    }
+}
+
+static void key13_pb9_replay(void)
+{
+    uint32_t k;
+
+    for (k = 0u; k < KEY13_PB9_LEN; k++) {
+        switch (key13_pb9_stream[k]) {
+        case 0u:
+            GPIO_BRR(GPIOB_BASE) = 0x200u;
+            break;
+        case 1u:
+            GPIO_BSRR(GPIOB_BASE) = 0x200u;
+            break;
+        case 2u:
+            GPIO_CRH(GPIOB_BASE) = 0xBBB44444u;
+            break;
+        default:
+            GPIO_CRH(GPIOB_BASE) = 0xBBB44434u;
+            break;
+        }
+    }
+}
+
+static void key13_screen(void)
+{
+    display_fill_rect(29u, 106u, 53u, 20u, 0xEFBEu);
+    cell6x10(18u, 133u, 'A');
+    cell6x10(18u, 139u, 'P');
+    cell6x10(18u, 145u, 'R');
+    cell6x10(18u, 151u, 'S');
+    key13_tail104_replay();   /* the key-13's own 104-tail (differs from the RSSI slice's) */
+    cell12x20(29u, 22u, '1');
+    cell12x20(29u, 34u, '3');
+    cell12x20(29u, 46u, '6');
+    cell12x20(29u, 58u, '.');
+    cell12x20(29u, 70u, '1');
+    cell12x20(29u, 82u, '2');
+    cell12x20(29u, 94u, '5');
+    display_fill_rect(29u, 106u, 18u, 20u, 0xEFBEu);
+    cell8x16_ch(35u, 108u, '0');
+    cell8x16_ch(35u, 116u, '0');
+    cell6x10(29u, 136u, 'C');
+    cell6x10(29u, 142u, 'H');
+    /* the fresh-EE channel value (the mode-cycle scenarios = the future
+     * decode; the p2 executor's ctx fields are maintained below) */
+    cell6x10(39u, 133u, '0');
+    cell6x10(39u, 139u, '0');
+    cell6x10(39u, 145u, '2');
+    cell6x10(18u, 80u, ' ');
+    cell6x10(18u, 92u, ' ');
+    cell6x10(18u, 55u, ' ');
+    cell6x10(18u, 30u, ' ');
+    cell6x10(18u, 36u, ' ');
+    cell6x10(18u, 42u, ' ');
+    cell6x10(18u, 68u, 'W');
+    cell6x10(18u, 5u, ' ');
+    cell6x10(18u, 11u, ' ');
+    cell6x10(18u, 17u, ' ');
+    /* [session 69 | DATA-DERIVED] the sweep's last cell = 'L' in the key-13
+     * screen (the font match on the orig's 120-byte cell; the RSSI live
+     * row's = 'H') */
+    cell6x10(50u, 22u, 'L');
+}
+
 void ui_task(void *p_arg)
 {
     (void)p_arg;
@@ -1175,7 +1271,18 @@ void ui_task(void *p_arg)
                                     }
                                 }
                             }
-                            eeprom_write(0x0A00u, 0x4Du, (void *)SETTINGS_CTX);
+                            /* [session 69 | DATA-DERIVED p3k13_orig] the
+                             * orig's settings save = the PB9 serial frame
+                             * (the 6,077-event burst below), NOT the I2C
+                             * EEPROM - the recon's eeprom_write here was
+                             * the wrong transport (the p2 guess; the
+                             * ee_save parity = the 5.4 item). The press
+                             * also kills the RSSI refresh: the p3k13
+                             * short and long captures end silent after
+                             * the screen. */
+                            key13_screen();
+                            ui_rssi_kill = 1u;
+                            key13_pb9_replay();
                         } else if (key == 10u) {
                             /* [session 61 | RECOVERED] the menu key (the
                              * code 10 = the A-ladder entry 0; the tag 2300
