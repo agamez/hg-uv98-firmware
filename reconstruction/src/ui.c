@@ -320,10 +320,17 @@ void ui_boot_scene(void)
      * still at its power-on 0 during the cells (bg 0xEFBE) — the exact
      * first divergence of the fresh-EE CK4 pair. */
     eeprom_read(0x0A00u, 0x4Du, (void *)SETTINGS_CTX);
-    if (mem_cmp((const void *)(SETTINGS_CTX + 0x44u), (const void *)0x0804594Cu, 4) != 0)
+    if (mem_cmp((const void *)(SETTINGS_CTX + 0x44u), (const void *)0x0804594Cu, 4) != 0) {
         ui_factory_reset((void *)SETTINGS_CTX);
-    else
+        /* [s72] the fresh boot ends defaults-dirty: the boot-end both-slot
+         * refresh (FUN_08022a98) is pending (see rf.c rf_boot_refresh_pending
+         * for the evidence chain). A warm boot loads the settings from the
+         * EE and leaves the refresh unconsumed-never-set. */
+        rf_boot_refresh_pending = 1u;
+    }
+    else {
         ui_ee_warm = 1u;   /* the valid-magic (warm) boot path        */
+    }
     /* [session 61 | RECOVERED] the settings image lands 1:1 in the radio
      * context at 0x20004E68 (the ee-marker experiment p2-eemarker.resc:
      * the ee bytes 2/5 appear at the ctx +2/+5; the dwell args =
@@ -1273,6 +1280,41 @@ void ui_task(void *p_arg)
                            * creators, then the boot scene] */
     ui_screen0_build();   /* the status page: the first runtime pass */
 
+    /* [session 66 | FUN_08022a98 the both-slot refresh] the original's
+     * boot ends with the both-slot refresh back-to-back (the RD-hook
+     * census: the polls 1+2 = the FUN_08022a98 sites, the p3k6 stream
+     * 187041..189034 = 2x (39 frames + gap + read)). The PB9 bit pattern
+     * is chip-independent in the observed data; the CS selects stay on
+     * the VHF slot for both.
+     * [s72 | PLACEMENT CORRECTION — supersedes the session-70 cont.14
+     * "fires at the 6 s boot end" model, which the ck4 timing streams
+     * DISPROVED: the original's whole boot burst (render + the
+     * 1,996-event refresh) completes by ~3 s of virtual time and is
+     * silent 3->6 s (the 6-s run = 189,037 lines vs the 3-s run =
+     * 189,036), so the refresh sits at the boot-RENDER end, not at the
+     * 144-pass dispatch boundary. The polls therefore moved BACK to
+     * here — immediately after the boot render (the stream position
+     * 187041, unchanged: the hold emits no bus events, the p3k6fix2
+     * neutrality carries over) — inside the CK4 boot+3 s window.]
+     * [s72 | the GATE + the ordering guard] the refresh runs only when
+     * the boot left the settings dirty (the fresh-EE factory reset) and
+     * no $A00 apply consumed it since (rf.c rf_boot_refresh_pending).
+     * The wait re-checks the flag after the documented 2.000-s splash
+     * hold (delay(2000) [0x0801BAA4] = 1440 ticks at 720 Hz) so the
+     * dispatcher's ck3 apply (~0.5 s) deterministically precedes the
+     * fire decision even if the render's busy-loop flushes early —
+     * while the fire stays inside the CK4 3-s window. The no-peer
+     * fresh boot (ck4/p3k6/p3k1/p3-key*) keeps the flag set and fires
+     * here. time_dly is an external call, so the flag re-reads are
+     * not register-cached across tasks. */
+    while (rf_boot_refresh_pending != 0u && rtos_ticks() < 1440u)
+        time_dly(30u);
+    if (rf_boot_refresh_pending != 0u) {
+        rf_boot_refresh_pending = 0u;
+        at1846s_rssi_poll(RF_CHIP_UHF);   /* FUN_08022a98: !active (UHF) first */
+        at1846s_rssi_poll(RF_CHIP_VHF);   /* then the active (VHF) slot        */
+    }
+
     /* [session 69 | the boot = 144 dispatch passes = 6.000 s] the original's
      * boot ends exactly on the 144th 41.667 ms pass (the p3k1_orig RSSI
      * fire 5 lands at exactly 10.000 s and the p3k6x_orig PRE marker at
@@ -1284,22 +1326,6 @@ void ui_task(void *p_arg)
      * as in the original. */
     while (rtos_ticks() < 4320u)      /* 144 passes x 30 ticks = 4320 ticks */
         time_dly(30u);
-
-    /* [session 66 | FUN_08022a98 the both-slot refresh] the original's
-     * boot end refreshes both slots back-to-back (the RD-hook census:
-     * the polls 1+2 = the FUN_08022a98 sites 0x8022ae7/0x8022b07, the
-     * p3k6 stream 187041..189034 = 2x (39 frames + gap + read) = the
-     * 6.000 s boot-end mark). The PB9 bit pattern is chip-independent
-     * in the observed data; the CS selects stay on the VHF slot for both.
-     * [session 70 cont.14 | moved AFTER the boot hold] the original's
-     * polls fire at the 6 s boot end, so in the ck3 peer window (the
-     * 292-event trace = 5 s) they fall OUTSIDE the capture — the earlier
-     * boot-scene placement flushed their rf_reads into the ck3 console
-     * head (the 2 stray reg-0x0D events). The hold emits no bus events,
-     * so every p3 stream position is unchanged (the p3k6fix2 pair:
-     * identical at 187041, the CRH counts equal). */
-    at1846s_rssi_poll(RF_CHIP_UHF);   /* FUN_08022a98: !active (UHF) first */
-    at1846s_rssi_poll(RF_CHIP_VHF);   /* then the active (VHF) slot        */
 
     /* [session 61 | 0x802490e enter equivalent] the periodic session
      * manager's enter branch sets FLAG_BANK+2 bit2 (the RX/scan session,

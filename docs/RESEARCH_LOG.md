@@ -4911,3 +4911,71 @@ CK3 parity.
   works (rxBuf2 = the full $A00 frame on both from F4); the residual =
   the parked +9 flag-byte semantics (x8) + the F2 checkpoint race (x2,
   the buffers all matched).
+
+## Session 72 — the CK4 poll-placement question RESOLVED (the corrected Thumb BL decoder + the dirty-state refresh gate); CK4/p3k6/CK3 all fresh-green
+
+- **The Thumb BL decoder bug fixed** (/tmp/opencode/bldec.py): the correct
+  T1 encoding is imm32 = SignExtend(S:I1:I2:imm10:imm11:'0') with
+  I1=NOT(J1^S), I2=NOT(J2^S), target = PC + imm32 (PC = addr+4; the
+  immediate is already byte-granular — do NOT re-double and do NOT shift
+  imm10 by 13). Verified against the 3 known rf_read caller sites
+  (0x8025b42/0x8025c5a/0x8025eee -> all decode to 0x0802692E exactly).
+- **The caller map flips**: FUN_08022a98 has **13 direct BL callers** with
+  the corrected decoder (the old one found 0 — the systematic sign-extend
+  error sent every backward-call target out of image): 0x8014eac (the
+  0x08014dea press-hold monitor, the long-press path), 3x in FUN_08019910
+  (the press/release handlers), 0x801b2be (FUN_0801b198), 3x in
+  FUN_0801ea04, 0x80214be (FUN_08021238 the key dispatch), 0x8022efc
+  (FUN_08022cb4), 2x in **FUN_08023000**, 0x802444e (FUN_080242b8). The
+  session-66 poll sites re-read as 0x8022ae2/0x8022b02 (not ...e7/...b07)
+  and both target 0x0801AB36 — the known poll chain ✓.
+- **The ck3 absence root-caused**: ck3_rf_orig.txt contains ZERO poll
+  reads — its 2 RFRD events are the in-apply pair (@212 cs=1 reg=0x30,
+  @293 cs=0 reg=0x0D); no poll frames (0x48=0x1E3C/0x49 writes) either.
+  FUN_08023000 decompile (rea_decompile_squelch_serial_chain_2692e_
+  272e2_23610.c) = the dirty-slot deferred-refresh consumer: flag@+0xba
+  or +0xbc set -> clear it, FUN_0801e296(slot), FUN_08022a98 — i.e. the
+  original's boot-end refresh fires only when the boot left the settings
+  DIRTY (the fresh-EE factory reset) and no settings application has
+  consumed the state since. The session-49 ck3 capture's EE state is
+  unrecorded, so the warm-boot skip alone also explains it — both legs
+  reproduce every committed scenario; the $A00-cancel leg is [INFERRED].
+- **The timing model corrected**: the orig's whole boot burst (render +
+  the 1,996-event refresh) completes by ~3 s of virtual time, silent
+  3->6 s (the 6-s run = 189,037 lines vs the 3-s run = 189,036). The
+  session-70 cont.14 "the polls fire at the 6 s boot end" model is
+  RETRACTED — the refresh sits at the boot-RENDER end (the stream
+  position 187041), not at the 144-pass dispatch boundary.
+- **The recon fix (rf.c/rf.h/ui.c/main.c)**: `rf_boot_refresh_pending`
+  — set on the ui_boot_scene factory-reset path (the fresh/dirty boot),
+  cleared by the dispatcher's $A00 apply (main.c, after
+  at1846s_boot_default_apply), consumed by the poll site MOVED BACK to
+  immediately after ui_screen0_build() (the stream position 187041 —
+  the hold emits no bus events so every p3 position is unchanged, the
+  p3k6fix2 neutrality carries over). The site waits out the documented
+  2.000-s splash hold (delay(2000) [0x0801BAA4] = 1440 ticks @ 720 Hz)
+  and RE-CHECKS the flag, so the ck3 apply (~0.5 s) deterministically
+  precedes the fire decision even if the render's busy-loop flushes
+  early, while the fire stays inside the CK4 boot+3 s window.
+  Provenance: the chain above; the gate legs marked [INFERRED] where the
+  orig-side EE state is unobserved.
+- **THE FRESH NUMBERS (this session, p3diff.sh fresh-EE)**:
+  - **CK4 (ck4fix pair)**: orig = rec = **189,036 events, prefix =
+    100.00%, the streams md5-IDENTICAL** (a13cf875d72ce8c8184beead293fd383)
+    — the FULL GPIOB stream event-identical INCLUDING the 1,996-event
+    boot-end refresh tail at 187041..189034 (the session-66 census
+    carries over); ODR = a subset of an event-identical stream =
+    100.00%. The CK4 completion criterion (the full-stream identity) is
+    met for the first time.
+  - **p3k6 regression (p3k6s72 pair)**: **303,907/303,907 = 100.00%**;
+    every marker identical (PRE 189,037 / P1 238,685 / P3 238,685 /
+    REL 303,908; scr 00/35/35/00 on both sides).
+  - **CK3 regression (fresh-EE rec side vs the banked reference)**:
+    **292/292 ALL IDENTICAL** — the (cs,reg,val) triples via
+    /tmp/opencode/ck3cmp.py (the recon hook prints decimal regs and
+    val=0x0x...L — the parser now handles both forms); the run log =
+    /tmp/opencode/ck3s72_recon.log.
+- Build 122,547 text (+60); make test-host green; the hook pins held
+  (rf_write 0x08004f08 / rf_read 0x08004fb4). The battery continues:
+  p3k1, the CK2 peer pair, the ck2matrix pair, the key matrix — fresh,
+  then the ledger re-check and the close.

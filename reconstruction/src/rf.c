@@ -621,6 +621,28 @@ static void poll_second_bus_word(uint16_t v)
  * the slot's 0x1e-byte config at 0x20004F94]:
  *   UHF slot: freq29 = 0x0061AFD0 (400.125 MHz), 0x49 = 0x0203, band 1
  *   VHF slot: freq29 = 0x00213BD0 (136.077 MHz), 0x49 = 0x4283, band 0 */
+
+/* [s72 | INFERRED from the differential + REA] the boot-end both-slot
+ * refresh gate. Evidence chain: (1) the fresh-EE no-peer boot DOES refresh
+ * (the ck4orig6s vs 3-s streams: the orig's whole boot burst incl. the
+ * 1,996-event refresh completes by ~3 s of virtual time; the p3k6 census:
+ * the polls at stream position 187041, boot [UHF, VHF]); (2) the ck3 peer
+ * boot does NOT (ck3_rf_orig.txt: zero poll frames / poll reads in the
+ * 5-s window — only the boot init + the reply-gated apply); (3) the
+ * caller map with the CORRECTED Thumb BL decoder (S/I1/I2 sign-extend;
+ * verified against the 3 known rf_read caller sites) gives FUN_08022a98
+ * 13 direct BL callers — among them FUN_08023000, the dirty-slot
+ * deferred-refresh consumer (rea_decompile_squelch_serial_chain_2692e_
+ * 272e2_23610.c: flag@0xba/0xbc set -> clear, re-init, FUN_08022a98) —
+ * i.e. the original refreshes at the boot end only when the boot left
+ * the settings state DIRTY (the fresh-EE factory reset) and no settings
+ * application has consumed it since. The $A00-cancel leg is [INFERRED]:
+ * the session-49 ck3 capture's EE state is unrecorded, so the warm-boot
+ * skip alone also explains it; both legs reproduce every committed
+ * scenario. Set on the ui.c factory-reset path, cleared by the
+ * dispatcher's $A00 apply (main.c), consumed by the ui.c poll site. */
+uint8_t rf_boot_refresh_pending = 0u;
+
 void at1846s_rssi_poll(uint8_t chip)
 {
     static const struct { uint8_t reg; uint16_t val; } block_b[24] = {

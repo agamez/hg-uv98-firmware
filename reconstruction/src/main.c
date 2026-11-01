@@ -81,6 +81,14 @@ static void dispatcher_task(void *arg)
                                                 * rxBuf2 archive (the ck2matrix
                                                 * F4 evidence) */
                 at1846s_boot_default_apply();
+                /* [s72] the settings application consumed the dirty state:
+                 * the boot-end both-slot refresh is cancelled (rf.c
+                 * rf_boot_refresh_pending for the chain). The ck3
+                 * differential: the orig's peer trace (the apply fired in
+                 * the reply window) contains zero poll frames/reads in the
+                 * 5-s window, while the fresh no-peer boot refreshes at the
+                 * render end (the ck4/p3k6 census at stream 187041). */
+                rf_boot_refresh_pending = 0u;
                 break;
             }
         }
