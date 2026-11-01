@@ -100,7 +100,11 @@
 #define RF_CS0          0x0100u                 /* PA8  */
 #define RF_CS1          0x1000u                 /* PA12 */
 
-/* [SCAFFOLD] delay unit: structure recovered, period unmeasured. */
+/* [session 74 | FUN_0801BAA4 decompiled: `for (i < n) { for (j < 7000)
+ * {} }` — the n outer x 7000 inner empty loop; the same primitive the
+ * LCD init and the radio chain call] delay unit: the structure AND the
+ * period = decompiled; the recon's single-nop-per-unit = the calibrated
+ * equivalent (the emulated-timing bar = the bench, per slice). */
 static void rf_delay(unsigned n)
 {
     while (n--)

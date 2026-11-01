@@ -5592,3 +5592,27 @@ CK3 parity.
   12-bit words on the naive chunking = the mixed LED-word +
   transaction structure). The full decode = the multi-hour slice; the
   framing park stands with this quantified signature.
+
+## Session 74 (cont. 10) — the delay primitive decompiled (the SCAFFOLD dies); the CK2 warm matrix re-derived and running
+
+- **FUN_0801BAA4 = decompiled**: `for (i < n) { for (j < 7000) {} }` —
+  the n outer x 7000 inner empty loop. The recon's rf_delay SCAFFOLD
+  annotation REPLACED with the decompile cite (the structure AND the
+  period now decompiled; the single-nop-per-unit = the calibrated
+  equivalent, the emulated-timing bar = the bench). The same primitive
+  = the display.c lcd_delay's cite (already annotated).
+- **The CK2 warm matrix**: the harness re-derived for the 116,791 build
+  (ck2matrix_gen.py = the nm-derived REC dump addresses re-run), the
+  fresh Renode pair launched (the correct renode path from p3diff.sh).
+- **THE CK2 WARM MATRIX = GREEN**: 490/490 observables identical (the
+  fresh pair on the 116,791 build, the re-derived harness) — the
+  $A00/$A01/$A02/$A08/$A09/$B/$C protocol families + the frame-ready
+  flags hold through all the sweep's conversions.
+- **The battery ledger (all fresh on the 116,791 build)**: CK4
+  189,036/189,036 = 100.00%; key-13-short 204,670/204,670 = 100.00%
+  exact; key-1 prefix 219,256 = 100% of orig; key-2-short prefix
+  226,682 = 100%; key-3-short prefix 226,682 = 100%; key-11/key-14 =
+  their classes (the a3 turn); p3k6 303,907/303,907 = 100.00%; CK2
+  warm matrix 490/490. Remaining = the CK3 (the ck3cmp.py path), the
+  CK2 handshake pair, the long key windows, the key-4..10 (the menu
+  keys = the untouched menu machinery), the key-13/14-long.
