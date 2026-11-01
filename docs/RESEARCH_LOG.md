@@ -5655,3 +5655,20 @@ CK3 parity.
   short and the long windows on the sweep build. The deterministic
   harness fix = still the park item (the wall-paced 3-s window will
   flake under the load).
+
+## Session 74 (cont. 13) — the vendor-traffic scope narrowed: not the I2C family, not the LED, inline bit-bang
+
+- **The exhaustive caller scans (the negative results = the scope)**:
+  the i2c primitives (start 0x080284F2, the byte+ack 0x080285B6, the
+  read byte 0x08028666, the sda_output/input) = ALL their callers sit
+  INSIDE the ee_write/ee_read bodies (0x080286xx-0x080287xx) — no
+  boot-region user; ee_read/ee_write = 2 callers each (the 0x0801a3xx
+  save chain + the 0x0802d9b6/da22 '$A00-command EE handlers — the
+  head-link protocol consumer, the addr/len/0x40-byte-read shape with
+  the FUN_08023fb0 response post, the new decode); the CRH literals
+  0x44444434/0x44444444 = ABSENT from the flash (the GPIO config =
+  the runtime read-modify-write). THE VENDOR TRAFFIC = the inline
+  PB9 bit-bang inside a boot-chain function — the discovery = the
+  manual disassembly of the main-chain region (0x0802d200-0x0802d5xx)
+  hunting the 0x200-mask BRR/BSRR patterns. The framing park stands
+  with the narrowed search space.
