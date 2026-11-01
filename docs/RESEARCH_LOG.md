@@ -5031,3 +5031,53 @@ CK3 parity.
   (rf_write 0x08004f08 / rf_read 0x08004fb4). The verification battery
   (phase 3) = the WARM matrix pair (the drain/flag/archive behavior) +
   the FRESH matrix pair + the ck3-warm pair — the numbers next.
+
+## Session 72 (cont. 2) — the verification battery GREEN on the final build; the REA main-task decode (the +0x119 dispatch gate)
+
+- **Phase 4 battery (the final build 122,695, test-host green, the pins
+  held)**: (a) the WARM CK2 matrix pair = **490/490 = 100.00%** (both
+  runs; the warm orig alone also reproduces the session-71 warm capture
+  490/490 — the warm behavior = stable and now fully modeled: the drain
+  at the pass-27 replay, the rxBuf+rxBuf2 archive, the bit0 pulse, the
+  0xC0 flag phase); (b) the FRESH CK2 matrix pair = **488/489** — all
+  buffer checkpoints identical (the fresh boot drops the reply on BOTH
+  images ✓ the warm-gate works); the residual = ONE byte: the orig's
+  rxBuf3[15] = 0xC0 at the F5 checkpoint (the boot-era scratch write,
+  unmodeled) + the orig console's F5 flag row was truncated by the
+  capture (the 489th row — a parse gap, not device behavior);
+  (c) the CK3-warm pair = **292/292 ALL IDENTICAL** (the warm recon
+  drains at the pass-27 replay and applies — matching the session-49
+  warm reference; the ck3 protocol = the WARM pair per the era
+  discovery). The CK2 handshake = 1x `$A00` each, the content identical,
+  zero faults (the TX time delta = the task-start starvation delta,
+  documented).
+- **The REA main-task decode (the user's REA directive; the Ghidra
+  headless pipeline, ReaCreateDecomp.java 0x0802D178 + the capstone
+  cross-read)** — the main task FUN_0802D178, instruction-exact:
+  0x0802d17c `bl 0x802d0d0` (the radio-apply sequence FUN_0802d0d0 =
+  the flat call chain func_0x0802d200/0x0802bd88/0x0802b3cc/
+  FUN_08023798/func_0x0802d5d4/FUN_08023798(_DAT_0802d1cc) ending in the
+  apply 0x0802d080 — UNCONDITIONAL, called ONCE at the main task's
+  start, BEFORE the task creators 0x801b5a8); the boot scene 0x801b738;
+  then the pass loop: `time_dly(30); [r5=0x20005094] [r5+0x166]++;
+  if ([r5+0x119] != 0) loop` — **the key-dispatch cluster (0x8013e58,
+  0x8014302, 0x8019dcc) runs ONLY WHILE flagbank+0x119 == 0** (the
+  radio-busy flag: FUN_08024d76 — the per-slot RF apply, decompiled:
+  the 0x30/0x7006 writes to both chips, FUN_0801a8aa/FUN_08027156/
+  FUN_080272a4/FUN_08024d08 — SETS +0x119 = 1 at its end); the outer =
+  the 17-pass session (0x11) with the counter reset + 0x8012d24 (the
+  session manager). FUN_08023eaa = the UART TX byte loop (the TXE-poll
+  sender = the request path). **NEW DECODE ITEM: the +0x119 dispatch
+  gate** — the recon's dispatcher models the OBSERVABLE behavior on
+  every committed scenario (the warm/fresh matrix pairs, the ck3, the
+  p3 set); the +0x119 refinement (the precise who-sets/who-clears chain
+  and its interaction with the $A00 drain gate) = the next REA slice;
+  the drain-gate identity (ui_ee_warm) = [INFERRED], behaviorally
+  verified by the phase-4 pairs.
+- The gap-ledger state: the parked items = CLOSED (the key-1/2 band
+  gate, the key-14/11/12 tune family) or the documented classes (the
+  key-11 radio-preemption residual 99.61%/99.934% of the orig, the
+  key-12 ±2 jitter, the p3 render-pacing slices, the fresh-matrix
+  rxBuf3[15] single byte) + the §8 proven set. The COVERAGE.md = 705
+  rows, zero unclassified, the §5.0 pointer added. The GOAL §1 gate =
+  audited in the close.

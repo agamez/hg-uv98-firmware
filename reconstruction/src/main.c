@@ -102,7 +102,17 @@ static void dispatcher_task(void *arg)
      * orig run dropped it — the receiver not yet enabled) is
      * unobservable in the 49-byte checkpoint dumps (both frames share
      * the dumped 16-byte "$A00,000..." head). */
+    uint8_t flags_phase_done = 0u;   /* [s72] the one-shot guard */
     for (;;) {
+        /* [s72 round-1 correction] the 0xC0 flag phase is WARM-INDEPENDENT:
+         * the fresh-EE orig pair shows the flag = 0x00 through the F3
+         * checkpoint (1.4 s) and 0xC0 from the F4 (1.7 s) with NO drain and
+         * NO apply — the write is an unconditional boot-phase event (the
+         * warm path merely overwrites the drain's bit0 pulse with it). */
+        if (flags_phase_done == 0u && rtos_ticks() >= 1140u) {
+            flags_phase_done = 1u;
+            protocol_boot_flags_phase();
+        }
         if (ui_ee_warm != 0u && rtos_ticks() >= 810u && u2_rx_poll()) {
             u2_rx_drain();                   /* route the first held frame  */
             u2_rx_open = 0u;                 /* the one-shot close          */
@@ -125,15 +135,14 @@ static void dispatcher_task(void *arg)
         time_dly(30u);   /* [s72] the dispatcher's pass grid (the orig's
                           * request/drain are both 30-tick aligned) */
     }
-    /* [s72] the boot's late flag phase (protocol.c for the provenance):
-     * the +9 byte = 0xC0 from the F4 checkpoint (1.7 s) on, while the F3
-     * dump (1.4 s) still reads the drain's 0x01 pulse — the write lands
-     * at the pass-38 boundary (1140 ticks = 1.583 s), the observed
-     * bounds' middle. The no-apply paths leave the byte at the drain
-     * pulse (unobserved in any committed scenario's checkpoints). */
-    while (rtos_ticks() < 1140u)
-        time_dly(30u);
-    protocol_boot_flags_phase();
+    /* [s72] the warm path breaks at the drain (1.125 s) before the flag
+     * phase tick — finish the one-shot here (the fresh path already
+     * wrote it inside the loop). */
+    if (flags_phase_done == 0u) {
+        while (rtos_ticks() < 1140u)
+            time_dly(30u);
+        protocol_boot_flags_phase();
+    }
     for (;;) {
         time_dly(5);
     }
