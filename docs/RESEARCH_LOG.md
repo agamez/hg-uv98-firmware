@@ -4806,3 +4806,24 @@ CK3 parity.
   original's for the CK4 full-stream gate.
 - Build 122,335 text; make test-host green; the hook addresses unchanged
   (rf_write 0x08004f08 / rf_read 0x08004fb4, the noinline pins held).
+
+## Session 71 (cont.) — CK2 handshake: the byte-identical observable PASS
+
+- **The recon's dispatcher wait made UNBOUNDED** (main.c): the bounded
+  200x5-tick scaffold window (1.39 s) silently dropped late frames —
+  the symmetric 2.0-s peer injection (peer-8051.resc/peer-recon.resc)
+  never reached the apply. The original's ISR+flag architecture consumes
+  the frame whenever it lands; the recon now mirrors that. No-peer boots
+  idle identically (the loop = the same, minus the expiry).
+- **The CK2 peer pair run fresh, symmetric stimulus (the 534-B neutral
+  $A00 frame at 2.0 s, identical content both sides)**:
+  - TX observable: exactly ONE `$A00` request on each image (the orig at
+    virt 0.79 s, the rec at virt 0.99 s — the documented boot-flush
+    delta; the content and the count identical; zero other TX).
+  - The response = the harness-injected frame (identical by construction).
+  - The fault registers = 0/0 on both; the orig console = the ADC2:DR
+    SVD warnings (the keyscan polling, the platform-level, not UART).
+- The build 122,323 text; make test-host green; the hook pins held.
+- The REMAINING CK2 = the §5.5 command matrix ($A00 variants, $A01
+  length-gate, $A02, $A08, $A09, the in-image head commands) — the
+  per-family RAM/observable differential = the next slice.

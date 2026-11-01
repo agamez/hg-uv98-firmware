@@ -63,7 +63,14 @@ static void dispatcher_task(void *arg)
      * 187041 poll). The full default apply (the CK3 peer-harness
      * content) runs only when the 0x216-byte $A00 settings frame
      * actually arrives; ~1 s bounded wait then idle. */
-    for (uint32_t n = 0u; n < 200u; n++) {
+    /* [session 71] the wait is UNBOUNDED, mirroring the original's
+     * ISR+flag architecture: the settings frame is consumed whenever it
+     * arrives (the peer harness injects at 2.0 s; the original's request
+     * fires at ~0.8 s). The earlier bounded 200x5-tick scaffold window
+     * (1.39 s) silently dropped late frames and broke the symmetric CK2
+     * stimulus. No-peer boots (p3/CK4 fresh-EE) idle in this loop exactly
+     * as before the change. */
+    for (;;) {
         if ((protocol_flags_read() & 0x01u) &&
             protocol_rx_len() == 0x216u) {     /* the REAL $A00 reply    */
             protocol_flags_clear(0x01u);
