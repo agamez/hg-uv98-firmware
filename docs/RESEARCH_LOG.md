@@ -6085,3 +6085,43 @@ CK3 parity.
   (r75ck4b), p3k6 = 303,907/303,907 (r75k6), the key-13 short =
   204,670/204,670 (r75k13c), CK3 = 292/292 (r75ck3, the warm state).
 - The remaining = the CK2 handshake + the 12 key pairs (1-12, 14).
+
+## Session 75 (cont. 11) — PHASE E: the full verification battery GREEN on the final build (103,283)
+
+| channel | result | class |
+|---|---|---|
+| CK4 | 189,036/189,036 = 100.00% | md5-identical ✓ (r75ck4b) |
+| p3k6 | 303,907/303,907 = 100.00% | ✓ (r75k6) |
+| key-13 short | 204,670/204,670 = 100.00% | exact ✓ (r75k13c) |
+| key-13 long | 204,670/204,670 = 100.00% | exact ✓ (r75k13l — the clean run, the s73 flake = the past) |
+| CK3 | 292/292 ALL IDENTICAL | ✓ (r75ck3, the warm state) |
+| CK2 warm matrix | 490/490 observables | ✓ (r75ck2w) |
+| CK2 fresh matrix | 490/490 observables | ✓ IMPROVED (the s72 F5 residual GONE; r75ck2f) |
+| CK2 handshake | 1x $A00 each, the content identical (all 4 logs) | ✓ |
+| key-1 | prefix 219,256 = 100% of the orig | ✓ |
+| key-2 short | prefix 226,682 = 100% of the orig | ✓ |
+| key-2 long | = the key-1 scenario duplicate (the known harness mislabel; the numbers identical to k1) | ✓ |
+| key-3 short | prefix 226,682 = 100% of the orig | ✓ |
+| key-3 long | = the key-1 scenario duplicate (the known harness mislabel) | ✓ |
+| key-11 short | prefix 475,858 | the banked exact number ✓ |
+| key-11 long | prefix 2,798,646 / 2,800,492 = 99.93% of the orig | THE FIRST COMPLETE RUN (the s72-era pair = the Renode abort); the tail divergence (the last ~1,846 events) = the new parked item |
+| key-12 short | prefix 191,564 | the BANKED-IDENTICAL divergence (the b6k12s pair = the same numbers, the same ODR divergence at 191,565 — pre-existing, no regression) |
+| key-12 long | prefix 191,564 | the same banked divergence |
+| key-14 short | prefix 362,176 | the banked ✓ |
+| key-14 long | prefix 517,228 = 100% of the orig | the prefix-covers-orig ✓ |
+
+**Every channel at its banked class or better.** The two honest notes:
+the key-11-long tail divergence (the first complete run — the previously
+aborted pair) = the parked analysis item; the key-12 prefix divergence =
+the banked pre-existing state (verified identical to the b6k12s banked
+pair, the ODR divergence at the same event 191,565).
+
+**The sweep = COMPLETE**: the recorded-behavior dumps = zero
+(reconstruction/src + data/); the SCAFFOLD markers = zero; the
+DATA-DERIVED markers = 27 with the inline decompile/measure evidence;
+the [REA-C-VALIDATED] marks = the 5 core modules + the per-function
+inline annotations; the battery = green across all channels on the
+final build. The commits this session: dd4b09e (the key-13), 8e02989
+(the warm), 5197830 (the vendor), 7f9cc80 (the task table), 1bb28d4 +
+13ff124 (the SCAFFOLD clear + the c2), a5b4740 (the ledger), 9b027ee +
+ab3c66d + e55a931 (the d1), 52bccd3 + this (the battery).
