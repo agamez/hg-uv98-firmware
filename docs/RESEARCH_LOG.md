@@ -5785,3 +5785,42 @@ CK3 parity.
   (the shape-mismatch bench proof); the pb9 save = the same I2C-poll
   class; the writer hunt = the manual 17-site disassembly (the parked
   slice). The watchpoint path = closed with the evidence.
+
+## Session 75 — a2-key13 COMPLETE: the key13_pb9_stream.h replaced by the decompiled generators; the burst = the both-slot refresh + the I2C save
+
+- **The decode** (the PB9-only 2-bit-code table, the two-grammar state
+  machine): the 6,077 events = [2 AT1846S poll bursts, 998 events each]
+  + [77 I2C single-byte write transactions, 53 events each].
+- **The poll bursts bit-exact vs the decompiled poll generator**: 39
+  frames x 25 writes (24 frame bits + the trailing DATA-low idle — the
+  25-bit stride CONFIRMED by the block_b scan: 0x151F00 @bit0, 0x327564
+  @bit25, 0x3A44C3 @bit50) + the 13-write second-bus word + the 0x8D
+  read cmd + the C2/C3 turnaround. Poll 1 = 0x49 0x0203 / psw 0x1FF /
+  (f*16) 0x0061AFD0 = the UHF slot 400.125; poll 2 = 0x49 0x4283 /
+  psw 0x0FF / 0x00213BD0 = the VHF slot 136.125 — the per-slot
+  defaults of the both-slot refresh (FUN_08022a98, the session-66
+  RD-hook census; the recon's at1846s_rssi_poll(chip) constants).
+- **The I2C part = the settings save**: 77 transactions, device A0,
+  addresses 0x0A00..0x0A4C contiguous, each = start, start, A0, hi,
+  lo, data, stop = the decompiled FUN_080286C0 shape (the poll-free
+  canonical ack = 1 loop iteration). The fresh Ghidra decompile of
+  FUN_0801A6EA = `FUN_080286c0(0xa00, DAT_0801b2d4, 0x4d)` — the
+  single-call save = eeprom_write(0x0A00, SETTINGS_CTX, 0x4D).
+- **The session-69 "NOT the I2C EEPROM" note = RETRACTED** (it mistook
+  the poll bursts for a non-I2C framing; the save transport = the I2C
+  EEPROM exactly as the p2 guess had it, PRECEDED by the both-slot
+  refresh).
+- **The replacement** (ui.c key13_save_frame): at1846s_rssi_poll(UHF) +
+  at1846s_rssi_poll(VHF) + eeprom_write(0x0A00, 0x4D, SETTINGS_CTX).
+  key13_pb9_stream.h DELETED (the last Tier-A playback header); the
+  build text 116,791 -> 110,647.
+- **The verification**: the key-13 SHORT pair = 204,670/204,670 =
+  100.00% prefix (first run after the replacement); the key-13 LONG
+  pair = 204,670/204,670 = 100.00%. The strictest banked class holds
+  on the generative build. Tier A (the 5 playback headers) COMPLETE.
+- **The residual decode notes** (for the LED slice): the ee359 head =
+  the exact eeprom_read(0x0FA0,101) I2C setup (starts, A0, 0x0F, 0xA0,
+  restart, 0xA1, the first read's sda_input, the first master-ack);
+  the 302-write tail = the interleaved LED-serial words (the RTOS
+  artifact). The led_stream = W58/C2/C3/W1021/C2/C3/W3375 — the
+  mid-poll capture + the LED words.

@@ -1197,13 +1197,9 @@ static void rssi_refresh(void)
 /* [session 69 | DATA-DERIVED p3k13_short_orig.stream] the key-13 press's
  * "CH 002" screen: the 53x20 EFBE clear over the unit-label area, the APRS
  * top block (the 'S' + the 104-event PB9 tail), the live frequency row,
- * the '00' subs, the CH 002 channel cells, the label sweep. The trailing
- * 6,077-event PB9 serial burst (the settings-save frame over the
- * head-serial link) = key13_pb9_stream.h's table. The orig emits NO RSSI
- * slices after the key-13 press (the short and the long captures both end
- * silent) - the press kills the refresh task like the menu key. */
-#include "key13_pb9_stream.h"
-
+ * the '00' subs, the CH 002 channel cells, the label sweep. The orig emits
+ * NO RSSI slices after the key-13 press (the short and the long captures
+ * both end silent) - the press kills the refresh task like the menu key. */
 /* [session 69 | DATA-DERIVED p3k14/p3k11_orig] the key-14 SCAN mode: the
  * press = the scan + the first 5 kHz step (the s1 renders at the press
  * pass), then one TUNE SLICE per 8 passes (~0.335 s = the render-paced
@@ -1295,26 +1291,26 @@ static void key13_tail104_ee_read(void)
     eeprom_read(0x0010u, 0x10u, blk);
 }
 
-__attribute__((noinline)) static void key13_pb9_replay(void)
+/* [session 75 | REA-decoded, the key13_pb9_stream.h replacement] the
+ * key-13 press's 6,077-event PB9 burst = the both-slot refresh
+ * (FUN_08022a98: the UHF slot poll then the VHF slot poll — the
+ * recorded frame lists match the decompiled poll generator bit-exact:
+ * poll 1 = 0x49 0x0203 / psw 0x1FF / (f*16) 0x0061AFD0 = the UHF slot
+ * 400.125; poll 2 = 0x49 0x4283 / psw 0x0FF / 0x00213BD0 = the VHF
+ * slot 136.125; 39 frames x 25 + the 13-write second-bus word + the
+ * 0x8D read cmd each) + the settings save FUN_0801A6EA (the fresh
+ * decompile: FUN_080286C0(0x0A00, SETTINGS_CTX, 0x4D) = the single
+ * call). The recorded I2C part = 77 contiguous single-byte
+ * transactions 0x0A00..0x0A4C, each 53 events = the decompiled
+ * FUN_080286C0 shape (start, start, A0, hi, lo, data, stop). The
+ * session-69 "NOT the I2C EEPROM" note = RETRACTED (it mistook the
+ * poll bursts for a non-I2C framing). The bench = the key-13 pairs at
+ * 100.00% exact. */
+static void key13_save_frame(void)
 {
-    uint32_t k;
-
-    for (k = 0u; k < KEY13_PB9_LEN; k++) {
-        switch (key13_pb9_stream[k]) {
-        case 0u:
-            GPIO_BRR(GPIOB_BASE) = 0x200u;
-            break;
-        case 1u:
-            GPIO_BSRR(GPIOB_BASE) = 0x200u;
-            break;
-        case 2u:
-            GPIO_CRH(GPIOB_BASE) = 0xBBB44444u;
-            break;
-        default:
-            GPIO_CRH(GPIOB_BASE) = 0xBBB44434u;
-            break;
-        }
-    }
+    at1846s_rssi_poll(RF_CHIP_UHF);   /* FUN_08022a98: the !active slot first */
+    at1846s_rssi_poll(RF_CHIP_VHF);   /* then the active slot                 */
+    eeprom_write(0x0A00u, 0x4Du, (void *)SETTINGS_CTX);   /* FUN_0801A6EA */
 }
 
 __attribute__((noinline)) static void key13_screen(void)
@@ -1514,18 +1510,16 @@ void ui_task(void *p_arg)
                                     }
                                 }
                             }
-                            /* [session 69 | DATA-DERIVED p3k13_orig] the
-                             * orig's settings save = the PB9 serial frame
-                             * (the 6,077-event burst below), NOT the I2C
-                             * EEPROM - the recon's eeprom_write here was
-                             * the wrong transport (the p2 guess; the
-                             * ee_save parity = the 5.4 item). The press
-                             * also kills the RSSI refresh: the p3k13
-                             * short and long captures end silent after
-                             * the screen. */
+                            /* [session 69 | the press also kills the
+                             * RSSI refresh: the p3k13 short and long
+                             * captures end silent after the screen and
+                             * the save frame.]
+                             * [session 75 | REA-decoded] the serial
+                             * frame = the both-slot refresh + the I2C
+                             * settings save (see key13_save_frame). */
                             key13_screen();
                             ui_rssi_kill = 1u;
-                            key13_pb9_replay();
+                            key13_save_frame();
                         } else if (key == 10u) {
                             /* [session 61 | RECOVERED] the menu key (the
                              * code 10 = the A-ladder entry 0; the tag 2300
