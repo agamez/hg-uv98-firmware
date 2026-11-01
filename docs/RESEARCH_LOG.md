@@ -5333,3 +5333,62 @@ CK3 parity.
   bench); the remaining = key13_pb9_stream.h (the head-serial save
   frame, parked per cont. 2 on the framing decode). The Tier-B
   pixel-derived screens = the next phase.
+
+## Session 74 — Tier B phase opens: the draw pipeline fully decompiled; the screen0 header converted to the cb60-mirror text draws; CK4 = 100.00% md5-identical
+
+- **The pipeline decompiles (all fresh, headless Ghidra)**:
+  - `FUN_0801cb60(y, x, str, scheme, font)` = the master text draw:
+    the GBK double-byte branch (chars >= 0x81 = the 2-byte CJK glyphs,
+    the c914 shape, +16 x), the BCD digit bias built in (<10 -> +0x30,
+    mutating the caller's bytes), the single-char blit via
+    `FUN_0801c95e` (the glyph lookup + bfb8), the advance via
+    `FUN_0801c99e`/`FUN_0801cac0` (the per-font wrap: x > threshold ->
+    x = 6, y += the line pitch; the step: the font 3 = +8 x).
+  - `FUN_08028f8c(c, font)` = the glyph lookup: 9 ROM font tables at
+    0x080290C8..EC with the per-font strides (font 1 = 12 B = 6x10,
+    font 3 = 16 B = 8x16, font 9 = 64 B); font 0 = the special
+    big-digit renderer via FUN_0802bec8.
+  - `FUN_0801bfb8(y, x, glyph, scheme, invert, font)` = the glyph blit:
+    the scheme palette table (0 = fg 0x0000/bg 0xEFBE, 1 = 0x001F,
+    2 = 0x8D5E, 3 = 0xF800, 4/5 = 0x13A2, 6 = 0x58E1 + the
+    invert-state variants keyed on DAT_0801c910+0x18) and the per-font
+    pixel loops (2 bytes/pixel, the RGB565 stream).
+  - `FUN_0801cd32(y, x, xext, yext)` = the fill; the recon's
+    display_fill_rect = already the exact mirror (the args and the
+    scheme color). `FUN_0801d840` = VESTIGIAL (movs r1,r0; movs
+    r0,#0xff; bx lr — a no-op) — the inhibit bracket in cb60/cf5e is
+    dead in the original and omitted from the mirror.
+  - The builders: `func_08014cd4` = the screen0 record builder —
+    memcpy 20 bytes from `*(0x08014F48)` (RAM 0x20005080) then
+    `pop {r1,r2,r3}` = the stack-arg idiom, the slot renderer
+    `FUN_0801cfd0` for slot 0 (the 158x16 status fill) and slot 1 (the
+    cf5e text-row loop, the +17 px line stride, the strings = the
+    record's word-3 pointer array), then `func_0801460c` = the state
+    advance (the 8-byte entries @0x20004EB8 patch the record's bytes
+    0/5 + the redraw flag). `func_0801f05c(slot)` = the VFO row
+    builder: the 0x1E-byte per-slot records; the renderer
+    `FUN_0801ab36` = decompiled with the tail jumptable UNRESOLVED
+    (the next slice's descent target).
+  - The coordinates pinned: the param_1 = the display-Y (the row px),
+    the param_2 = the display-X (the glyph width); the strings stride
+    +8 px, the lines +17 px (the 8x16 font).
+- **The data assets located (the flash-asset DATA with the cites)**:
+  "CALL:" @0x0804596C; the format "BAT:%d.%d V" @0x0804466c (the
+  recon's static "BAT:0.8 V" = its fresh-boot instance, the values =
+  the battery ADC pair); the string bank 0x080458EC.. (the GBK menu
+  strings, MEM-CH:, SURE, BACK, VFO, CH-%03d, APRS...); the
+  string-pointer arrays @0x08018294 (the CTCSS/DCS display formats
+  "---.-HZ"/"D---I"/"D---N"/"D%03oN"/"D%03oI" — 5 entries = the
+  record shape), @0x080190AC (SURE/BACK), @0x0801B978.
+- **The conversion (b1-header)**: ui.c — `ui_draw_text(y, x, s,
+  scheme)` = the cb60 mirror (the BCD bias, the 0/0xFF terminators,
+  the cac0 font-3 step, the c99e font-3 wrap, the bfb8 scheme table);
+  `ui_fmt_u` = the %d mirror. The screen0 header rows = three
+  ui_draw_text calls: "CALL:" (the asset), the callsign (the EE bytes
+  + the cb60 bias into the scratch buffer), the BAT row (the asset
+  format + the state pair). The hardcoded per-char cell loops and the
+  static "BAT:0.8 V" string are GONE.
+- **The bench**: build 117,471; test-host green; the hook pins held
+  (rf_write 0x08004f08 / rf_read 0x08004fb4); **CK4 189,036/189,036 =
+  100.00% — the header conversion is EVENT-IDENTICAL** (the same cells
+  in the same order through the same primitive).

@@ -531,34 +531,104 @@ static void ui_screen0_scan(void)
 
 static void ui_screen0_body(void);   /* [session 69] the shared render body */
 
+/* [DATA] the battery state pair rendered by the BAT row — the boot ADC
+ * measurement instance; the fresh-EE boot reads 0.8 V (the session-52
+ * evidence). Same class as the VFO display values. */
+static const uint8_t ui_bat_whole = 0u;
+static const uint8_t ui_bat_tenth = 8u;
+
+/* the %d mirror used by the BAT-row sprintf (below). */
+static uint32_t ui_fmt_u(char *out, uint32_t v)
+{
+    char tmp[4];
+    uint32_t n = 0u, k = 0u;
+
+    do {
+        tmp[n++] = (char)('0' + v % 10u);
+        v /= 10u;
+    } while (v != 0u);
+    while (n != 0u)
+        out[k++] = tmp[--n];
+    return k;
+}
+
+/* [session 74 | REA-derived 0x0801cb60] the master text draw (the cb60
+ * mirror): per char — the BCD digit bias (<10 -> +0x30; the original
+ * mutates the caller's bytes), the single-char blit (the c95e shape =
+ * the glyph lookup 0x08028f8c font 3 + the bfb8 font-3 blit), then the
+ * advance (cac0 font 3 = x += 8; the wrap c99e font 3 = x > 0x98 ->
+ * x = 6, y += 16 — inert for the header rows). Terminators: 0x00 and
+ * 0xFF. The scheme indexes the bfb8 palette (the param_5==0 branch, the
+ * boot invert-state 0); the state-conditional scheme-3/4 variants are
+ * in the bfb8 decompile. The GBK double-byte branch (>=0x81 pairs, the
+ * c914 shape, +16 x) exists in the original but is unused by the bench
+ * screens. The inhibit gate + the d840(1/0) bracket = vestigial in the
+ * original (d840 = movs r1,r0; movs r0,#0xff; bx lr — a no-op) and
+ * omitted. The font param of cb60 = pinned to the font 3 (8x16), the
+ * shape the bench header rows use exclusively. */
+static void ui_draw_text(uint8_t y, uint8_t x, const char *s, uint8_t scheme)
+{
+    static const uint16_t pal[7][2] = {   /* bfb8 scheme table, boot state */
+        { 0x0000u, 0xEFBEu }, { 0x001Fu, 0xEFBEu }, { 0x0000u, 0x8D5Eu },
+        { 0xF800u, 0xEFBEu }, { 0x0000u, 0xEFBEu }, { 0x13A2u, 0xEFBEu },
+        { 0x58E1u, 0xEFBEu },
+    };
+    uint16_t fg = pal[scheme & 7u][0u];
+    uint16_t bg = pal[scheme & 7u][1u];
+
+    while ((uint8_t)*s != 0u && (uint8_t)*s != 0xFFu) {
+        uint8_t c = (uint8_t)*s;
+
+        if (c < 10u)
+            c = (uint8_t)(c + 0x30u);      /* the BCD bias (cb60)   */
+        display_blit_glyph_cell(y, x,
+                                &ui_ascii8x16_font[(uint32_t)c * 16u - 0x200u],
+                                fg, bg);
+        s++;
+        x = (uint8_t)(x + 8u);             /* the cac0 font-3 step  */
+        if (x > 0x98u) {                   /* the c99e font-3 wrap  */
+            x = 6u;
+            y = (uint8_t)(y + 16u);
+        }
+    }
+}
+
 static void ui_screen0_build(void)
 {
-    static const char line1[5] = "CALL:";
-    static const char line2[9] = "BAT:0.8 V";
+    /* [session 74 | REA-derived] the header rows = three cb60 text
+     * draws. "CALL:" = the ROM string asset @0x0804596C. The callsign =
+     * the EE bytes with the cb60 BCD digit bias applied into a scratch
+     * buffer (the original converts before the draw; the fresh-EE 0x00
+     * bytes render '0' — the session-62 evidence). The BAT row = the
+     * flash-asset format @0x0804466c "BAT:%d.%d V" rendered with the
+     * battery state pair (ui_bat_whole, ui_bat_tenth).
+     * [session 62 evidence] the original's pre-scan gap = 13 + 9 = 22
+     * cells of 267 events (p3k6_orig.stream 95094..100969); the EE scan
+     * block runs ONCE after them (the scanned one-shot below). */
+    char cs[9];
+    char bat[12];
+    char *p;
+    uint32_t i;
 
-    /* [session 62] the header rows: "CALL:" + the 8 callsign value
-     * cells (the CB60 BCD bias: the fresh-EE 0x00 bytes = '0') at
-     * y=0x48, then "BAT:0.8 V" at y=0x58 — the original's pre-scan gap
-     * = 13 + 9 = 22 cells of 267 events (p3k6_orig.stream
-     * 95094..100969). The EE scan block runs ONCE after them. */
-    for (uint32_t i = 0; i < 5u; i++)
-        display_blit_glyph_cell(0x48u, (uint8_t)(0x2Au + i * 8u),
-                                &ui_ascii8x16_font[(uint32_t)(uint8_t)line1[i] * 16u - 0x200u],
-                                0x0000u, 0xEFBEu);
-    for (uint32_t i = 0; i < 8u; i++) {
+    for (i = 0u; i < 8u; i++) {
         uint8_t ch = ui_callsign[i];
+
         if (ch < 10u)
-            ch = (uint8_t)(ch + 0x30u);          /* the CB60 BCD bias    */
-        if (ch == 0u)
-            break;                               /* the terminator slot  */
-        display_blit_glyph_cell(0x48u, (uint8_t)(0x2Au + (5u + i) * 8u),
-                                &ui_ascii8x16_font[(uint32_t)ch * 16u - 0x200u],
-                                0x0000u, 0xEFBEu);
+            ch = (uint8_t)(ch + 0x30u);    /* the CB60 BCD bias    */
+        cs[i] = (char)ch;
     }
-    for (uint32_t i = 0; i < 9u; i++)
-        display_blit_glyph_cell(0x58u, (uint8_t)(0x2Au + i * 8u),
-                                &ui_ascii8x16_font[(uint32_t)(uint8_t)line2[i] * 16u - 0x200u],
-                                0x0000u, 0xEFBEu);
+    cs[8] = '\0';
+    p = bat;                               /* sprintf("BAT:%d.%d V", ...) */
+    *p++ = 'B'; *p++ = 'A'; *p++ = 'T'; *p++ = ':';
+    p += ui_fmt_u(p, ui_bat_whole);
+    *p++ = '.';
+    p += ui_fmt_u(p, ui_bat_tenth);
+    *p++ = ' '; *p++ = 'V'; *p = '\0';
+
+    ui_draw_text(0x48u, 0x2Au, "CALL:", 0u);
+    ui_draw_text(0x48u, 0x52u, cs, 0u);
+    ui_draw_text(0x58u, 0x2Au, bat, 0u);
+
     {
         static uint8_t scanned;
         if (scanned == 0u) {
