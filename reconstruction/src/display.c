@@ -243,7 +243,16 @@ void display_blit_glyph_cell_6x10(uint8_t y, uint8_t x, const uint8_t *rec,
  * 16x16 icon blit: the window (x, y, x+15, y+15), 0x2C, 256 pixels.
  * The 32-byte record = column-major: the bytes 2c / 2c+1 = the rows
  * 0-7 / 8-15 of the column c (the LSB = the row 0). Used for the
- * header battery icon (fg 0x13A2 on bg 0xEFBE, scheme 5). */
+ * header battery icon (fg 0x13A2 on bg 0xEFBE, scheme 5).
+ * [session 74 transport cite] the transport = FUN_0801bd3c
+ * (decompiled: the window y..y+15 / x..x+15, 0x2C, the 8+8 row loops
+ * over the 32-byte column-major record, 2 bytes/pixel from the scheme
+ * palette — the same blit the cb60 GBK branch uses). The icon RECORD
+ * itself = the stream-extracted instance (the fresh-boot bitmap); the
+ * icon's draw site = callback-driven (the exhaustive BL scan finds
+ * bd3c reached only via the GBK path), so the DATA-DERIVED flag stays
+ * with this justification pending the callback-table decode. The
+ * scheme-5 fill class = 0x0801d3b4 (the 0x13A2 color). */
 void display_blit_icon_16x16(uint8_t y, uint8_t x, const uint8_t *rec,
                              uint16_t fg, uint16_t bg)
 {

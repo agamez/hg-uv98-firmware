@@ -5569,3 +5569,26 @@ CK3 parity.
   path (the ck3-orig.resc not present as a resc — the phase-end battery
   run uses the committed comparator); the channel = untouched by the
   sweep's conversions.
+
+## Session 74 (cont. 8) — the battery icon's transport cited; the D334 callers decoded; the pb9 stream's I2C signature measured
+
+- **The battery icon**: the transport = FUN_0801bd3c (the 16x16 1-bpp
+  blit = the same blit the cb60 GBK branch uses — the decompile);
+  the scheme-5 fill class = 0x0801d3b4 (the 0x13A2 color, the
+  decompile). The icon's record = the stream-extracted instance with
+  the justification: the draw site = callback-driven (the exhaustive
+  BL scan finds bd3c reached only via the GBK path) — the annotation
+  upgraded in display.c (the DATA-DERIVED flag + the cite = the
+  completion-criterion-compliant state).
+- **The D334 callers = decoded**: the 9 sites = the boot splash
+  (0x0801b7c0) + TWO 4-call groups (0x08011a2c.. and 0x0801277c..) =
+  the MENU PAGE BACKGROUNDS (the 0x12/0x40 rows, the 0x22 x 0x9E
+  windows, the 0x29F8-byte images, the pairs per the invert state) —
+  the same images the 0x0801219c menu renderer blits. No icon among
+  them.
+- **The pb9 save stream measured**: 6,080 codes = 5,227 PB9 bits +
+  853 CRH direction switches (311 input / 542 output — the I2C
+  ack-poll class per the decompiled ee_write shape; the repeating
+  12-bit words on the naive chunking = the mixed LED-word +
+  transaction structure). The full decode = the multi-hour slice; the
+  framing park stands with this quantified signature.
