@@ -5616,3 +5616,34 @@ CK3 parity.
   warm matrix 490/490. Remaining = the CK3 (the ck3cmp.py path), the
   CK2 handshake pair, the long key windows, the key-4..10 (the menu
   keys = the untouched menu machinery), the key-13/14-long.
+- **CK3 = GREEN fresh**: 292/292 ALL IDENTICAL (the ck3-recon.resc run
+  on the 116,791 build, the ck3cmp.py vs the fixed orig trace) — the
+  rf write/read triple channel holds through all the sweep's
+  conversions.
+
+## Session 74 (cont. 11) — the battery-harness audit: the mislabeled long pairs + the wall-time dependence of the key-13-long window
+
+- **The mislabeled resc pairs (the session-69-era artifacts)**: the
+  exhaustive md5 + the marker comparison shows p3-key2-long-orig = the
+  key-11-short scenario (the orig 477,704 = the identical total), and
+  p3-key3-long-orig = the key-1-short scenario (the 219,256 = the
+  identical total, the prefix result = the byte-equal copy of the
+  key-1-short run). The key-11-long-orig = the Renode ABORT (the
+  truncated 21,265-line log; the sequential-Renode flakiness — the
+  'Aborted' exits appeared on the 2nd/3rd runs of the chained shells).
+  THE LONG PAIRS = NOT USABLE AS THE CHANNELS without the regeneration
+  (the harness-fix slice = the park item: the re-derive the long
+  windows from the short resc templates with the correct key codes).
+- **The key-13-long = the real divergence, the harness analysis**: the
+  orig = 204,670 = the banked total ✓ (the hold-independent = the
+  once-gated key-13); the rec = 204,968 = +298 with the +4,906 events
+  before the PRE marker = ~5 RSSI poll bursts (4,906/996) landing in
+  the long harness's 3.0-s wall window. The short pair = the byte-exact
+  204,670/204,670 on the SAME build = the boot and the press-path
+  content = correct. The 3-s window = wall-clock-paced (the banked run
+  = the lucky speed pair; the fresh = the ~5 periodic fires slipped in
+  before the press-kill). The first-diff "data bytes" = the window
+  shift artifact. The retry = launched (the 1-run budget); the
+  verdict = the wall-time-dependent harness = the park item (the
+  deterministic fix = the virtual-time-pinned resc = the harness-fix
+  slice).
