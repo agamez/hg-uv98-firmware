@@ -643,7 +643,16 @@ static void poll_second_bus_word(uint16_t v)
  * dispatcher's $A00 apply (main.c), consumed by the ui.c poll site. */
 uint8_t rf_boot_refresh_pending = 0u;
 
-void at1846s_rssi_poll(uint8_t chip)
+/* [session 73 | the frequency-parameterized poll] the poll's PLL word =
+ * freq29 = f_kHz*16 (the 0x29 = the hi 16, the 0x2A = the lo 16 — the
+ * same encoding as at1846s_set_frequency). Verified on the recorded
+ * frames: the poll's VHF = 136.125*16 = 0x213BD0 (the 0x2A = 0x3BD0 ->
+ * the Rosetta field 957 = the 0x2A's high 12 bits); the scan template =
+ * 136.130*16 = 0x213C20 -> the field 962 ✓; the poll's UHF = 400.125*16
+ * = 0x61AFD0 -> the field 0xAFD ✓. The per-slot constants in
+ * at1846s_rssi_poll = the display-frequency defaults of the same
+ * formula. */
+void at1846s_rssi_poll_f(uint8_t chip, uint32_t freq29)
 {
     static const struct { uint8_t reg; uint16_t val; } block_b[24] = {
         { 0x15, 0x1F00 }, { 0x32, 0x7564 }, { 0x3A, 0x44C3 }, { 0x3C, 0x1930 },
@@ -654,7 +663,6 @@ void at1846s_rssi_poll(uint8_t chip)
         { 0x0E, 0x1B84 }, { 0x0F, 0x3F84 }, { 0x12, 0xE0EB }, { 0x7F, 0x0000 },
     };
     /* [DATA-DERIVED session 68] the per-slot live values (see above). */
-    const uint32_t freq29 = (chip == RF_CHIP_UHF) ? 0x0061AFD0u : 0x00213BD0u;
     const uint16_t word49 = (chip == RF_CHIP_UHF) ? 0x0203u : 0x4283u;
     const uint16_t bus12 = (chip == RF_CHIP_UHF) ? 0x1FFu : 0x0FFu;
 
@@ -677,6 +685,13 @@ void at1846s_rssi_poll(uint8_t chip)
     rf_write_poll_frame(chip, 0x30, 0x7006);
     rf_write_poll_frame(chip, 0x30, 0x70A6);
     (void)rf_read(chip, 0x0D);
+}
+
+void at1846s_rssi_poll(uint8_t chip)
+{
+    /* the per-slot display-frequency defaults (the ctx's VFO values:
+     * the UHF 400.125, the VHF 136.125 — the same (f_kHz*16) encoding). */
+    at1846s_rssi_poll_f(chip, (chip == RF_CHIP_UHF) ? 0x0061AFD0u : 0x00213BD0u);
 }
 
 /* [0x08023200.. | RECOVERED] program the VCO frequency.

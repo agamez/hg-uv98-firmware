@@ -5307,3 +5307,29 @@ CK3 parity.
   key14_tune_frame.h + key11_end_frame.h = the eras replaced.
 - The next turn = the implementation + the bench (the key-14/key-11
   pairs + the p3k6 regression = the run budget).
+
+## Session 73 (cont. 6) — a3 COMPLETE: key14_tune_frame.h + key11_end_frame.h deleted; both channels at the banked classes with the generative polls
+
+- **The implementation**: rf.c — at1846s_rssi_poll_f(chip, freq29) = the
+  frequency-parameterized poll (the PLL word = f_kHz*16, the same
+  encoding as at1846s_set_frequency); at1846s_rssi_poll(chip) = the
+  wrapper with the per-slot display-frequency constants (the boot's
+  behavior unchanged). ui.c — key14_frame_send() = 2x
+  at1846s_rssi_poll_f(RF_CHIP_VHF, ui_freq*16); key11_frame_send() =
+  the same; the pb9_code/pb9_bit_delay replay transport deleted (no
+  users); key14_tune_frame.h + key11_end_frame.h DELETED.
+- **The bench**: the key-14 short pair = orig 362,176, rec 664,594,
+  **prefix = 362,176 = 100% OF THE ORIGINAL'S FULL STREAM** (the banked
+  class; the rec's longer tail = the wall-pacing residual — the rf.c
+  poll machinery's timing vs the old asm-calibrated replay, the
+  documented class); the key-11 short pair = orig 477,704, rec 524,874,
+  **prefix = 475,858 = 99.61% of the orig = the EXACT banked class**
+  (the same divergence position ev475859 = the orig's radio-preemption
+  residual, the documented class). Build 117,423 (-4,232); test-host
+  green.
+- **The sweep ledger: 4 of the 5 recorded-stream headers are dead**
+  (rssi_bus_tail, key13_tail104, key14_tune_frame, key11_end_frame —
+  all replaced by the REA-derived generative C and verified on the
+  bench); the remaining = key13_pb9_stream.h (the head-serial save
+  frame, parked per cont. 2 on the framing decode). The Tier-B
+  pixel-derived screens = the next phase.

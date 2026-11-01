@@ -1088,8 +1088,6 @@ static void rssi_refresh(void)
  * slices after the key-13 press (the short and the long captures both end
  * silent) - the press kills the refresh task like the menu key. */
 #include "key13_pb9_stream.h"
-#include "key14_tune_frame.h"
-#include "key11_end_frame.h"
 
 /* [session 69 | DATA-DERIVED p3k14/p3k11_orig] the key-14 SCAN mode: the
  * press = the scan + the first 5 kHz step (the s1 renders at the press
@@ -1109,45 +1107,22 @@ static uint8_t ui_scan;              /* the scan mode: 1 = the key-14 (the frame
 static uint16_t ui_scan_pass;        /* the passes since the scan start (the tick pacing) */
 static uint8_t ui_scan_end;          /* the key-11/12 release phases: 0 = the held, 1..2 = the deceleration slices, 3 = the end frame */
 
-static void pb9_code(uint8_t c)
-{
-    switch (c) {
-    case 0u: GPIO_BRR(GPIOB_BASE) = 0x200u; break;
-    case 1u: GPIO_BSRR(GPIOB_BASE) = 0x200u; break;
-    case 2u: GPIO_CRH(GPIOB_BASE) = 0xBBB44444u; break;
-    default: GPIO_CRH(GPIOB_BASE) = 0xBBB44434u; break;
-    }
-}
-
 /* [session 69 | INFERRED calibration] the orig's PB9 bit-bang pacing: the
  * tune slice = 0.0875 s wall measured (25.85 slices in the 2.0-s
  * post-release window; the display part is fast), so the frame's 1,996
  * events carry ~3,000 cycles each (the delay loop = 1,000 x 3 cycles).
  * The calibration budget = 2 runs per the working method. */
-static void pb9_bit_delay(void)
-{
-    __asm volatile (
-        "ldr r0, =1111\n"
-        "1: subs r0, #1\n"
-        "bhi 1b\n"
-        ::: "r0", "cc");
-}
-
+/* [session 73 | REA-derived] the key-14 tune frame = TWO 996-bit
+ * at1846s_rssi_poll_f(VHF, ui_freq*16) bursts (the template decode:
+ * w00-w25 = the poll's block_b + the tone pair exactly; the 0x29/0x2A =
+ * the (f_kHz*16) split = the Rosetta field 962 @ 136.130 ✓). The
+ * recorded template + the field patcher this replaces = the same era's
+ * capture. The bit-bang timing = the rf.c poll machinery's (the
+ * bench-verified), not the replay's asm delay loop. */
 static void key14_frame_send(void)
 {
-    uint32_t v = ui_freq - 135168u;
-    uint32_t i;
-
-    for (i = 0u; i < KEY14_TUNE_FRAME_LEN; i++) {
-        uint8_t c = KEY14_TUNE_FRAME[i];
-
-        if (i >= 922u && i <= 932u)
-            c = (uint8_t)((v >> (932u - i)) & 1u);
-        else if (i >= 1920u && i <= 1930u)
-            c = (uint8_t)((v >> (1930u - i)) & 1u);
-        pb9_code(c);
-        pb9_bit_delay();
-    }
+    at1846s_rssi_poll_f(RF_CHIP_VHF, (uint32_t)ui_freq * 16u);
+    at1846s_rssi_poll_f(RF_CHIP_VHF, (uint32_t)ui_freq * 16u);
 }
 
 __attribute__((noinline)) static void key14_row_display(void)
@@ -1173,22 +1148,15 @@ __attribute__((noinline)) static void key14_tune_slice(void)
     key14_frame_send();
 }
 
-/* [session 69 | DATA-DERIVED p3k11_short_orig.stream] the key-11/12 END
- * frame: the same PLL encoding (V = ui_freq - 135168, the field 922..932;
- * the second burst's field region = past the 1,846 capture cut). */
-__attribute__((noinline)) static void key11_frame_send(void)
+/* [session 73 | REA-derived] the key-11/12 end frame = the two poll
+ * bursts at the tuned frequency (the recorded capture's burst 1 =
+ * the VHF slot's poll shape with the field = ui_freq; the capture was
+ * cut mid-second-burst). The full two-burst frame = the generative
+ * calls; the bench (the prefix-covers-orig bar) verifies. */
+static void key11_frame_send(void)
 {
-    uint32_t v = ui_freq - 135168u;
-    uint32_t i;
-
-    for (i = 0u; i < KEY11_END_FRAME_LEN; i++) {
-        uint8_t c = KEY11_END_FRAME[i];
-
-        if (i >= 922u && i <= 932u)
-            c = (uint8_t)((v >> (932u - i)) & 1u);
-        pb9_code(c);
-        pb9_bit_delay();
-    }
+    at1846s_rssi_poll_f(RF_CHIP_VHF, (uint32_t)ui_freq * 16u);
+    at1846s_rssi_poll_f(RF_CHIP_VHF, (uint32_t)ui_freq * 16u);
 }
 
 
