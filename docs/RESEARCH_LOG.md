@@ -5081,3 +5081,56 @@ CK3 parity.
   rxBuf3[15] single byte) + the §8 proven set. The COVERAGE.md = 705
   rows, zero unclassified, the §5.0 pointer added. The GOAL §1 gate =
   audited in the close.
+
+## Session 72 (cont. 3) — the closing battery on the final build; the GOAL §1 DONE-gate audit
+
+- **Phase 5 (the final build 122,695, dabb676 tree): the CK4 pair
+  (ck4fix2) = orig = rec = 189,036 events, prefix = 100.00%, the streams
+  md5-IDENTICAL (a13cf875d72ce8c8184beead293fd383)** — the FULL GPIOB
+  stream event-identical boot+3 s incl. the 1,996-event boot-end refresh
+  tail (the ODR = a subset of an identical stream = 100.00%; the
+  16-bit-value bar = the full-line compare). **The p3k6 pair (p3k6final)
+  = 303,907/303,907 = 100.00%**, every marker identical (PRE 189,037 /
+  P1 238,685 / P3 238,685 / REL 303,908; scr 00/35/35/00 both sides).
+- **THE §1 DONE-GATE AUDIT (all fresh, this session, the final build):**
+  1. Build & tests: 122,695 text, make test-host green,
+     `git diff 1f790a8 -- reconstruction/tests/` = +4 added lines only
+     (the u2_rx_open stub) — no test weakened/deleted. ✓
+  2. CK4: 189,036/189,036 = 100.00%, md5-identical (ck4fix2). ✓
+  3. CK3: 292/292 ALL IDENTICAL (the ck3-warm pair on the final build;
+     the WARM protocol per the era discovery — the reference = the
+     session-49 warm capture). ✓
+  4. CK2: the handshake = 1x `$A00` each, the content identical, zero
+     faults (the fresh peer pair); the command matrix = the WARM pair
+     **490/490 = 100.00%** (the drain/archive/flag/0xC0 phase all
+     modeled) + the FRESH pair 488/489 (both images drop the reply; the
+     residual = the orig's boot-era rxBuf3[15]=0xC0 scratch byte at the
+     F5 checkpoint + the orig console's truncated flag row). ✓
+  5. CK4-key: the 13 fresh pairs = the banked classes (the keys
+     1/2/3/14 = the prefix = the full orig; the key 6 = 303,907/303,907
+     = 100.00%; the key 13 = 204,670/204,670 = 100.00% exact; the key
+     11 = 99.61%/99.934% of the orig = the banked documented radio-
+     preemption residual, the display deltas identical; the key 12 = the
+     orig's own ±2 I2C jitter class). ✓
+  6. COVERAGE.md = 705 classified rows, zero UNCLASSIFIED, the §5.0
+     ledger pointer. ✓
+  7. The gap ledger: the parked items CLOSED (the key-1/2 band gate, the
+     key-14/11/12 tune family, the +9 flag semantics, the F2 timing) or
+     the documented per-slice classes (the key-11 radio-preemption, the
+     key-12 jitter, the render pacing) + the §8 proven set (the
+     tail-command region, the boot-region clone handler, the TIM2
+     accessory-sampler boundary). The one new documented byte = the
+     fresh-matrix rxBuf3[15] scratch residual. ✓
+  8. The §5.0 REA ledger: docs/rea/README.md (the validated list) + the
+     per-row REA decompile cites; this session's REA adds = the
+     corrected-BL caller map (13 callers, verified on the known
+     rf_read sites), the FUN_08023eaa TX loop, FUN_08024d76 (the slot
+     apply, the +0x119 setter), FUN_0802d0d0 (the boot radio-apply
+     chain), FUN_0802D178 (the main task, instruction-exact: the pass
+     loop gates the key dispatch on flagbank+0x119==0, the 17-pass
+     session). ✓
+- The session's fix chain: the CK4 poll placement (the dirty-state gate +
+  the render-end site) -> the CK2 fresh/warm discovery (the drain =
+  WARM-gated) -> the dispatcher replay (the 30-tick grid, the pass-27
+  settle, the 0xC0 phase) -> the battery GREEN. Commits 4b8af93, 9218a02,
+  dabb676 + this one, all pushed to main.
