@@ -1,0 +1,24 @@
+# vendor-watch.resc — session 74 cont.16: the vendor-era PB9 traffic's generator hunt.
+# Hooks at the I2C primitive entries log the LR (the caller's PC) — the vendor
+# window = the boot's first ~0.15 s of virtual time. If the traffic does NOT
+# route through the primitives, the hooks stay silent and the hunt goes to the
+# manual-disassembly fallback.
+using sysbus
+mach create "vendorwatch"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddHook 0x0802846A "self.Log(LogLevel.Info, 'VW sda_output lr=%x' % self.GetRegister(14).RawValue)"
+cpu AddHook 0x08028448 "self.Log(LogLevel.Info, 'VW sda_input lr=%x' % self.GetRegister(14).RawValue)"
+cpu AddHook 0x080284F2 "self.Log(LogLevel.Info, 'VW i2c_start lr=%x' % self.GetRegister(14).RawValue)"
+cpu AddHook 0x080284E4 "self.Log(LogLevel.Info, 'VW i2c_dly lr=%x' % self.GetRegister(14).RawValue)"
+cpu AddHook 0x08028532 "self.Log(LogLevel.Info, 'VW i2c_stop lr=%x' % self.GetRegister(14).RawValue)"
+cpu AddHook 0x08028566 "self.Log(LogLevel.Info, 'VW master_ack lr=%x' % self.GetRegister(14).RawValue)"
+cpu AddHook 0x080285B6 "self.Log(LogLevel.Info, 'VW byte_ack lr=%x' % self.GetRegister(14).RawValue)"
+cpu AddHook 0x08028666 "self.Log(LogLevel.Info, 'VW read_byte lr=%x' % self.GetRegister(14).RawValue)"
+echo "VW MARK boot-start"
+emulation RunFor "00:00:00.150"
+echo "VW MARK vendor-window-end"
+quit

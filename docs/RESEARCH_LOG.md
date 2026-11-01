@@ -5724,3 +5724,28 @@ CK3 parity.
   flowtrace run over the vendor window (the first ~2,600 events) with
   the PB9-write watchpoint — the writer's PC = DIRECT evidence, no
   more elimination. The budget = 2 runs per the working method.
+
+## Session 74 (cont. 16) — the flowtrace: the primitives SILENT through the vendor window; the GPIOB-base literal census = the hunt space
+
+- **The vendor-watch run (sim/vendor-watch.resc, the hooks at the I2C
+  primitive entries logging the LR)**: ZERO hook hits across the vendor
+  window (the boot's first ~0.15 s virtual) — **the vendor traffic does
+  NOT route through any I2C primitive** (the sda_output/input, the
+  start, the stop, the byte+ack, the read-byte = all silent). The
+  inline-bit-bang hypothesis = CONFIRMED by the instrumentation.
+- **The GPIOB-base (0x40010800) literal census**: 17 flash sites —
+  0x0801a384 (the ee_save chain's pool), **0x0801bfb0 (the LCD
+  control-handle pool — the RS/CS handle = PORT B, revising the
+  session-51 "PC3" model: the mask-8 RS = PB3 on GPIOB!)**, 0x0801e7dc
+  (the label-row-builder region), 0x0802203c, 0x08022b64 (the RF),
+  0x08023ed8, 0x08024c20, 0x080258f0 (= 0x08024e5c's pool = the 9-pin
+  PORT-B config function, decompiled this session), 0x08026688,
+  0x08027470, 0x0802801c, 0x08028444 (the sda_input's own pool),
+  0x080287d8, 0x080294e8. No BRR/BSRR/CRL direct-address literals
+  exist (the RMW style throughout).
+- **The next slice**: the disassembly of the 17 sites' containing
+  functions, hunting the 2,501-toggle inline loop. The note: the
+  handle-value discovery (0x0801bfb0 = 0x40010800) may ALSO revise
+  which port the LCD RS/CS events actually write — the CK4 =
+  md5-identical so the recon's emitted events are right, but the
+  pin-naming in the comments needs the re-check at the slice.
