@@ -2,6 +2,7 @@
 #include "display.h"
 #include "font.h"
 #include "hwregs.h"
+#include "rf.h"
 
 /* ---- transport [RECOVERED session 51: 0x0801BA30/0x0801BA6A/0x0801BA8C;
  * session 74: the fresh decompiles CONFIRM the whole layer — ba30 =
@@ -329,77 +330,20 @@ void display_blit_bitmap_1bpp(uint8_t y, uint8_t x, uint8_t w, uint8_t h,
     }
 }
 
-/* [session 53 | DATA-DERIVED] LED-matrix stream replay: emits the
- * exact 4,458-event PB9 sequence (2-bit codes in ui_led_stream[])
- * observed in the original's stream before the RX-bar window. Codes:
- * 0 = BRR(0x200), 1 = BSRR(0x200), 2 = CRH 0xBBB44444 (PB9 input),
- * 3 = CRH 0xBBB44434 (PB9 output). */
-extern const uint8_t ui_led_stream[];
+/* [session 75 | DELETED — the warm artifacts retracted] the warm radio
+ * window (the "LED-matrix stream" = the 4,458-event AT1846S frame era),
+ * the 25-event 1F frame and the 359-event ee359 composite: the two-boot
+ * warm capture on the FIXED EE harness (session 75) shows the current
+ * original's warm boot emits NONE of them — the session-53 captures =
+ * the broken-EE era (the incomplete save -> the slot words = 0 -> the
+ * FUN_0801ab36 re-init path, which the fixed harness never takes). The
+ * decoded re-init generators = banked in rf.c (at1846s_warm_slot_apply,
+ * at1846s_warm_reinit). The display-side warm UI = unchanged. */
 
-void display_led_stream_replay(void)
-{
-    for (uint32_t k = 0; k < 4458u; k++) {
-        switch (ui_led_stream[k]) {
-        case 0u:
-            GPIO_BRR(GPIOB_BASE) = 0x200u;
-            break;
-        case 1u:
-            GPIO_BSRR(GPIOB_BASE) = 0x200u;
-            break;
-        case 2u:
-            GPIO_CRH(GPIOB_BASE) = 0xBBB44444u;
-            break;
-        default:
-            GPIO_CRH(GPIOB_BASE) = 0xBBB44434u;
-            break;
-        }
-    }
-}
-
-/* [session 55 | DATA-DERIVED] the 25-event PB9 tail burst @ODR#153,847
- * (the original's capture: 25 BRR/BSRR writes, no CRH — the LED-serial
- * class). Codes as in display_led_stream_replay: 0 = BRR(0x200),
- * 1 = BSRR(0x200). */
-static const uint8_t ui_led_tail[25] = {
-    0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1,
-    0, 1, 0, 1, 0, 1, 0, 0, 1, 0
-};
-
-void display_led_tail_replay(void)
-{
-    for (uint32_t k = 0; k < 25u; k++) {
-        if (ui_led_tail[k])
-            GPIO_BSRR(GPIOB_BASE) = 0x200u;
-        else
-            GPIO_BRR(GPIOB_BASE) = 0x200u;
-    }
-}
-
-/* [session 55 | DATA-DERIVED] the 359-event mixed burst @ODR#158,942:
- * the original's ee_read(0x0FA0, 101) setup interleaved by the RTOS
- * with LED-serial words — replayed verbatim (same 2-bit codes as
- * display_led_stream_replay). */
-extern const uint8_t ui_ee359_stream[];
-
-void display_ee359_replay(void)
-{
-    for (uint32_t k = 0; k < 359u; k++) {
-        switch (ui_ee359_stream[k]) {
-        case 0u:
-            GPIO_BRR(GPIOB_BASE) = 0x200u;
-            break;
-        case 1u:
-            GPIO_BSRR(GPIOB_BASE) = 0x200u;
-            break;
-        case 2u:
-            GPIO_CRH(GPIOB_BASE) = 0xBBB44444u;
-            break;
-        default:
-            GPIO_CRH(GPIOB_BASE) = 0xBBB44434u;
-            break;
-        }
-    }
-}
+/* [session 75 | DELETED — the warm artifacts retracted, see ui.c] the
+ * ee359 replay = the session-53 broken-EE-era composite; the current
+ * original's warm boot reads the 0x0F-class regions at the scan
+ * machinery's own positions. */
 
 /* [session 55 | DATA-DERIVED] the vendor pre-LCD boot burst: the
  * original's vendor PIC region emits 2,507 GPIOB events (5x CRH

@@ -10,8 +10,8 @@ sysbus WriteDoubleWord 0x00000000 0x20006800
 sysbus WriteDoubleWord 0x00000004 0x08004165
 sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
 sysbus LoadELF @/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf
-cpu AddHook 0x08004f08 "self.Log(LogLevel.Info, 'RFW cs=' + str(self.GetRegister(0).RawValue) + ' reg=' + str(self.GetRegister(1).RawValue) + ' val=0x' + hex(self.GetRegister(2).RawValue))"
-cpu AddHook 0x08004fb4 "self.Log(LogLevel.Info, 'RFRD cs=' + str(self.GetRegister(0).RawValue) + ' reg=' + str(self.GetRegister(1).RawValue))"
+cpu AddHook 0x08004f80 "self.Log(LogLevel.Info, 'RFW cs=' + str(self.GetRegister(0).RawValue) + ' reg=' + str(self.GetRegister(1).RawValue) + ' val=0x' + hex(self.GetRegister(2).RawValue))"
+cpu AddHook 0x0800502c "self.Log(LogLevel.Info, 'RFRD cs=' + str(self.GetRegister(0).RawValue) + ' reg=' + str(self.GetRegister(1).RawValue))"
 emulation RunFor "00:00:00.010"
 sysbus WriteDoubleWord 0xE000E018 0x00000000
 emulation RunFor "00:00:00.490"

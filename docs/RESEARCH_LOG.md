@@ -5824,3 +5824,53 @@ CK3 parity.
   the 302-write tail = the interleaved LED-serial words (the RTOS
   artifact). The led_stream = W58/C2/C3/W1021/C2/C3/W3375 — the
   mid-poll capture + the LED words.
+
+## Session 75 (cont. 2) — the warm-replay slice: the LED window decoded to the AT1846S frame level, then RETRACTED as the broken-EE-era artifact; the warm harness built
+
+- **The led_stream decode** (the 4,458-event table, the autocorrelation
+  scan): the "LED-matrix stream" = NOT LED words — the 25-bit-stride
+  scan = the AT1846S frames (135 frames, all idle=0): boot_init(50) +
+  block_b(24) + the tune-6 (0x05=0x8543, the 0x29/0x2A = 0) + the
+  audio-5 + boot_init(50) + block_b(24), preceded in the window by the
+  two poll eras (the [30=0x7002][1F=0x9AA9] + rf_read(0x30) tail; the
+  40-frame slot-apply = block_b + 0x48 + 0x49=0x0284 + psw=0x0000 +
+  the dual-1F 0x9BA9/0x9AA9 + the audio-5 + the tune-6 + rf_read(0x0D)).
+  The led_tail (25) = ONE frame rf_write(0x1F, 0x9AA9).
+- **The generator decompiles** (fresh Ghidra): FUN_0801ab36 = the
+  per-slot activate (the apply 0x08027156 -> dly(0x28) -> rf_read(0x0D)
+  -> the slot word +0x11E &= 0x8000 -> if zero the re-init: boot_init +
+  FUN_08026C46 + the tune + FUN_080276D4 + dly(0x28) + f(1-chip));
+  FUN_08026C46 = the per-band block_b writer (the band-0 table = the
+  recon's block_b values); FUN_08027156 = the tune (the 0x05 select:
+  the 3 specials -> 0x8643, the 96-entry ROM table at 0x08027E0C ->
+  0x8543, else 0x8763 — the freq-0 = the TABLE class, explaining the
+  recorded 0x8543); FUN_080276D4 = the audio-5 (the recon's
+  at1846s_ctcss_off); FUN_0801A6EA = the save (the session-75 first
+  entry). The generators = banked in rf.c (at1846s_warm_slot_apply,
+  at1846s_warm_reinit).
+- **The warm harness built** (the two-boot): the p3k13-short save run
+  then the warmboot-*.resc (the ck4 5-s variant, NO EE wipe) per side —
+  the FIRST warm BUS comparison since the session-53 era.
+- **THE VERDICT**: the CURRENT original's warm boot emits NO window,
+  NO 1F frame, NO ee359 burst (the boot_init count = 2 = the
+  fresh-class chain; the [49=0x0284]/[30=0x7002] frames = absent). The
+  session-53 captures = the broken-EE era: the incomplete save left the
+  +0x11E slot words = 0 -> the FUN_0801ab36 re-init path ran. With the
+  session-60 EE fix the saves complete and the re-init never fires.
+- **The action**: the warm-branch radio/I2C artifacts RETRACTED (the
+  window, the 1F frame, the ee359 replay + the tables deleted —
+  led_stream.bin + ee359_stream.bin removed, the Makefile updated);
+  the display-side warm UI (the (97,30) fill, the RX-bar row) = kept.
+  The build 105,571 text; the hook pins UNCHANGED (0x08004f80/0x08004fb4
+  -> 0x08004f80/0x0800502c from the key-13 build; ck3-recon.resc pins
+  updated).
+- **The warm harness verification**: the prefix = 95,255 (the orig
+  168,978 vs the rec 182,120) — the divergence at 95,256 = the
+  PRE-EXISTING warm scan-address gap (the orig's ee_read(0x0012,..)
+  = the ch-2 scan slot vs the recon's 0x0000 = the ch-0 slot; the
+  warm scan-state model = the parked next slice). The artifact
+  emissions = gone from the divergence mass (the rec 186,784 ->
+  182,120).
+- **The recorded-dump ledger after the slice**: ONLY the vendor replay
+  remains (the measured justification, s74). The warm era = the
+  scan-state slice + the display era = the kept warm UI.

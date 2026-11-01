@@ -43,29 +43,17 @@ ui_ascii6x10_font:
 ui_ascii12x20_font:
     .incbin "data/big12x20_font.bin"
 
-/* LED-matrix stream replay table — [DATA-DERIVED, session 53]: the
- * exact 4,458-event PB9 sequence emitted by the original between the
- * status-page cells and the RX-bar window (2,966 BRR + 1,488 BSRR +
- * 4 CRH direction switches). Two bits per event: 0 = BRR(0x200),
- * 1 = BSRR(0x200), 2 = CRH 0xBBB44444 (input), 3 = CRH 0xBBB44434
- * (output). The generating call structure is an open item. */
-.section .rodata.ledstream, "a"
-.align 2
-.global ui_led_stream
-ui_led_stream:
-    .incbin "data/led_stream.bin"
+/* [session 75 | DELETED] the "LED-matrix stream replay table" — the
+ * 4,458-event recorded burst is REPLACED by the generative warm radio
+ * window (display_warm_radio_window): the 25-bit-stride decode showed
+ * the sequence = AT1846S frames (the session-53 "LED-matrix" name =
+ * RETRACTED), decomposed into the decompiled generators (the poll head
+ * 0x08026C46-class, the gpio_reconfig 0x080272E2, the audio 0x080276D4,
+ * the tune 0x08027156, the inits) — see display.c and rf.c. */
 
-/* EEPROM/LED mixed burst replay table — [DATA-DERIVED, session 55]:
- * the exact 359-event GPIOB sequence the original emits @ODR#158,942
- * (an ee_read(0x0FA0, 101) setup interleaved by the RTOS with 12-bit
- * LED-serial words; the interleaving is a scheduling artifact and is
- * not separable into primitives, so the burst is replayed verbatim).
- * Same 2-bit codes as ui_led_stream. */
-.section .rodata.ee359stream, "a"
-.align 2
-.global ui_ee359_stream
-ui_ee359_stream:
-    .incbin "data/ee359_stream.bin"
+/* [session 75 | DELETED — the warm artifacts retracted, see ui.c] the
+ * ee359 table = the session-53 broken-EE-era composite; the fixed-EE
+ * warm boot emits no such fixed-position burst. */
 
 /* Vendor pre-LCD boot burst replay table — [DATA-DERIVED, session 55]:
  * the exact 2,507-event GPIOB sequence the original's vendor PIC

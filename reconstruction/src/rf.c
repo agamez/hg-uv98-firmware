@@ -698,6 +698,60 @@ void at1846s_rssi_poll(uint8_t chip)
     at1846s_rssi_poll_f(chip, (chip == RF_CHIP_UHF) ? 0x0061AFD0u : 0x00213BD0u);
 }
 
+/* [session 75 | REA-decoded] the warm-boot slot apply — FUN_0801ab36's
+ * main path as recorded in the warm window (the led_stream era-2
+ * decode): the poll head (the block_b 24 + 0x48 + the slot word49 +
+ * the second-bus word) + [1F=0x9BA9] + the gpio_reconfig second 1F
+ * (0x080272E2: 0x9AA9 — where the fresh poll writes the [30=0x7006]
+ * standby) + the standby + the audio-5 (FUN_080276D4 =
+ * at1846s_ctcss_off) + [30=0x7006] + the tune (0x08027156: the 0x05
+ * select + the (f*16) words 0x29/0x2A) + [30=0x7006][30=0x70A6]
+ * (0x08027092 the rx tail) + rf_read(0x0D). The slot state (word49,
+ * psw, the freq class) = the +0x11E per-slot table words; the recorded
+ * warm window's values = word49 0x0284, psw 0x0000, the freq 0 (the
+ * 0x05 = 0x8543 = the 96-entry table class — the ROM table at
+ * 0x08027E0C contains the 0 entry; the recon's RAM-image copy does
+ * not, so the class passes through code05). */
+void at1846s_warm_slot_apply(uint8_t chip, uint16_t word49, uint16_t psw,
+                             uint32_t freq29, uint16_t code05)
+{
+    at1846s_boot_init_block_b(chip);   /* the poll head's block_b (24) */
+    rf_write(chip, 0x48, 0x1E3C);
+    rf_write(chip, 0x49, word49);
+    poll_second_bus_word(psw);
+    rf_write(chip, 0x1F, 0x9BA9);
+    rf_write(chip, 0x1F, 0x9AA9);      /* 0x080272E2 the dual-1F */
+    rf_write(chip, 0x30, 0x7006);      /* 0x08027110 the standby */
+    at1846s_ctcss_off(chip);           /* 0x080276D4 the audio-5 */
+    rf_write(chip, 0x30, 0x7006);
+    rf_write(chip, 0x05, code05);      /* 0x08027156 the select */
+    rf_write(chip, 0x29, (uint16_t)(freq29 >> 16));
+    rf_write(chip, 0x2A, (uint16_t)freq29);
+    rf_write(chip, 0x30, 0x7006);
+    rf_write(chip, 0x30, 0x70A6);      /* 0x08027092 the rx tail */
+    (void)rf_read(chip, 0x0D);
+}
+
+/* [session 75 | REA-decoded] the warm re-init path (FUN_0801ab36, the
+ * slot word == 0 branch): the full boot init (50) + the block_b re-run
+ * (FUN_08026C46) + the tune-6 + the audio-5 + dly(0x28); the caller
+ * then re-enters for the other slot (f(1-chip)). The window records
+ * the first 85 events per slot; the second slot's remainder interleaves
+ * after the window (the RTOS preemption). */
+void at1846s_warm_reinit(uint8_t chip, uint32_t freq29, uint16_t code05)
+{
+    at1846s_boot_init(chip);           /* f(chip): the 50-frame init */
+    at1846s_boot_init_block_b(chip);   /* FUN_08026C46(chip, band) */
+    rf_write(chip, 0x30, 0x7006);
+    rf_write(chip, 0x05, code05);      /* the tune-6 (0x08027156 class) */
+    rf_write(chip, 0x29, (uint16_t)(freq29 >> 16));
+    rf_write(chip, 0x2A, (uint16_t)freq29);
+    rf_write(chip, 0x30, 0x7006);
+    rf_write(chip, 0x30, 0x70A6);
+    at1846s_ctcss_off(chip);           /* FUN_080276D4 the audio-5 */
+    rf_delay(0x28);                    /* FUN_0801BAA4(0x28) */
+}
+
 /* [0x08023200.. | RECOVERED] program the VCO frequency.
  * Freq<29:0> = freq_MHz * 16000 = (freq_Hz * 16) / 1000; the original
  * evaluates it in soft double ((freq/100000.0)*16000.0). */

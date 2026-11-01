@@ -299,9 +299,12 @@ uint8_t ui_callsign[9];         /* [session 62] the 0x1800 callsign block,
                                  * + 9 cell rows, 22 x 267 events) */
 uint8_t ui_ee_warm;             /* [session 62] 1 = the boot found the
                                  * valid settings magic (the warm path):
-                                 * the LED/0x0FA0 burst (ee359) runs on
-                                 * the warm boot only — the fresh-EE
-                                 * stream shows no such era in 6 s. */
+                                 * the warm display side (the (97,30)
+                                 * fill, the RX-bar row) runs on the warm
+                                 * boot only. [s75] the radio/I2C warm
+                                 * artifacts (the window/1F/ee359) =
+                                 * RETRACTED — the fixed-EE warm boot
+                                 * emits none of them. */
 
 void ui_boot_scene(void)
 {
@@ -799,16 +802,26 @@ static void ui_screen0_body(void)
         cell8x16(0x1Fu, 0x0Du, left_arrow);
     }
     ui_draw_text(0x4Eu, 0x0Du, " ", 0u, 3u);
-    /* [session 66 correction] the LED stream/tail replays AND the
-     * (97,30,90,10) fill came from the session-53 WARM-boot capture
-     * (@ODR#152,036 era). The fresh-EE original emits NONE of them (the
-     * ui_led_stream pattern occurs 0x in p3k6_orig.stream), and their
-     * position pushed the whole post-build window out of alignment.
-     * Gated on ui_ee_warm exactly like the ee359 burst. */
+    /* [session 66 correction] the (97,30,90,10) fill came from the
+     * session-53 WARM-boot capture (@ODR#152,036 era). The fresh-EE
+     * original emits NONE of them (the ui_led_stream pattern occurs 0x
+     * in p3k6_orig.stream), and their position pushed the whole
+     * post-build window out of alignment. Gated on ui_ee_warm exactly
+     * like the ee359 burst.
+     * [session 75 | the warm-harness verdict] the two-boot warm capture
+     * (the p3k13 save then the ck4 boot, the FIXED EE harness) shows
+     * the current original's warm boot emits NO radio window, NO 1F
+     * frame and NO ee359 burst: the session-53 capture = the broken-EE
+     * era (the incomplete save -> the +0x11E slot words = 0 -> the
+     * FUN_0801ab36 re-init path). With the EE fixed, the saves complete
+     * and the warm boot = the fresh-class radio chain. The window/1F/
+     * ee359 emissions = RETRACTED from the warm branch; the decoded
+     * re-init path = banked in rf.c (at1846s_warm_slot_apply /
+     * at1846s_warm_reinit) for the corrupted-EE state. The display-side
+     * warm UI (the fills, the RX-bar) = unchanged — the warm state
+     * machine = the same. */
     if (ui_ee_warm) {
-        display_led_stream_replay();   /* the 4,458-event warm LED burst */
         display_fill_rect(97u, 30u, 90u, 10u, 0xEFBE);;
-        display_led_tail_replay();     /* the 25-event warm burst        */
     }
     /* [session 67 correction | RETRACTS the session-65 re-draw] the BFB8
      * trace's "y=29/y=76 drawn twice with the same records" = the BOOT
@@ -825,15 +838,15 @@ static void ui_screen0_body(void)
         display_fill_rect(29u, 106u, 18u, 20u, 0xEFBE);;
         ui_draw_text(0x23u, 0x6Cu, "00", 0u, 3u);
         ui_draw_text(0x12u, 0x1Eu, "   ", 0u, 1u);
-        {   /* [session 55 + 62] the 359-event burst @ODR#158,942: the
-             * original's ee_read(0x0FA0, 101) setup interleaved by the
-             * RTOS with LED-serial words — replayed [DATA-DERIVED] (see
-             * display.c). WARM PATH ONLY: the fresh-EE boot stream has no
-             * such era (the LED/0x0FA0 task pair only runs once the
-             * settings are valid), so the replay is gated on ui_ee_warm. */
-            if (ui_ee_warm)
-                display_ee359_replay();
-        };
+        /* [session 75 | the ee359 replay RETRACTED] the 359-event burst
+         * @ODR#158,942 = the session-53 broken-EE-era composite (the
+         * silent-data-phase read + the concurrent words). The current
+         * original's warm boot reads the 0x0F-class EE regions at
+         * different positions (the warm-harness decode: the 0x0F
+         * byte-sends at the orig's 90785/91903/103114.. vs the replay's
+         * fixed position) — the fixed-position replay = the dead-state
+         * artifact; the reads = the warm-scan machinery's own (the
+         * 95,256 scan-gap slice). */
         {
             /* [session 52 pt10 | DATA-DERIVED] the RX-bar indicator row:
              * the 90x10 1-bpp bitmap extracted from the original's warm
