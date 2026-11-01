@@ -29,6 +29,7 @@ void protocol_frame_received(const uint8_t *frame, uint32_t len);
 void protocol_send_cmd(uint8_t cmd_id);        /* sends "$Axx\r\n"          */
 uint8_t protocol_flags_read(void);             /* [session 62] the ready-flag byte      */
 void protocol_flags_clear(uint8_t mask);       /* [session 62] the flag-bit clear       */
+void protocol_boot_flags_phase(void);          /* [s72] the boot's late 0xC0 flag write */
 uint32_t protocol_rx_len(void);                /* [session 62] the last frame's length  */
 void protocol_settings_archive(void);          /* [session 71] the consumer-side rxBuf2
                                                 * archive of the 534-B settings frame  */

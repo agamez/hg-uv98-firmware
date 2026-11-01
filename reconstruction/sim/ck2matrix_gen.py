@@ -3,6 +3,9 @@
 #
 # Emits ck2matrix-orig.resc + ck2matrix-rec.resc: identical injection
 # schedule, identical frame content, per-image RAM dump addresses.
+# [s72] the REC addresses are derived from build/hguv98.elf's bss symbols
+# at generation time (they shift with every rebuild — re-run this script
+# after `make`), the ORIG's are the immutable image's fixed RAM.
 #
 # Families (protocol.c routing, GOAL.md 5.5):
 #   F1  $A00 neutral 0x216 -> rxBuf full      F6  $B          -> rxBuf2 full
@@ -28,9 +31,24 @@ ORIG = dict(
         "showAnalyzer sysbus.usart2\n"
     ),
 )
+def _rec_addrs():
+    """[s72] the recon's bss dump addresses, straight from the current ELF."""
+    import subprocess
+    out = subprocess.run(
+        ["arm-none-eabi-nm", "/home/sslayer/Proyectos/HG-UV98/reconstruction/build/hguv98.elf"],
+        capture_output=True, text=True, check=True).stdout
+    sym = {}
+    for ln in out.splitlines():
+        p = ln.split()
+        if len(p) == 3 and p[1] in "bBdD":
+            sym.setdefault(p[2], int(p[0], 16))
+    return dict(rx=sym["rxBuf"], rx2=sym["rxBuf2"], rx3=sym["rxBuf3"],
+                flag=sym["proto_flags"])
+
+
 REC = dict(
     mach="hguv98-recon",
-    rx=0x20001CB8, rx2=0x20001AA0, rx3=0x20001A60, flag=0x20001ED0,
+    **_rec_addrs(),
     load=(
         "sysbus WriteDoubleWord 0x00000000 0x20006800\n"
         "sysbus WriteDoubleWord 0x00000004 0x08004165\n"

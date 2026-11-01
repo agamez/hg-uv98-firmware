@@ -4979,3 +4979,55 @@ CK3 parity.
   (rf_write 0x08004f08 / rf_read 0x08004fb4). The battery continues:
   p3k1, the CK2 peer pair, the ck2matrix pair, the key matrix — fresh,
   then the ledger re-check and the close.
+
+## Session 72 (cont.) — the p3 key matrix fresh: 13/13 = the banked classes; the CK2 fresh-EE matrix DISCOVERY (the drain is WARM-gated); the dispatcher replay fixes
+
+- **The p3 key-matrix battery COMPLETE fresh (13 pairs, p3diff.sh fresh-EE)** — every channel reproduces its banked class exactly, zero regressions:
+  p3k1 = the prefix 219,256 = the FULL orig; p3k2s/l + p3k3s/l = the
+  prefixes = the full origs (226,682 / 219,256); p3k11s = **99.61% of the
+  orig** (the banked documented residual — the divergence shape: the orig
+  interleaves RADIO tune frames (the PB9 BRR/BSRR 0x200 edges, the AT1846S
+  reprogram) into the display scan at ev475859 while the recon continues
+  the ODR scan — the display deltas themselves are identical; the orig's
+  own radio-task preemption, the same class as the session-70 table);
+  p3k11l = **99.934% of the orig** (the banked 99.93%, the same shape at
+  ev2798647); p3k12s/l = the orig's own ±2-event I2C-phase jitter class
+  (the first break at ev191565, both ODR scan values); p3k13s/l =
+  **100.00% EXACT** (204,670 = 204,670); p3k14s/l = the prefixes = the
+  full origs (362,176 / 517,228 — the 517,228 = the precise banked
+  number). The battery tools staged in reconstruction/sim/ (ck3cmp.py,
+  ck2mxcmp.py, peer_tx.py, bldec.py).
+- **The request-time alignment attempt**: the dispatcher's request wait =
+  pass 19 (570 ticks = 0.7917 s). RESULT: the recon's TX stays at 0.99 s —
+  the dispatcher task STARTS at 0.99 s (starved behind the ui_task's boot
+  scene), so the pass-19 wait is a no-op at the task start. The TX time
+  delta (the orig 0.79/0.8 vs the recon 0.99) = the documented
+  task-start/boot-flush delta; the handshake CONTENT = 1x `$A00` each,
+  zero faults (the fresh peer pair) = byte-identical per the criterion.
+- **The CK2 matrix round 1 (fresh-EE, the 490-observable comparator
+  ck2mxcmp.py) = the DECISIVE DISCOVERY: the FRESH-EE original NEVER
+  drains the settings reply** — the orig's rxBuf/rxBuf2 = 0x00 and the
+  flag = 0x00 at EVERY checkpoint through 4.4 s (F1..F10) while the
+  request still fires; the session-71 capture (the drain at 1.12 s) was a
+  WARM-EE boot. The ck3 reference (session 49) = the WARM-era capture.
+  CONCLUSION: **the $A00 drain+apply is WARM-boot-gated** — the fresh
+  factory-reset boot ignores the reply (the reset IS the settings
+  source); the fresh-EE "no radio work at boot" evidence (p3k6/ck4, the
+  session-62 note) = the same fact. The recon's fresh ck3 run (292/292
+  earlier today) = the fresh recon DID drain — wrong per this model; the
+  ck3 verification procedure becomes the WARM pair (matching the warm
+  reference's EE era).
+- **The dispatcher replay fixes (main.c/protocol.c/protocol.h)**: the
+  poll = the 30-tick pass grid; the drain = gated on `ui_ee_warm` AND the
+  8-pass reply-wait settle (810 ticks = 1.125 s = the pass-27 replay of
+  the warm-EE checkpoints); the boot's late flag phase =
+  protocol_boot_flags_phase() = the FLAG byte 0xC0 write at the pass-38
+  boundary (1140 ticks), post-apply, the warm path only [DATA-DERIVED
+  from the checkpoint trajectory 0x00 -> 0x01@drain -> 0xC0 in
+  (1.417,1.667) s; the byte-level replay — the writer site not
+  individually decompiled]. ck2matrix_gen.py = the nm-derived REC dump
+  addresses (the rebuild-proof; the session-71 constants had drifted +4).
+- Build 122,627 text; make test-host green; the hook pins held
+  (rf_write 0x08004f08 / rf_read 0x08004fb4). The verification battery
+  (phase 3) = the WARM matrix pair (the drain/flag/archive behavior) +
+  the FRESH matrix pair + the ck3-warm pair — the numbers next.

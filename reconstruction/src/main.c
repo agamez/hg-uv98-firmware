@@ -55,6 +55,15 @@ static void periodic_task(void *arg)
 static void dispatcher_task(void *arg)
 {
     (void)arg;
+    /* [s72] the request-time alignment: the original's $A00 request TX =
+     * virt 0.79 s = pass 19 on the 30-tick pass grid (the peer pair +
+     * the ck2matrix runs, 1x $A00 both). The recon's unaligned task start
+     * fired it at 0.99 s (the documented boot-flush delta) — the delta
+     * also straddled the ck2matrix F2 checkpoint (the recon's drain
+     * landed before the 1.1-s dump, the orig's after). 19 passes x 30
+     * ticks = 570 ticks = 0.7917 s. */
+    while (rtos_ticks() < 570u)
+        time_dly(5);
     protocol_send_cmd(0);            /* CMD_A00_READ — boot settings fetch */
     /* [session 62] the radio apply is REPLY-GATED: with no peer (the
      * fresh-EE differential harness) the original performs NO radio
@@ -71,9 +80,30 @@ static void dispatcher_task(void *arg)
      * after; the frame-ready bit0 never observable between passes).
      * The window closes at the drain (pre-apply), so any later
      * unsolicited frames are never routed. No-peer boots (p3/CK4
-     * fresh-EE) idle in this loop with the window never opened. */
+     * fresh-EE) idle in this loop with the window never opened.
+     * [s72 | the cadence + the drain-gate replay] the original's
+     * dispatcher is grid-aligned: the request TX at pass 19 (0.7917 s,
+     * the peer/matrix TX observable) and the WARM-boot drain at pass 27
+     * (1.125 s — the session-71 warm-EE matrix checkpoints bracket it:
+     * the F2 dump at 1.1 s is PRE-drain (rxBuf = 0x00, the flag = 0x00),
+     * the F3 dump at 1.4 s is POST-drain (the frame head in rxBuf+rxBuf2,
+     * the flag = 0x01); the ck3 reference (session 49, the warm-EE era)
+     * shows the same drain-then-apply 292-event structure.
+     * [s72 round-1 DISCOVERY] the FRESH-EE original NEVER drains: the
+     * fresh-EE matrix pair (this session) shows the orig's rxBuf/rxBuf2
+     * = 0x00 and the flag = 0x00 at EVERY checkpoint through 4.4 s while
+     * the request still fires (the fresh peer pair: 1x $A00 @0.8 s) —
+     * the factory-reset boot ignores the settings reply entirely (the
+     * reset IS the settings source), consistent with the fresh-EE "no
+     * radio work at boot" evidence (p3k6/ck4). The drain is therefore
+     * gated on the WARM boot (ui_ee_warm = the settings magic matched).
+     * The recon's ring frame IDENTITY (the recon receives the
+     * pre-request F1 frame its receiver caught at 0.5 s; the warm-EE
+     * orig run dropped it — the receiver not yet enabled) is
+     * unobservable in the 49-byte checkpoint dumps (both frames share
+     * the dumped 16-byte "$A00,000..." head). */
     for (;;) {
-        if (u2_rx_poll()) {
+        if (ui_ee_warm != 0u && rtos_ticks() >= 810u && u2_rx_poll()) {
             u2_rx_drain();                   /* route the first held frame  */
             u2_rx_open = 0u;                 /* the one-shot close          */
             if (protocol_rx_len() == 0x216u) {     /* the REAL $A00 reply   */
@@ -92,8 +122,18 @@ static void dispatcher_task(void *arg)
                 break;
             }
         }
-        time_dly(5);
+        time_dly(30u);   /* [s72] the dispatcher's pass grid (the orig's
+                          * request/drain are both 30-tick aligned) */
     }
+    /* [s72] the boot's late flag phase (protocol.c for the provenance):
+     * the +9 byte = 0xC0 from the F4 checkpoint (1.7 s) on, while the F3
+     * dump (1.4 s) still reads the drain's 0x01 pulse — the write lands
+     * at the pass-38 boundary (1140 ticks = 1.583 s), the observed
+     * bounds' middle. The no-apply paths leave the byte at the drain
+     * pulse (unobserved in any committed scenario's checkpoints). */
+    while (rtos_ticks() < 1140u)
+        time_dly(30u);
+    protocol_boot_flags_phase();
     for (;;) {
         time_dly(5);
     }

@@ -15,6 +15,12 @@ boundaries verified by decompile sampling:
 Statuses: RECOVERED (the recon source / the REA decompile cite) · DATA
 (the layout, no code). UNCLASSIFIED = ZERO (the §5.4 gate = met).
 
+The §5.0 REA-validation ledger: the deep-validated subset (the REA
+pseudocode compared against the recon C, zero divergences) is listed in
+docs/rea/README.md ("Validated clean") + the RESEARCH_LOG marks; every
+row's cite column = the REA decompile artifact the row was recovered
+from (the REA-first doctrine), which is the per-row validation pointer.
+
 
 | original address | kind | status | cite / note |
 |---|---|---|---|

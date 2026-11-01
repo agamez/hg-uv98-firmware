@@ -18,10 +18,6 @@ echo "=== inject F1_a00_ok ==="
 python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; f = chr(36)+'A00,' + '0'*14 + ',' + chr(0)*512 + chr(13)+chr(10); assert len(f) >= 11; [u.WriteChar(ord(c)) for c in f]"
 emulation RunFor "00:00:00.300"
 echo "=== CK2CHK F1_a00_ok BEGIN ==="
-sysbus ReadByte 0x20001CB8
-sysbus ReadByte 0x20001CB9
-sysbus ReadByte 0x20001CBA
-sysbus ReadByte 0x20001CBB
 sysbus ReadByte 0x20001CBC
 sysbus ReadByte 0x20001CBD
 sysbus ReadByte 0x20001CBE
@@ -34,10 +30,10 @@ sysbus ReadByte 0x20001CC4
 sysbus ReadByte 0x20001CC5
 sysbus ReadByte 0x20001CC6
 sysbus ReadByte 0x20001CC7
-sysbus ReadByte 0x20001AA0
-sysbus ReadByte 0x20001AA1
-sysbus ReadByte 0x20001AA2
-sysbus ReadByte 0x20001AA3
+sysbus ReadByte 0x20001CC8
+sysbus ReadByte 0x20001CC9
+sysbus ReadByte 0x20001CCA
+sysbus ReadByte 0x20001CCB
 sysbus ReadByte 0x20001AA4
 sysbus ReadByte 0x20001AA5
 sysbus ReadByte 0x20001AA6
@@ -50,10 +46,10 @@ sysbus ReadByte 0x20001AAC
 sysbus ReadByte 0x20001AAD
 sysbus ReadByte 0x20001AAE
 sysbus ReadByte 0x20001AAF
-sysbus ReadByte 0x20001A60
-sysbus ReadByte 0x20001A61
-sysbus ReadByte 0x20001A62
-sysbus ReadByte 0x20001A63
+sysbus ReadByte 0x20001AB0
+sysbus ReadByte 0x20001AB1
+sysbus ReadByte 0x20001AB2
+sysbus ReadByte 0x20001AB3
 sysbus ReadByte 0x20001A64
 sysbus ReadByte 0x20001A65
 sysbus ReadByte 0x20001A66
@@ -66,16 +62,16 @@ sysbus ReadByte 0x20001A6C
 sysbus ReadByte 0x20001A6D
 sysbus ReadByte 0x20001A6E
 sysbus ReadByte 0x20001A6F
-sysbus ReadByte 0x20001ED0
+sysbus ReadByte 0x20001A70
+sysbus ReadByte 0x20001A71
+sysbus ReadByte 0x20001A72
+sysbus ReadByte 0x20001A73
+sysbus ReadByte 0x20001ED4
 echo "=== CK2CHK F1_a00_ok END ==="
 echo "=== inject F2_a00_marker ==="
 python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; f = chr(36)+'A00,' + '0'*14 + ',' + 'MARKER12' + chr(0)*504 + chr(13)+chr(10); assert len(f) >= 11; [u.WriteChar(ord(c)) for c in f]"
 emulation RunFor "00:00:00.300"
 echo "=== CK2CHK F2_a00_marker BEGIN ==="
-sysbus ReadByte 0x20001CB8
-sysbus ReadByte 0x20001CB9
-sysbus ReadByte 0x20001CBA
-sysbus ReadByte 0x20001CBB
 sysbus ReadByte 0x20001CBC
 sysbus ReadByte 0x20001CBD
 sysbus ReadByte 0x20001CBE
@@ -88,10 +84,10 @@ sysbus ReadByte 0x20001CC4
 sysbus ReadByte 0x20001CC5
 sysbus ReadByte 0x20001CC6
 sysbus ReadByte 0x20001CC7
-sysbus ReadByte 0x20001AA0
-sysbus ReadByte 0x20001AA1
-sysbus ReadByte 0x20001AA2
-sysbus ReadByte 0x20001AA3
+sysbus ReadByte 0x20001CC8
+sysbus ReadByte 0x20001CC9
+sysbus ReadByte 0x20001CCA
+sysbus ReadByte 0x20001CCB
 sysbus ReadByte 0x20001AA4
 sysbus ReadByte 0x20001AA5
 sysbus ReadByte 0x20001AA6
@@ -104,10 +100,10 @@ sysbus ReadByte 0x20001AAC
 sysbus ReadByte 0x20001AAD
 sysbus ReadByte 0x20001AAE
 sysbus ReadByte 0x20001AAF
-sysbus ReadByte 0x20001A60
-sysbus ReadByte 0x20001A61
-sysbus ReadByte 0x20001A62
-sysbus ReadByte 0x20001A63
+sysbus ReadByte 0x20001AB0
+sysbus ReadByte 0x20001AB1
+sysbus ReadByte 0x20001AB2
+sysbus ReadByte 0x20001AB3
 sysbus ReadByte 0x20001A64
 sysbus ReadByte 0x20001A65
 sysbus ReadByte 0x20001A66
@@ -120,16 +116,16 @@ sysbus ReadByte 0x20001A6C
 sysbus ReadByte 0x20001A6D
 sysbus ReadByte 0x20001A6E
 sysbus ReadByte 0x20001A6F
-sysbus ReadByte 0x20001ED0
+sysbus ReadByte 0x20001A70
+sysbus ReadByte 0x20001A71
+sysbus ReadByte 0x20001A72
+sysbus ReadByte 0x20001A73
+sysbus ReadByte 0x20001ED4
 echo "=== CK2CHK F2_a00_marker END ==="
 echo "=== inject F3_a00_rej ==="
 python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; f = chr(36)+'A00,' + '0'*14 + ',' + chr(0)*511 + chr(13)+chr(10); assert len(f) >= 11; [u.WriteChar(ord(c)) for c in f]"
 emulation RunFor "00:00:00.300"
 echo "=== CK2CHK F3_a00_rej BEGIN ==="
-sysbus ReadByte 0x20001CB8
-sysbus ReadByte 0x20001CB9
-sysbus ReadByte 0x20001CBA
-sysbus ReadByte 0x20001CBB
 sysbus ReadByte 0x20001CBC
 sysbus ReadByte 0x20001CBD
 sysbus ReadByte 0x20001CBE
@@ -142,10 +138,10 @@ sysbus ReadByte 0x20001CC4
 sysbus ReadByte 0x20001CC5
 sysbus ReadByte 0x20001CC6
 sysbus ReadByte 0x20001CC7
-sysbus ReadByte 0x20001AA0
-sysbus ReadByte 0x20001AA1
-sysbus ReadByte 0x20001AA2
-sysbus ReadByte 0x20001AA3
+sysbus ReadByte 0x20001CC8
+sysbus ReadByte 0x20001CC9
+sysbus ReadByte 0x20001CCA
+sysbus ReadByte 0x20001CCB
 sysbus ReadByte 0x20001AA4
 sysbus ReadByte 0x20001AA5
 sysbus ReadByte 0x20001AA6
@@ -158,10 +154,10 @@ sysbus ReadByte 0x20001AAC
 sysbus ReadByte 0x20001AAD
 sysbus ReadByte 0x20001AAE
 sysbus ReadByte 0x20001AAF
-sysbus ReadByte 0x20001A60
-sysbus ReadByte 0x20001A61
-sysbus ReadByte 0x20001A62
-sysbus ReadByte 0x20001A63
+sysbus ReadByte 0x20001AB0
+sysbus ReadByte 0x20001AB1
+sysbus ReadByte 0x20001AB2
+sysbus ReadByte 0x20001AB3
 sysbus ReadByte 0x20001A64
 sysbus ReadByte 0x20001A65
 sysbus ReadByte 0x20001A66
@@ -174,16 +170,16 @@ sysbus ReadByte 0x20001A6C
 sysbus ReadByte 0x20001A6D
 sysbus ReadByte 0x20001A6E
 sysbus ReadByte 0x20001A6F
-sysbus ReadByte 0x20001ED0
+sysbus ReadByte 0x20001A70
+sysbus ReadByte 0x20001A71
+sysbus ReadByte 0x20001A72
+sysbus ReadByte 0x20001A73
+sysbus ReadByte 0x20001ED4
 echo "=== CK2CHK F3_a00_rej END ==="
 echo "=== inject F4_a01_ok ==="
 python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; f = chr(36)+'A01,' + '0'*14 + ',' + ''.join(chr(i & 0xFF) for i in range(512)) + chr(13)+chr(10); assert len(f) >= 11; [u.WriteChar(ord(c)) for c in f]"
 emulation RunFor "00:00:00.300"
 echo "=== CK2CHK F4_a01_ok BEGIN ==="
-sysbus ReadByte 0x20001CB8
-sysbus ReadByte 0x20001CB9
-sysbus ReadByte 0x20001CBA
-sysbus ReadByte 0x20001CBB
 sysbus ReadByte 0x20001CBC
 sysbus ReadByte 0x20001CBD
 sysbus ReadByte 0x20001CBE
@@ -196,10 +192,10 @@ sysbus ReadByte 0x20001CC4
 sysbus ReadByte 0x20001CC5
 sysbus ReadByte 0x20001CC6
 sysbus ReadByte 0x20001CC7
-sysbus ReadByte 0x20001AA0
-sysbus ReadByte 0x20001AA1
-sysbus ReadByte 0x20001AA2
-sysbus ReadByte 0x20001AA3
+sysbus ReadByte 0x20001CC8
+sysbus ReadByte 0x20001CC9
+sysbus ReadByte 0x20001CCA
+sysbus ReadByte 0x20001CCB
 sysbus ReadByte 0x20001AA4
 sysbus ReadByte 0x20001AA5
 sysbus ReadByte 0x20001AA6
@@ -212,10 +208,10 @@ sysbus ReadByte 0x20001AAC
 sysbus ReadByte 0x20001AAD
 sysbus ReadByte 0x20001AAE
 sysbus ReadByte 0x20001AAF
-sysbus ReadByte 0x20001A60
-sysbus ReadByte 0x20001A61
-sysbus ReadByte 0x20001A62
-sysbus ReadByte 0x20001A63
+sysbus ReadByte 0x20001AB0
+sysbus ReadByte 0x20001AB1
+sysbus ReadByte 0x20001AB2
+sysbus ReadByte 0x20001AB3
 sysbus ReadByte 0x20001A64
 sysbus ReadByte 0x20001A65
 sysbus ReadByte 0x20001A66
@@ -228,16 +224,16 @@ sysbus ReadByte 0x20001A6C
 sysbus ReadByte 0x20001A6D
 sysbus ReadByte 0x20001A6E
 sysbus ReadByte 0x20001A6F
-sysbus ReadByte 0x20001ED0
+sysbus ReadByte 0x20001A70
+sysbus ReadByte 0x20001A71
+sysbus ReadByte 0x20001A72
+sysbus ReadByte 0x20001A73
+sysbus ReadByte 0x20001ED4
 echo "=== CK2CHK F4_a01_ok END ==="
 echo "=== inject F5_a01_rej ==="
 python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; f = chr(36)+'A01,' + '0'*14 + ',' + chr(0)*511 + chr(13)+chr(10); assert len(f) >= 11; [u.WriteChar(ord(c)) for c in f]"
 emulation RunFor "00:00:00.300"
 echo "=== CK2CHK F5_a01_rej BEGIN ==="
-sysbus ReadByte 0x20001CB8
-sysbus ReadByte 0x20001CB9
-sysbus ReadByte 0x20001CBA
-sysbus ReadByte 0x20001CBB
 sysbus ReadByte 0x20001CBC
 sysbus ReadByte 0x20001CBD
 sysbus ReadByte 0x20001CBE
@@ -250,10 +246,10 @@ sysbus ReadByte 0x20001CC4
 sysbus ReadByte 0x20001CC5
 sysbus ReadByte 0x20001CC6
 sysbus ReadByte 0x20001CC7
-sysbus ReadByte 0x20001AA0
-sysbus ReadByte 0x20001AA1
-sysbus ReadByte 0x20001AA2
-sysbus ReadByte 0x20001AA3
+sysbus ReadByte 0x20001CC8
+sysbus ReadByte 0x20001CC9
+sysbus ReadByte 0x20001CCA
+sysbus ReadByte 0x20001CCB
 sysbus ReadByte 0x20001AA4
 sysbus ReadByte 0x20001AA5
 sysbus ReadByte 0x20001AA6
@@ -266,10 +262,10 @@ sysbus ReadByte 0x20001AAC
 sysbus ReadByte 0x20001AAD
 sysbus ReadByte 0x20001AAE
 sysbus ReadByte 0x20001AAF
-sysbus ReadByte 0x20001A60
-sysbus ReadByte 0x20001A61
-sysbus ReadByte 0x20001A62
-sysbus ReadByte 0x20001A63
+sysbus ReadByte 0x20001AB0
+sysbus ReadByte 0x20001AB1
+sysbus ReadByte 0x20001AB2
+sysbus ReadByte 0x20001AB3
 sysbus ReadByte 0x20001A64
 sysbus ReadByte 0x20001A65
 sysbus ReadByte 0x20001A66
@@ -282,16 +278,16 @@ sysbus ReadByte 0x20001A6C
 sysbus ReadByte 0x20001A6D
 sysbus ReadByte 0x20001A6E
 sysbus ReadByte 0x20001A6F
-sysbus ReadByte 0x20001ED0
+sysbus ReadByte 0x20001A70
+sysbus ReadByte 0x20001A71
+sysbus ReadByte 0x20001A72
+sysbus ReadByte 0x20001A73
+sysbus ReadByte 0x20001ED4
 echo "=== CK2CHK F5_a01_rej END ==="
 echo "=== inject F6_b_cmd ==="
 python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; f = chr(36)+'B,HELLO-01' + chr(13)+chr(10); assert len(f) >= 11; [u.WriteChar(ord(c)) for c in f]"
 emulation RunFor "00:00:00.300"
 echo "=== CK2CHK F6_b_cmd BEGIN ==="
-sysbus ReadByte 0x20001CB8
-sysbus ReadByte 0x20001CB9
-sysbus ReadByte 0x20001CBA
-sysbus ReadByte 0x20001CBB
 sysbus ReadByte 0x20001CBC
 sysbus ReadByte 0x20001CBD
 sysbus ReadByte 0x20001CBE
@@ -304,10 +300,10 @@ sysbus ReadByte 0x20001CC4
 sysbus ReadByte 0x20001CC5
 sysbus ReadByte 0x20001CC6
 sysbus ReadByte 0x20001CC7
-sysbus ReadByte 0x20001AA0
-sysbus ReadByte 0x20001AA1
-sysbus ReadByte 0x20001AA2
-sysbus ReadByte 0x20001AA3
+sysbus ReadByte 0x20001CC8
+sysbus ReadByte 0x20001CC9
+sysbus ReadByte 0x20001CCA
+sysbus ReadByte 0x20001CCB
 sysbus ReadByte 0x20001AA4
 sysbus ReadByte 0x20001AA5
 sysbus ReadByte 0x20001AA6
@@ -320,10 +316,10 @@ sysbus ReadByte 0x20001AAC
 sysbus ReadByte 0x20001AAD
 sysbus ReadByte 0x20001AAE
 sysbus ReadByte 0x20001AAF
-sysbus ReadByte 0x20001A60
-sysbus ReadByte 0x20001A61
-sysbus ReadByte 0x20001A62
-sysbus ReadByte 0x20001A63
+sysbus ReadByte 0x20001AB0
+sysbus ReadByte 0x20001AB1
+sysbus ReadByte 0x20001AB2
+sysbus ReadByte 0x20001AB3
 sysbus ReadByte 0x20001A64
 sysbus ReadByte 0x20001A65
 sysbus ReadByte 0x20001A66
@@ -336,16 +332,16 @@ sysbus ReadByte 0x20001A6C
 sysbus ReadByte 0x20001A6D
 sysbus ReadByte 0x20001A6E
 sysbus ReadByte 0x20001A6F
-sysbus ReadByte 0x20001ED0
+sysbus ReadByte 0x20001A70
+sysbus ReadByte 0x20001A71
+sysbus ReadByte 0x20001A72
+sysbus ReadByte 0x20001A73
+sysbus ReadByte 0x20001ED4
 echo "=== CK2CHK F6_b_cmd END ==="
 echo "=== inject F7_c_cmd ==="
 python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; f = chr(36)+'C,W,1234' + chr(13)+chr(10); assert len(f) >= 11; [u.WriteChar(ord(c)) for c in f]"
 emulation RunFor "00:00:00.300"
 echo "=== CK2CHK F7_c_cmd BEGIN ==="
-sysbus ReadByte 0x20001CB8
-sysbus ReadByte 0x20001CB9
-sysbus ReadByte 0x20001CBA
-sysbus ReadByte 0x20001CBB
 sysbus ReadByte 0x20001CBC
 sysbus ReadByte 0x20001CBD
 sysbus ReadByte 0x20001CBE
@@ -358,10 +354,10 @@ sysbus ReadByte 0x20001CC4
 sysbus ReadByte 0x20001CC5
 sysbus ReadByte 0x20001CC6
 sysbus ReadByte 0x20001CC7
-sysbus ReadByte 0x20001AA0
-sysbus ReadByte 0x20001AA1
-sysbus ReadByte 0x20001AA2
-sysbus ReadByte 0x20001AA3
+sysbus ReadByte 0x20001CC8
+sysbus ReadByte 0x20001CC9
+sysbus ReadByte 0x20001CCA
+sysbus ReadByte 0x20001CCB
 sysbus ReadByte 0x20001AA4
 sysbus ReadByte 0x20001AA5
 sysbus ReadByte 0x20001AA6
@@ -374,10 +370,10 @@ sysbus ReadByte 0x20001AAC
 sysbus ReadByte 0x20001AAD
 sysbus ReadByte 0x20001AAE
 sysbus ReadByte 0x20001AAF
-sysbus ReadByte 0x20001A60
-sysbus ReadByte 0x20001A61
-sysbus ReadByte 0x20001A62
-sysbus ReadByte 0x20001A63
+sysbus ReadByte 0x20001AB0
+sysbus ReadByte 0x20001AB1
+sysbus ReadByte 0x20001AB2
+sysbus ReadByte 0x20001AB3
 sysbus ReadByte 0x20001A64
 sysbus ReadByte 0x20001A65
 sysbus ReadByte 0x20001A66
@@ -390,16 +386,16 @@ sysbus ReadByte 0x20001A6C
 sysbus ReadByte 0x20001A6D
 sysbus ReadByte 0x20001A6E
 sysbus ReadByte 0x20001A6F
-sysbus ReadByte 0x20001ED0
+sysbus ReadByte 0x20001A70
+sysbus ReadByte 0x20001A71
+sysbus ReadByte 0x20001A72
+sysbus ReadByte 0x20001A73
+sysbus ReadByte 0x20001ED4
 echo "=== CK2CHK F7_c_cmd END ==="
 echo "=== inject F8_a02_cmd ==="
 python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; f = chr(36)+'A02,TELEMETRY' + chr(13)+chr(10); assert len(f) >= 11; [u.WriteChar(ord(c)) for c in f]"
 emulation RunFor "00:00:00.300"
 echo "=== CK2CHK F8_a02_cmd BEGIN ==="
-sysbus ReadByte 0x20001CB8
-sysbus ReadByte 0x20001CB9
-sysbus ReadByte 0x20001CBA
-sysbus ReadByte 0x20001CBB
 sysbus ReadByte 0x20001CBC
 sysbus ReadByte 0x20001CBD
 sysbus ReadByte 0x20001CBE
@@ -412,10 +408,10 @@ sysbus ReadByte 0x20001CC4
 sysbus ReadByte 0x20001CC5
 sysbus ReadByte 0x20001CC6
 sysbus ReadByte 0x20001CC7
-sysbus ReadByte 0x20001AA0
-sysbus ReadByte 0x20001AA1
-sysbus ReadByte 0x20001AA2
-sysbus ReadByte 0x20001AA3
+sysbus ReadByte 0x20001CC8
+sysbus ReadByte 0x20001CC9
+sysbus ReadByte 0x20001CCA
+sysbus ReadByte 0x20001CCB
 sysbus ReadByte 0x20001AA4
 sysbus ReadByte 0x20001AA5
 sysbus ReadByte 0x20001AA6
@@ -428,10 +424,10 @@ sysbus ReadByte 0x20001AAC
 sysbus ReadByte 0x20001AAD
 sysbus ReadByte 0x20001AAE
 sysbus ReadByte 0x20001AAF
-sysbus ReadByte 0x20001A60
-sysbus ReadByte 0x20001A61
-sysbus ReadByte 0x20001A62
-sysbus ReadByte 0x20001A63
+sysbus ReadByte 0x20001AB0
+sysbus ReadByte 0x20001AB1
+sysbus ReadByte 0x20001AB2
+sysbus ReadByte 0x20001AB3
 sysbus ReadByte 0x20001A64
 sysbus ReadByte 0x20001A65
 sysbus ReadByte 0x20001A66
@@ -444,16 +440,16 @@ sysbus ReadByte 0x20001A6C
 sysbus ReadByte 0x20001A6D
 sysbus ReadByte 0x20001A6E
 sysbus ReadByte 0x20001A6F
-sysbus ReadByte 0x20001ED0
+sysbus ReadByte 0x20001A70
+sysbus ReadByte 0x20001A71
+sysbus ReadByte 0x20001A72
+sysbus ReadByte 0x20001A73
+sysbus ReadByte 0x20001ED4
 echo "=== CK2CHK F8_a02_cmd END ==="
 echo "=== inject F9_a08_cmd ==="
 python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; f = chr(36)+'A08,BEACONDATA' + chr(13)+chr(10); assert len(f) >= 11; [u.WriteChar(ord(c)) for c in f]"
 emulation RunFor "00:00:00.300"
 echo "=== CK2CHK F9_a08_cmd BEGIN ==="
-sysbus ReadByte 0x20001CB8
-sysbus ReadByte 0x20001CB9
-sysbus ReadByte 0x20001CBA
-sysbus ReadByte 0x20001CBB
 sysbus ReadByte 0x20001CBC
 sysbus ReadByte 0x20001CBD
 sysbus ReadByte 0x20001CBE
@@ -466,10 +462,10 @@ sysbus ReadByte 0x20001CC4
 sysbus ReadByte 0x20001CC5
 sysbus ReadByte 0x20001CC6
 sysbus ReadByte 0x20001CC7
-sysbus ReadByte 0x20001AA0
-sysbus ReadByte 0x20001AA1
-sysbus ReadByte 0x20001AA2
-sysbus ReadByte 0x20001AA3
+sysbus ReadByte 0x20001CC8
+sysbus ReadByte 0x20001CC9
+sysbus ReadByte 0x20001CCA
+sysbus ReadByte 0x20001CCB
 sysbus ReadByte 0x20001AA4
 sysbus ReadByte 0x20001AA5
 sysbus ReadByte 0x20001AA6
@@ -482,10 +478,10 @@ sysbus ReadByte 0x20001AAC
 sysbus ReadByte 0x20001AAD
 sysbus ReadByte 0x20001AAE
 sysbus ReadByte 0x20001AAF
-sysbus ReadByte 0x20001A60
-sysbus ReadByte 0x20001A61
-sysbus ReadByte 0x20001A62
-sysbus ReadByte 0x20001A63
+sysbus ReadByte 0x20001AB0
+sysbus ReadByte 0x20001AB1
+sysbus ReadByte 0x20001AB2
+sysbus ReadByte 0x20001AB3
 sysbus ReadByte 0x20001A64
 sysbus ReadByte 0x20001A65
 sysbus ReadByte 0x20001A66
@@ -498,16 +494,16 @@ sysbus ReadByte 0x20001A6C
 sysbus ReadByte 0x20001A6D
 sysbus ReadByte 0x20001A6E
 sysbus ReadByte 0x20001A6F
-sysbus ReadByte 0x20001ED0
+sysbus ReadByte 0x20001A70
+sysbus ReadByte 0x20001A71
+sysbus ReadByte 0x20001A72
+sysbus ReadByte 0x20001A73
+sysbus ReadByte 0x20001ED4
 echo "=== CK2CHK F9_a08_cmd END ==="
 echo "=== inject F10_a09_cmd ==="
 python "m = emulationManager.CurrentEmulation.Machines[0]; u = m['sysbus.usart2']; f = chr(36)+'A09KEYTRIG' + chr(13)+chr(10); assert len(f) >= 11; [u.WriteChar(ord(c)) for c in f]"
 emulation RunFor "00:00:00.300"
 echo "=== CK2CHK F10_a09_cmd BEGIN ==="
-sysbus ReadByte 0x20001CB8
-sysbus ReadByte 0x20001CB9
-sysbus ReadByte 0x20001CBA
-sysbus ReadByte 0x20001CBB
 sysbus ReadByte 0x20001CBC
 sysbus ReadByte 0x20001CBD
 sysbus ReadByte 0x20001CBE
@@ -520,10 +516,10 @@ sysbus ReadByte 0x20001CC4
 sysbus ReadByte 0x20001CC5
 sysbus ReadByte 0x20001CC6
 sysbus ReadByte 0x20001CC7
-sysbus ReadByte 0x20001AA0
-sysbus ReadByte 0x20001AA1
-sysbus ReadByte 0x20001AA2
-sysbus ReadByte 0x20001AA3
+sysbus ReadByte 0x20001CC8
+sysbus ReadByte 0x20001CC9
+sysbus ReadByte 0x20001CCA
+sysbus ReadByte 0x20001CCB
 sysbus ReadByte 0x20001AA4
 sysbus ReadByte 0x20001AA5
 sysbus ReadByte 0x20001AA6
@@ -536,10 +532,10 @@ sysbus ReadByte 0x20001AAC
 sysbus ReadByte 0x20001AAD
 sysbus ReadByte 0x20001AAE
 sysbus ReadByte 0x20001AAF
-sysbus ReadByte 0x20001A60
-sysbus ReadByte 0x20001A61
-sysbus ReadByte 0x20001A62
-sysbus ReadByte 0x20001A63
+sysbus ReadByte 0x20001AB0
+sysbus ReadByte 0x20001AB1
+sysbus ReadByte 0x20001AB2
+sysbus ReadByte 0x20001AB3
 sysbus ReadByte 0x20001A64
 sysbus ReadByte 0x20001A65
 sysbus ReadByte 0x20001A66
@@ -552,7 +548,11 @@ sysbus ReadByte 0x20001A6C
 sysbus ReadByte 0x20001A6D
 sysbus ReadByte 0x20001A6E
 sysbus ReadByte 0x20001A6F
-sysbus ReadByte 0x20001ED0
+sysbus ReadByte 0x20001A70
+sysbus ReadByte 0x20001A71
+sysbus ReadByte 0x20001A72
+sysbus ReadByte 0x20001A73
+sysbus ReadByte 0x20001ED4
 echo "=== CK2CHK F10_a09_cmd END ==="
 echo "=== run 1 s more ==="
 emulation RunFor "00:00:01.000"

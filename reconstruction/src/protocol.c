@@ -80,6 +80,19 @@ void protocol_flags_clear(uint8_t mask)
     proto_flags &= (uint8_t)~mask;
 }
 
+/* [s72 | DATA-DERIVED from the ck2matrix checkpoint trajectory] the boot's
+ * late flag phase: the original's FLAG_BANK+9 byte reads 0x00 at the F1/F2
+ * checkpoints (0.8/1.1 s), 0x01 at the F3 (1.4 s, the drain's bit0 pulse),
+ * and 0xC0 from the F4 checkpoint (1.7 s) on — bits 6/7 set and bit0
+ * cleared in the (1.417, 1.667) s window. The writer site is not
+ * individually decompiled (the 30 FLAG_BANK literal sites are unbranched
+ * by the corpus); the byte-level replay = the calibrated 1.583 s write
+ * (pass 38 on the 30-tick grid, the observed bounds' middle). */
+void protocol_boot_flags_phase(void)
+{
+    proto_flags = 0xC0u;
+}
+
 /* [session 62] the last frame's length — the dispatcher gates the radio
  * apply on the REAL 0x216-byte $A00 settings reply (a spurious
  * short-frame receipt must not trigger the boot apply). */
