@@ -5163,3 +5163,34 @@ CK3 parity.
   keystone; FUN_08024d76's +0x119 and the FUN_0802873c ee_read family
   = the same EE/RF driver layer (0x080284f2/0x080285b6/0x08028566/
   0x08028532/0x08028666).
+
+## Session 73 (cont.) — a2 the key-13 tail DONE (the ee_read(0x0010,16)); the ee_save chain decompiled; the session-69 "wrong transport" refuted
+
+- **a2-tail COMPLETE**: key13_tail104.h DELETED. The bench caught the
+  first attempt (the 0x0800 address = the regression to the prefix
+  191,713) and the per-table diff exposed the session-69 note "differs
+  from the RSSI tail in 0 of 104 positions" as FALSE — the two recorded
+  tails differ in 83 alphabet positions = exactly the different
+  transaction addresses. The key-13 tail decodes to
+  **ee_read(0x0010, 16)** (START,A0,00,10,RESTART,A1,15 ACK reads,1 NAK,
+  STOP) = the same decompiled FUN_0802873c function family, the
+  different block. The fix = one constant; the bench = the key-13 short
+  pair = **204,670/204,670 = 100.00%** restored with the generative
+  call. Build 121,655; test-host green.
+- **The ee_save chain decompiled (the pb9_replay's 6,077-event
+  replacement = the next slice)**: ee_save (0x0801a6ea, 25 callers = the
+  settings-change sites incl. the key handlers) = the tail-call to
+  0x0801a3c0 (the arg-swap wrapper) = **FUN_080286c0 =
+  ee_write(addr, count, buf)** decompiled verbatim: for each byte —
+  i2c_start, the do-while ack-poll (i2c_start + FUN_080285b6(0xA0) until
+  the DAT_080287dc ack flag), the hi/lo address, the data byte,
+  FUN_08028532 stop. **The session-69 "the settings save = the PB9
+  serial frame, NOT the I2C EEPROM" conclusion is REFUTED** — it IS the
+  I2C EEPROM write; the p2-era eeprom_write attempt failed because the
+  model lacked the ack-poll shape (the recorded key-13 frame = ~79
+  events/transaction with 3 starts (the outer + 2 poll iterations =
+  154 empty start+A0 groups / 77) vs the boot-era 53). The open
+  sub-question = the ack-latency model (why the polls appear in the
+  key-13 era and not the boot era — the device write-cycle behavior);
+  the implementation = the faithful decompiled loop + the calibrated
+  device-ack model, then key13_pb9_stream.h dies.

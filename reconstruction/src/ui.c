@@ -1088,7 +1088,6 @@ static void rssi_refresh(void)
  * slices after the key-13 press (the short and the long captures both end
  * silent) - the press kills the refresh task like the menu key. */
 #include "key13_pb9_stream.h"
-#include "key13_tail104.h"
 #include "key14_tune_frame.h"
 #include "key11_end_frame.h"
 
@@ -1193,26 +1192,19 @@ __attribute__((noinline)) static void key11_frame_send(void)
 }
 
 
-static void key13_tail104_replay(void)
+/* [0x0802873c | REA-C-VALIDATED session 73] the key-13 era's 104-event
+ * bus tail = the original's ee_read(0x0010, 16, buf) — the SAME decompiled
+ * read function as the RSSI refresh tail (FUN_0802873c) but the block
+ * address 0x0010 (the transaction decodes: START,A0,00,10,RESTART,A1,
+ * 15 ACK reads,1 NAK,STOP; the session-69 note "differs from the RSSI
+ * tail in 0 of 104 positions" was FALSE — the 83 alphabet deltas are
+ * exactly the different address bits 08 00 vs 00 10). The read data =
+ * slave-driven = invisible in the GPIOB stream. */
+static void key13_tail104_ee_read(void)
 {
-    uint32_t k;
+    uint8_t blk[16];
 
-    for (k = 0u; k < KEY13_TAIL104_LEN; k++) {
-        switch (key13_tail104[k]) {
-        case 0u:
-            GPIO_BRR(GPIOB_BASE) = 0x200u;
-            break;
-        case 1u:
-            GPIO_BSRR(GPIOB_BASE) = 0x200u;
-            break;
-        case 2u:
-            GPIO_CRH(GPIOB_BASE) = 0xBBB44444u;
-            break;
-        default:
-            GPIO_CRH(GPIOB_BASE) = 0xBBB44434u;
-            break;
-        }
-    }
+    eeprom_read(0x0010u, 0x10u, blk);
 }
 
 __attribute__((noinline)) static void key13_pb9_replay(void)
@@ -1244,7 +1236,7 @@ __attribute__((noinline)) static void key13_screen(void)
     cell6x10(18u, 139u, 'P');
     cell6x10(18u, 145u, 'R');
     cell6x10(18u, 151u, 'S');
-    key13_tail104_replay();   /* the key-13's own 104-tail (differs from the RSSI slice's) */
+    key13_tail104_ee_read();   /* [0x0802873c] the key-13 era ee_read(0x0010,16) */
     cell12x20(29u, 22u, '1');
     cell12x20(29u, 34u, '3');
     cell12x20(29u, 46u, '6');
