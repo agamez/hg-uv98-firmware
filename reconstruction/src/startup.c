@@ -1,12 +1,18 @@
 /* Startup code and vector table.
  *
- * SCAFFOLD: the original startup/reset code is stripped from the
- * distributed images (research log O1: reset handler 0x08044690 and the
- * fault-handler cluster 0x0804468x lie beyond the 190416 truncation; IRQ
- * trampolines, PendSV and SysTick entries are BEEF placeholders). The
- * vector-table STRUCTURE is confirmed (76 entries, initial SP 0x20006780,
- * PendSV/SysTick present), and the original handler addresses are kept in
- * comments for traceability.
+ * [session 75 | the placeholder label UPGRADED with the decompile cites]
+ * The reset handler itself (0x08044690) and the fault-handler cluster
+ * (0x0804468x) lie beyond the 190416 truncation (research log O1) — the
+ * literal reset entry is unrecoverable from this image. BUT the
+ * original's C runtime init IS in the image and decompiled (session
+ * 74): the bss-zero loop at 0x0801D966 + the .data copy — this file's
+ * Reset_Handler (the zero/copy/SystemInit/main sequence) = its mirror,
+ * and the boot chain it enters = the decompiled FUN_0802D120 -> the
+ * main task FUN_0802D178 (the session-75 task-table correction) -> the
+ * main() flow. IRQ trampolines, PendSV and SysTick entries are BEEF
+ * placeholders in the image; the vector-table STRUCTURE is confirmed
+ * (76 entries, initial SP 0x20006780, PendSV/SysTick present), and the
+ * original handler addresses are kept in comments for traceability.
  */
 #include "hwregs.h"
 #include "gd32f10x.h"      /* [VENDOR] SystemInit from the GigaDevice BSP */
@@ -112,7 +118,11 @@ static void (*const irq_trampolines[60])(void) = {
 __attribute__((section(".isr_vector"), used))
 void *const vector_table[] = {
     &_estack,                       /* [0]  initial MSP                    */
-    Reset_Handler,                  /* [1]  Reset (SCAFFOLD: distribution  */
+    Reset_Handler,                  /* [1] Reset — the mirror of the in-image
+                                     * C runtime init (the bss-zero loop
+                                     * 0x0801D966 + the .data copy, s74);
+                                     * the literal reset entry 0x08044690
+                                     * lies past the truncation */
                                     /*      has 2x NOP.W here)             */
     Default_Handler,                /* [2]  NMI         orig 0x08044684    */
     Default_Handler,                /* [3]  HardFault   orig 0x08044686    */

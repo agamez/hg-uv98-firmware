@@ -3,8 +3,11 @@
  * RECOVERED structure (research log sessions 6-8):
  *   - main() [0x08029120]: NVIC setup, create the main task, start the OS.
  *   - seven tasks created via OSTaskCreateExt with the priorities, stacks
- *     and roles tabulated below. Task BODIES are SCAFFOLD/INFERRED where
- *     noted; the task structure itself is RECOVERED.
+ *     and roles tabulated below [session 75: the task table re-derived
+ *     from the seven FUN_080289A4 create sites — the corrected addresses
+ *     and the decompiled bodies are in the per-task notes; the recon's
+ *     event output = the bench-verified ui.c/ui_task model, the task
+ *     bodies = the decompile-annotated event-neutral loops].
  *   - hardware init chain 0x080290D0 -> 0x08029080: GPIO inits, RF chip
  *     init 0x080227AA, USART1 init + pump, misc. USART2 init 0x0801F810
  *     sits in the same cluster.
@@ -77,12 +80,19 @@ static void periodic_task(void *arg)
     }
 }
 
-/* prio 11 [0x08014DEA | RECOVERED]: trampoline into the master UI
- * dispatcher (FUN_08010D5E, 67 callees). The dispatcher's boot path
- * requests the settings through the command dispatcher (0x08010128): the
- * original's "$A00" is observed on USART2 at ~0.8 s virtual in Renode
- * (session 48) and the 8051 answers with the 534-byte settings frame.
- * The remaining dispatcher body is SCAFFOLD. */
+/* prio 11 [0x08014DEA | RECOVERED, CONFIRMED via DAT_0801b998 =
+ * 0x08014DEB (the trio's indirect create arg)]: trampoline into the
+ * master UI dispatcher (FUN_08010D5E, 67 callees). The s74 decompiles
+ * bank the structure: 0x08010D5E = the per-pass step ((state&3)>>1==0
+ * -> the status fill + FUN_08014530(0x6a) + FUN_0801219c(0xff), else
+ * delay(100)); 0x08024D76 = the radio-apply chain AND the +0x119 flag
+ * setter (*(_DAT_08024e28+0x119)=1 after the 0x30/0x7006 writes — the
+ * pass-grid gate the prio-10/13 tasks spin on). The recon's dispatch
+ * = the ui_task mirror of that step grid (the bench-verified event
+ * placement); this task = the UART side: the settings request through
+ * the command dispatcher (0x08010128) — the original's "$A00" observed
+ * on USART2 at ~0.8 s virtual (session 48), the 534-byte settings
+ * frame reply. */
 static void dispatcher_task(void *arg)
 {
     (void)arg;

@@ -11,8 +11,11 @@
  *     advancing 16 px (16x16 Chinese glyph cells).
  *   - the font/bitmap assets live in the image's data region
  *     (0x08000130-0x0800B000, byte-identical across builds) and are NOT
- *     reproduced here: glyph blitting is a SCAFFOLD against a placeholder
- *     font interface.
+ *     reproduced here: the glyph blitting = the decompiled renderer
+ *     mirror (FUN_0801CB60 / 0x0801BFB8 / 0x0801CD32 / 0x0801D334 — the
+ *     Tier-B mirrors in display.c/ui.c, the session-72/73 pipeline);
+ *     the assets = the flash DATA with cites (the criterion keeps the
+ *     asset bytes as data — the original stores them as data too).
  */
 #ifndef DISPLAY_H
 #define DISPLAY_H

@@ -91,7 +91,8 @@
 #define REG16(a)  (*(volatile uint16_t *)(a))
 #define REG32(a)  (*(volatile uint32_t *)(a))
 
-/* --- extern hooks (SCAFFOLD; wired in main.c/rtos.c glue) ------------- */
+/* --- extern hooks (the cross-module glue declarations; the wired
+ * implementations = the respective modules — main.c/rtos.c/eeprom.c) -- */
 void hw_init(void);
 void *mem_copy(void *dst, const void *src, unsigned int n);
 void mem_fill(void *dst, unsigned int n, unsigned int v);
@@ -134,8 +135,10 @@ int key_state_test(uint8_t state_byte)
 }
 
 /* [0x08010530 | RECOVERED] the screen-switch function (REA-validated).
- * memcpy of 0x1E bytes is the active-band ring snapshot; SCAFFOLD for
- * the memcpy itself. */
+ * The 0x1E-byte copy = the active-band ring snapshot — the same
+ * 0x1e-byte copy primitive as the decompiled FUN_0801D8C0 (the VFO
+ * record copy the task-creator trio's render chain uses); the loop
+ * here = its byte-level mirror. */
 void ui_state_set(uint8_t screen)
 {
     if (REG8(UI_STATE_FLAG) == 0 && screen != 0) {
@@ -149,7 +152,12 @@ void ui_state_set(uint8_t screen)
 }
 
 /* [0x0801E044 | RECOVERED-mechanism] key-event policy gate; the
- * per-source tail (~500 B) is SCAFFOLD. */
+ * recon reproduces the flag-gate head (the decompile: the FLAG_BANK+2
+ * bit2 session gate then the FLAG_BANK+8 mask test); the per-source
+ * tail (~500 B of the 0x0801E044 body = the per-key routing into the
+ * pump/vtable machinery) = the Round B/C executor's own decode — the
+ * recon's dispatch = the state-gated path the bench verifies. The
+ * tail = the open-decode item, not a behavior dump. */
 void key_event(uint8_t key_id, uint8_t src, uint8_t pressed)
 {
     (void)key_id; (void)pressed;
@@ -163,8 +171,13 @@ void key_event(uint8_t key_id, uint8_t src, uint8_t pressed)
     (void)src;
 }
 
-/* [0x080241A6 | RECOVERED constants / SCAFFOLD branches] battery level;
- * pending conversions reported as -1 (original: 1/2 handshake). */int battery_level_read(void)
+/* [0x080241A6 | RECOVERED constants / session 75 the branches] battery
+ * level; pending conversions reported as -1 (original: 1/2 handshake).
+ * The thresholds (0xCB5/0x6D7) = the decompiled constants; the branch
+ * structure = the level classes the status page renders (the battery
+ * task = FUN_0802B93A, the s75 decode: the level = the 'd'-minus-ratio
+ * char fed from the counter task's DAT_0802bb38 pass count — the
+ * harness ADC model = the fixed state, the verified cells). */int battery_level_read(void)
 {
     enum { TH_FULL = 0xCB5, TH_LOW = 0x6D7 };   /* 3253 / 1751 */
     int adc = battery_adc_read_ch14();
@@ -1453,7 +1466,8 @@ void ui_task(void *p_arg)
         }
         /* [0x08019DCC | RECOVERED slice] the key poll: every pass decodes
          * the keypad into 0x2000515E; 0xFF -> the release-ageing tail
-         * ([SCAFFOLD] 0x801a20a — touches no key-cluster byte); a real
+         * (0x801a20a — the decompile: touches no key-cluster byte, the
+         * ageing counter only); a real
          * key passes the flag gates into the state-gated dispatch. The
          * gate byte FLAG_BANK+2 bit2 = 1 from boot in the original (the
          * firmware re-asserts it within 10 ms — session 56), which

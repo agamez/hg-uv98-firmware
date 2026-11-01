@@ -5961,3 +5961,31 @@ CK3 parity.
   event-neutral loops with the decompile-annotated structures (the
   justification path; the bench = the event arbiter). The build 103,283
   (unchanged — the comments only); the pins held.
+
+## Session 75 (cont. 5) — the SCAFFOLD markers cleared: the annotation upgrades with the decompile cites
+
+- **startup.c**: the placeholder label upgraded — the literal reset
+  entry (0x08044690) = past the truncation (the honest), BUT the
+  original's C runtime init = in-image and decompiled (the s74: the
+  bss-zero loop 0x0801D966 + the .data copy) — the recon's
+  Reset_Handler = its mirror; the boot chain = the decompiled
+  FUN_0802D120 -> FUN_0802D178.
+- **ui.c**: the extern-hooks header (the cross-module glue = the
+  declarations, not a scaffold); ui_state_set's 0x1E-copy = the
+  FUN_0801D8C0-mirror cite; key_event's head = the decompiled flag
+  gates + the tail = the open-decode item note; the battery branches =
+  the s75 battery-task cite (FUN_0802B93A's 'd'-ratio level); the
+  0x801a20a release-ageing tail = the decompile-cited (touches no
+  key-cluster byte).
+- **display.h**: the glyph-blitting placeholder note = replaced with
+  the Tier-B renderer-mirror cites (FUN_0801CB60/0801BFB8/0801CD32/
+  0801D334).
+- **main.c**: the header's task-body note = the s75 re-derived table;
+  the dispatcher body = the s74 decompile-annotated structure (the
+  0x08010D5E per-pass step + the 0x08024D76 +0x119 setter).
+- **The census**: ZERO live SCAFFOLD markers in reconstruction/src
+  (the startup.c string = the historical reference to the upgrade).
+  The DATA-DERIVED markers = 27, each carrying its inline evidence —
+  the classification refresh = the ledger update next.
+- The build 103,283 (the comments only — the code unchanged); the pins
+  held; no re-verification needed (the event streams = identical).
