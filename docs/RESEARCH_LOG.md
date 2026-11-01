@@ -5773,3 +5773,15 @@ CK3 parity.
   restored build. The vendor replay = the justified recorded dump (the
   shape mismatch = bench-measured); the serial-transport model slice =
   the parked full-elimination path.
+
+## Session 74 (cont. 19) — the PB9-writer watchpoint attempt: the MMIO watchpoints unsupported
+
+- **The attempt** (sim/pb9writer-watch.resc): the cpu AddWatchpoint on
+  the GPIOB BRR (0x4001080C) / BSRR (0x40010810) with the PC logging —
+  Renode REJECTED the peripheral-address watchpoint (the command error;
+  the hardware debug watchpoints = the RAM range only in this Renode
+  build). The writer PC = not capturable this way.
+- **The standing state**: the vendor replay = the measured justification
+  (the shape-mismatch bench proof); the pb9 save = the same I2C-poll
+  class; the writer hunt = the manual 17-site disassembly (the parked
+  slice). The watchpoint path = closed with the evidence.

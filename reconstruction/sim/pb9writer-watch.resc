@@ -1,0 +1,23 @@
+# pb9writer-watch.resc — session 74 cont.18: the PB9 serial writer hunt.
+# Memory write-watchpoints on the GPIOB BRR (0x4001080C) and BSRR
+# (0x40010810) — every PB9 bit write logs its PC. The key-13-short
+# scenario (the save era = the 6,077-event PB9 burst + the vendor).
+using sysbus
+mach create "pb9writer"
+machine LoadPlatformDescription @/home/sslayer/Proyectos/HG-UV98/reconstruction/sim/gd32f103.repl
+sysbus WriteDoubleWord 0x00000000 0x20006780
+sysbus WriteDoubleWord 0x00000004 0x08044691
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x00000008
+sysbus LoadBinary @/home/sslayer/Proyectos/HG-UV98/firmware/MAIN-MCU-HG-UV98-V1.0.1-190416.bin 0x08004000
+cpu AddWatchpoint 0x4001080C 0x4 Write "self.Log(LogLevel.Info, 'PB9W BRR pc=0x' + hex(self.PC.RawValue))"
+cpu AddWatchpoint 0x40010810 0x4 Write "self.Log(LogLevel.Info, 'PB9W BSRR pc=0x' + hex(self.PC.RawValue))"
+emulation RunFor "00:00:00.010"
+sysbus WriteDoubleWord 0xE000E018 0x00000000
+emulation RunFor "00:00:02.000"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 3153
+echo "PB9W MARK press"
+emulation RunFor "00:00:01.000"
+sysbus Tag <0x4001284C 0x4> "ADC2_DR" 0
+echo "PB9W MARK release"
+emulation RunFor "00:00:00.500"
+quit
