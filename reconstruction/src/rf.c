@@ -626,7 +626,10 @@ static void poll_second_bus_word(uint16_t v)
  *   UHF slot: freq29 = 0x0061AFD0 (400.125 MHz), 0x49 = 0x0203, band 1
  *   VHF slot: freq29 = 0x00213BD0 (136.077 MHz), 0x49 = 0x4283, band 0 */
 
-/* [s72 | INFERRED from the differential + REA] the boot-end both-slot
+/* [s72 | the boot-end both-slot refresh gate: INFERRED from the
+ * differential + REA, BENCH-VERIFIED since — the ck4 = the md5
+ * identity with this gate on, p3k6 = 303,907/303,907, the ck3 = 292/
+ * 292 with the warm-gated apply] the boot-end both-slot
  * refresh gate. Evidence chain: (1) the fresh-EE no-peer boot DOES refresh
  * (the ck4orig6s vs 3-s streams: the orig's whole boot burst incl. the
  * 1,996-event refresh completes by ~3 s of virtual time; the p3k6 census:

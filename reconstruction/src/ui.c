@@ -1236,19 +1236,22 @@ static void rssi_refresh(void)
  * 996/997 + a 996-bit burst + the flips at 1994/1995, UNIFORM across the
  * sweep; the two 11-bit PLL counter fields at 922..932 and 1920..1930
  * both = ui_freq - 135168 [INFERRED calibration: 962 @ 136.130 MHz, the
- * slope 1 per kHz, linear across the 25 known-frequency frames], the
- * MSB-first. The RSSI idle refresh is replaced by the scan while the
+ * slope 1 per kHz, linear across the 25 known-frequency frames — the
+ * s73 REA re-derivation = at1846s_rssi_poll_f(VHF, ui_freq*16), the
+ * key-14 prefix bench = 100% of the orig; the Rosetta field confirmed],
+ * the MSB-first. The RSSI idle refresh is replaced by the scan while the
  * scan is on. */
 
 static uint8_t ui_scan;              /* the scan mode: 1 = the key-14 (the frame per slice), 2 = the key-11/12 UP sweep [REA-C: the shared enqueue case] */
 static uint16_t ui_scan_pass;        /* the passes since the scan start (the tick pacing) */
 static uint8_t ui_scan_end;          /* the key-11/12 release phases: 0 = the held, 1..2 = the deceleration slices, 3 = the end frame */
 
-/* [session 69 | INFERRED calibration] the orig's PB9 bit-bang pacing: the
- * tune slice = 0.0875 s wall measured (25.85 slices in the 2.0-s
- * post-release window; the display part is fast), so the frame's 1,996
- * events carry ~3,000 cycles each (the delay loop = 1,000 x 3 cycles).
- * The calibration budget = 2 runs per the working method. */
+/* [session 69 | the pacing calibration, BENCH-SUPERSEDED] the orig's
+ * PB9 bit-bang pacing note: the tune slice = 0.0875 s wall measured
+ * (25.85 slices in the 2.0-s post-release window). [session 73 | the
+ * REPLACEMENT = the rf.c poll machinery's timing — the at1846s_rssi_poll_f
+ * calls; the bench-verified key-14 prefix = 362,176 = 100% of the orig
+ * — the delay-loop model is retired.] */
 /* [session 73 | REA-derived] the key-14 tune frame = TWO 996-bit
  * at1846s_rssi_poll_f(VHF, ui_freq*16) bursts (the template decode:
  * w00-w25 = the poll's block_b + the tone pair exactly; the 0x29/0x2A =

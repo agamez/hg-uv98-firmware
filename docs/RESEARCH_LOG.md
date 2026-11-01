@@ -5989,3 +5989,26 @@ CK3 parity.
   the classification refresh = the ledger update next.
 - The build 103,283 (the comments only — the code unchanged); the pins
   held; no re-verification needed (the event streams = identical).
+
+## Session 75 (cont. 6) — the c2 drain-gate identity upgraded; the Tier-C phase closes
+
+- **rf.c rf_boot_refresh_pending**: the [INFERRED] gate = upgraded to
+  INFERRED+BENCH-VERIFIED (the ck4 = the md5 identity with the gate on,
+  p3k6 = 303,907/303,907, the ck3 = 292/292 with the warm-gated apply).
+  The $A00-cancel leg = the both-explanations note stands (the honest).
+- **ui.c key-14 field calibration**: the [INFERRED calibration] =
+  annotated with the s73 REA re-derivation (at1846s_rssi_poll_f(VHF,
+  ui_freq*16), the key-14 prefix bench = 100% of the orig, the Rosetta
+  field confirmed); the old delay-loop pacing note = BENCH-SUPERSEDED
+  (the rf.c poll machinery's timing = the replacement).
+- **The phase-C gate state**: c1 = the task table + the decompiled
+  bodies (the timer wheel, the battery, the counter, the maintenance
+  cycles, the RSSI loop) = DONE; c2 = the dispatcher step + the +0x119
+  gate = the s74 decompiles banked + the drain-gate upgraded = DONE;
+  c3 = the glyph-blit transport = the Tier-B bfb8/CD32/D334 mirror
+  family = DONE. ZERO live SCAFFOLD markers; the remaining INFERRED =
+  6, each with the inline justification (the 108 MHz = the documented
+  assert; the RF field layout = the honest open; the $A00-cancel leg =
+  the both-explanations note).
+- The build 103,283 (the comments only); the pins held; the event
+  streams = unchanged (no re-verification needed).
