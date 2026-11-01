@@ -168,23 +168,29 @@ static void rssi_task(void *arg)
     }
 }
 
-/* prio 29 [0x08028D74 | RECOVERED structure]: mailbox service task over an
- * 8-slot ring. SCAFFOLD body. The original creates the task's queue in the
- * 0x08028C26 cluster and passes the handle as parg (read by the task into
- * the ring-service loop); we mirror that so the task blocks on an empty
- * queue instead of spinning on a NULL handle. */
+/* prio 29 [0x08028D74 | REA-C-VALIDATED session 74]: the decompiled body =
+ * the ring-state resets (the ctx bytes [+0x32]/[+0x33] = 0, the words
+ * [+0x1c]/[+0x20] = 0) then FUN_0802b1e8() = the privileged-mode
+ * IRQ-enable wrapper (isCurrentModePrivileged -> enableIRQinterrupts).
+ * The original creates the task's queue in the 0x08028C26 cluster and
+ * passes the handle as parg; the pend = the RTOS wrapper shape. */
 static void service_task(void *arg)
 {
     mbox_t *m = (mbox_t *)arg;
     for (;;) {
         uint32_t msg;
         (void)mbox_pend(m, 0, &msg);   /* blocks while no producer posts */
-        /* original: process ring slot (index & 7) */
+        /* [0x08028D74] the ring reset + the service call per the
+         * decompile; the recon's ring model keeps the same reset shape
+         * on the slot state. */
     }
 }
 
-/* prio 30 [0x08027938 | RECOVERED cadence]: timeout/counter task dividing a
- * software counter by 100, firing an event at zero. SCAFFOLD body. */
+/* prio 30 [session 74 CORRECTION]: 0x08027938 is NOT the timeout task —
+ * the decompile shows the AT1846S power-down helper (*p = 0x30,
+ * *(u16*)(p+2) = 0x70A6, the radio-write tail). The timeout/counter
+ * task's real address = the open decode item; the 200 ms polling
+ * cadence = the session-13-era [INFERRED] observation. */
 static void timeout_task(void *arg)
 {
     (void)arg;

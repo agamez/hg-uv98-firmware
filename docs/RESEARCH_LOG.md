@@ -5468,3 +5468,48 @@ CK3 parity.
   dump), the LED/ee359 warm replays, the mailbox/timer/critical-section
   scaffold bodies (the decompiles = banked above), the p3k6 + the full
   battery at the phase end.
+
+## Session 74 (cont. 4) — the vendor replay = the head-serial framing slice (the a2-pb9 sibling); parked with the structure evidence
+
+- **The discovery**: display.c display_vendor_replay = the 2,507-event
+  recorded dump (.incbin data/vendor_stream.bin) = the SAME PB9
+  head-serial frame class as the parked a2 key-13 save (the 6,077-event
+  burst). One decode = both items.
+- **The structure evidence**: the histogram = 1,658 BRR (the SDA low) +
+  843 BSRR (the SDA high) + 5 CRH switches + 1 CRL write; the 2,501
+  PB9 bits in 970 runs (the lengths 1..12 + the outliers 15/17/19); the
+  head = 1,0,0,1,1,0,0,0... The 5 CRH switches = the SDA
+  direction-change class (the ee_write do-while ack-poll's shape — the
+  decompiled FUN_080286c0 chain); the ack-poll route = KNOWN DEAD END in
+  the recon (the model's ack = the SDA high = the NACK = the infinite
+  poll — the cont. 2 finding). The framing decode = the open slice: the
+  next attempt must come from the fresh decompile of the original's
+  PB9-serial writer (the hw_init-era vendor region + the head-serial
+  '$'-frame family), NOT another replay guess.
+- **The tier-C decompiles are banked** (cont. 3): 0x0801E6F4 = the
+  label-row builder, 0x08024d76 = the +0x119 setter, 0x08010D5E = the
+  dispatcher step, 0x08028D74 = the mailbox ring reset. The scaffold
+  bodies (the mailbox service, the software-timer, the critical
+  section) = the next implementation targets from these.
+
+## Session 74 (cont. 5) — p3k6 = 100.00% on the sweep build; the Tier-C corrections land; the main menu renderer decompiled
+
+- **THE p3k6 REGRESSION = GREEN**: 303,907/303,907 = 100.00% (the
+  p3k6final pair, p3-key6-orig-poll.resc vs p3-key6-recon.resc), every
+  marker identical (PRE 189,037 / P1 238,685 / P3 238,685 / REL
+  303,908; scr 00/35/35/00 both sides). The session's whole conversion
+  set (the a3 polls, the screen0, the key13/key14/RSSI rows, the
+  display.c cleanup) holds the long boot+press+release channel
+  event-identical.
+- **The Tier-C decompiles (fresh)**: 0x0802b1e8 = the privileged-mode
+  IRQ-enable wrapper; 0x08027938 = the AT1846S POWER-DOWN helper (the
+  0x30 = 0x70A6 write) — the main.c timeout-task annotation CORRECTED
+  (the old "0x08027938 = the timeout task" = wrong); 0x08014530 = the
+  VFO-row rebuild trigger (the 0x1E record copy + the redraw flag
+  [0x08014f34+2] = 1, the f05c machinery's request side); 0x0801219c =
+  THE MAIN MENU RENDERER (the 5-row menu at x=6, the y=0x16..0x56; the
+  menu-page state machine [+0x12a] with the states 0-4; the ROM
+  menu-item tables DAT_08012ef4..0x80132xx; the FUN_0801d334 blits of
+  the menu backgrounds 0x22 x 0x9E = 10,744 bytes; the selection-state
+  string swaps) — the menu screen's generative builder = DECOMPILED.
+  0x08027918 = not returned (the folded output — the retry item).
