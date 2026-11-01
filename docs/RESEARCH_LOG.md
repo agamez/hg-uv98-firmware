@@ -6070,3 +6070,18 @@ CK3 parity.
   [BENCH-VALIDATED + the reason] = protocol.c; the honest-open notes =
   startup.c (the past-truncation reset), rf.c (the RF field layout).
   The build 103,283; the pins held.
+
+## Session 75 (cont. 10) — phase E opens: the battery on the final build
+
+- The final build = 103,283 text (the pins 0x08004f80/0x0800502c).
+- **CK2 warm matrix = 490/490 observables identical** (the r75ck2w pair,
+  the warm EE state).
+- **CK2 fresh matrix = 490/490 observables identical** (the r75ck2f
+  pair, the wiped EE) — IMPROVED over the banked 488/489: the s72 F5
+  residual (the orig's rxBuf3[15] = 0xC0 boot-era scratch) = GONE on
+  the final build (the vendor-window replacement's port-config
+  alignment).
+- The already-green on this build: CK4 = 189,036/189,036 = 100.00%
+  (r75ck4b), p3k6 = 303,907/303,907 (r75k6), the key-13 short =
+  204,670/204,670 (r75k13c), CK3 = 292/292 (r75ck3, the warm state).
+- The remaining = the CK2 handshake + the 12 key pairs (1-12, 14).
