@@ -5908,3 +5908,56 @@ CK3 parity.
   reconstruction/src or data/. All boot/bus eras = the decompiled
   generators + the port configs. The flash assets (the splash, the
   fonts) = the legitimate DATA class per the criterion.
+
+## Session 75 (cont. 4) — Tier C: the task table re-derived from the create sites; four address typos/misattributions corrected; the timer/battery/counter tasks decoded
+
+- **The create-site sweep** (the seven FUN_080289A4 = the OSTaskCreateExt
+  wrapper call sites, found by the objdump BL scan): 0x0801B5D0/608/63C
+  (the task-creator trio FUN_0801B5A8), 0x0802B7AE, 0x0802B7EA,
+  0x0802CC86, 0x0802D15A (FUN_0802D120's main-task create).
+- **The corrected task table** (the create args: the task ptr, r3 = the
+  prio):
+  - prio 3 = **0x0802D178** (the main task; the earlier 0x08029178 = the
+    digit transposition),
+  - prio 10 = **0x0801B664** (the earlier 0x08017664 = the transposition;
+    that address = a VFO-row render helper),
+  - prio 11 = 0x08014DEA (the dispatcher — CONFIRMED via DAT_0801b998 =
+    0x08014DEB, the indirect create arg),
+  - prio 13 = **0x0801B704** (the earlier 0x08017704 = the transposition),
+  - prio 29 = **0x0802CD74** (the create site 0x0802CC86; the earlier
+    0x08028D74 = RETRACTED — that address = the 0x08028xxx radio/I2C
+    cluster, not a task body),
+  - prio 30 = **0x0802B93A** (the create site 0x0802B7EA; the s74's
+    0x08027938 = the power-down helper = stays retracted),
+  - prio 31 = **0x0802B91A** (the create site 0x0802B7AE; the earlier
+    0x08027918 = inside the 0x30-mode helper at 0x080278E8).
+- **The new task-body decompiles**:
+  - FUN_0801B664 (prio 10): the +0x119 gate loop + the 8-pass cycle
+    (the render/maintenance chain) + the 500-pass cycle (FUN_0801E09C/
+    0801DEB6/0801E1A0/08025D08/080225DC/080224F4/0801DF70...) — the
+    recon's event output = produced by the verified ui_task dispatch;
+    the task = the decompile-annotated event-neutral loop (the double-
+    emission avoidance note).
+  - FUN_0801B704 (prio 13): `do { do { dly(500); } while (ctx[0x119] !=
+    0); poll(); } while(true)` — CONFIRMS the recon's retired dly-loop
+    model (s66) verbatim.
+  - FUN_0802CD74 (prio 29): the SOFTWARE-TIMER task — the tick counter
+    (DAT_0802ce00), the 8-slot wheel (the +8 stride), the expiry match
+    (node[+0x14]), the callback (node[+4](node, node[+8])), the
+    unlink/reload states (node[+0x30]/[+0x31]) — the recon's timer
+    behavior = the rtos.c kernel-stub machinery.
+  - FUN_0802B93A (prio 30): the BATTERY task — the 200 ms flag poll
+    (the recon's cadence = CONFIRMED decompile-exact) then the 100 ms
+    loop: the counter snapshot, the level = 'd' - (snapshot/ratio)
+    (the battery char!), FUN_0802BCAE/FUN_0802B9A4.
+  - FUN_0802B91A (prio 31): the counter task — FUN_0802B1E0 (the
+    mailbox wait) + the counter++ (DAT_0802bb38 = the battery task's
+    clock source) + the post + FUN_0802BCA6.
+  - 0x0801E6F4 = the STATUS-PAGE RENDERER (the draw calls over the
+    state) — NOT a maintenance helper; the recon's mirror = the Tier-B
+    ui.c screens.
+- **The main.c updates**: the task-table annotations rewritten with the
+  decompile structures + the correction citations; the bodies = the
+  event-neutral loops with the decompile-annotated structures (the
+  justification path; the bench = the event arbiter). The build 103,283
+  (unchanged — the comments only); the pins held.

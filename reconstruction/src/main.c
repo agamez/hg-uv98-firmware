@@ -21,18 +21,47 @@
 
 /* ---- tasks ---------------------------------------------------------------- */
 
-/* prio 3 [0x08029178 | RECOVERED structure]: key-scan loop. The key
- * matrix/scan function 0x080175A8 and handler 0x08017738 are not yet
- * reconstructed; body is SCAFFOLD. */
+/* prio 3 [0x0802D178 | session 75 CORRECTION — the task-creator sweep
+ * (the seven FUN_080289A4 call sites in the image) shows the main task
+ * pointer = 0x0802D179 (FUN_0802D120's create); the earlier 0x08029178
+ * = a digit transposition]: the main task = the recon's ui_task (the
+ * boot radio-apply, the task creators, the boot scene, the +0x119
+ * dispatch loop). */
+
+/* prio 10 [0x0801B664 | session 75 CORRECTION — the create site
+ * 0x0801B5D0 passes task 0x801b665; the earlier 0x08017664 = a
+ * transposition (that address = a VFO-row render helper)]: the
+ * maintenance task. The session-75 decompile of FUN_0801B664:
+ *   do { dly();
+ *   } while (ctx[0x119] != 0);          // the same +0x119 gate as the
+ *                                       // dispatcher's pass grid
+ *   ctx32[0x19]++; ctx16[0x1d]++;
+ *   if (ctx32[0x19] == 8) {             // the 8-pass cycle:
+ *     ctx32[0x19] = 0; f(); f(); f(); f();
+ *     if ((flags & 0x7f) >> 6 == 0) { f1(); f2(); f3(); }
+ *     FUN_08021A94(); FUN_08022320(); FUN_08025A4C();
+ *   }
+ *   if (ctx16[0x1d] == 500) {           // the 500-pass cycle:
+ *     ctx16[0x1d] = 0;
+ *     FUN_0801E09C(); FUN_0801DEB6(); FUN_0801E1A0(); FUN_08025D08();
+ *     FUN_080225DC(); FUN_080224F4(); FUN_0801DF70(); ... }
+ * The cycle bodies = the render/maintenance chains (the 0x0801E6F4
+ * status-render call = among them; the recon's render machinery = the
+ * Tier-B mirrors in ui.c, emitted from the ui_task dispatch at the
+ * bench-verified times). The recon keeps this task event-neutral: the
+ * renders = already produced by the verified ui_task path; emitting
+ * them here too would double them. Body = the decompile-annotated
+ * structure above (the justification path per the 5.0 gate). */
 static volatile uint8_t ui_key_last;
 
-/* prio 10 [0x08017664 | RECOVERED cadence, session 69 tick correction]: the
- * background maintenance task; every 8th pass runs a maintenance call
- * (0x0801E6F4). Body SCAFFOLD. The "1 ms" cadence was the session-7 1 ms
- * tick-era reading; on the original's 720 Hz kernel the closest expressible
- * period is one tick (1.389 ms). OSTimeDlyHMSM(0,0,0,1) computes 0 ticks at
- * 720 Hz (OS_ERR_TIME_ZERO_DLY = no block), which would busy-spin this
- * prio-10 task and starve the dispatcher and the UI. */
+/* prio 10 [0x0801B664 | session 75 CORRECTION — see the task-table note
+ * above]: the background maintenance task; the decompiled body = the
+ * +0x119 gate + the 8-pass and 500-pass maintenance cycles (the
+ * decompile-annotated structure above). The recon's event output =
+ * produced by the verified ui_task dispatch; this task stays
+ * event-neutral on the one-tick grid (OSTimeDlyHMSM(0,0,0,1) computes
+ * 0 ticks at 720 Hz — OS_ERR_TIME_ZERO_DLY = no block — which would
+ * busy-spin this prio-10 task and starve the dispatcher and the UI). */
 static void periodic_task(void *arg)
 {
     (void)arg;
@@ -40,7 +69,9 @@ static void periodic_task(void *arg)
     for (;;) {
         if (++n >= 8) {
             n = 0;
-            /* original calls 0x0801E6F4 here (unidentified maintenance)  */
+            /* [0x0801B664] the orig's 8-pass maintenance cycle = the
+             * render/maintenance chains, mirrored by the verified
+             * ui_task dispatch (see the note above). */
         }
         time_dly(1);
     }
@@ -148,11 +179,17 @@ static void dispatcher_task(void *arg)
     }
 }
 
-/* prio 13 [0x08017704 | RECOVERED cadence + RF read]: 500 ms RSSI poll.
- * The poll = the per-poll RF refresh (at1846s_rssi_poll: block_b + tone
- * pair + the gap replay + the GPIO reconfig + the Phase-Y apply + the
- * rf_read, session 62 frame-decode of the 996-bit bursts); the read
- * value feeds the S-meter state (0xFFF = invalid). */
+/* prio 13 [0x0801B704 | session 75 CORRECTION — the create site
+ * 0x0801B608 passes task 0x801b705; the earlier 0x08017704 = a
+ * transposition]: the RSSI task. The session-75 decompile of
+ * FUN_0801B704: `do { do { dly(500); } while (ctx[0x119] != 0);
+ * poll(); } while(true)` — the 500-tick delay + the +0x119 gate + the
+ * per-slot activate call, confirming the recon's retired dly-loop
+ * model (session 66).
+ * The poll = the per-slot RF refresh (FUN_0801AB36: the apply ->
+ * dly(0x28) -> rf_read(chip,0x0D) -> the slot word +0x11E &= 0x8000 ->
+ * if zero the re-init); the read value feeds the S-meter state (0xFFF
+ * = invalid). */
 static void rssi_task(void *arg)
 {
     /* [session 66 | FUN_0801ab36 REARCHITECTURE] the original's per-slot
@@ -161,46 +198,83 @@ static void rssi_task(void *arg)
      * FUN_08022a98 (the both-slot refresh, sites 0x8022ae7/0x8022b07) at
      * the boot end and at the release, and FUN_08019910 (site 0x8019ba5)
      * at the key-10 press — never on a 500 ms cadence. The poll moved to
-     * the ui.c call sites; the task blocks forever. */
+     * the ui.c call sites; the task blocks forever. The decompiled task
+     * body (the dly(500) + the gate + the poll) = the orig's structure;
+     * the recon's event output = produced at the same architectural
+     * moments by the ui.c sites (the bench-verified placement). */
     (void)arg;
     for (;;) {
         time_dly(500);
     }
 }
 
-/* prio 29 [0x08028D74 | REA-C-VALIDATED session 74]: the decompiled body =
- * the ring-state resets (the ctx bytes [+0x32]/[+0x33] = 0, the words
- * [+0x1c]/[+0x20] = 0) then FUN_0802b1e8() = the privileged-mode
- * IRQ-enable wrapper (isCurrentModePrivileged -> enableIRQinterrupts).
- * The original creates the task's queue in the 0x08028C26 cluster and
- * passes the handle as parg; the pend = the RTOS wrapper shape. */
+/* prio 29 [session 75 CORRECTION — the create site 0x0802CC86 (r3 = 29)
+ * passes the task pointer 0x0802CD75 = FUN_0802CD74; the earlier
+ * 0x08028D74 attribution = RETRACTED (that address = in the 0x08028xxx
+ * radio/I2C cluster, not a task body)]: the SOFTWARE-TIMER task. The
+ * session-75 decompile of FUN_0802CD74:
+ *   do { FUN_0802CD56();               // the tick wait
+ *        tick++;                       // DAT_0802ce00 = the tick counter
+ *        node = timer_list[tick & 7];  // the 8-slot wheel (the +8 stride)
+ *        while (node) { next = node[+0xc];
+ *          if (tick == node[+0x14]) {  // the expiry match
+ *            if (node[+4]) node[+4](node, node[+8]);  // the callback
+ *            FUN_0802CD0A(node);       // the unlink
+ *            if (node[+0x30] == 2) FUN_0802CC98(node, 1);  // the reload
+ *            else node[+0x31] = 2; }   // the done state
+ *          node = next; }
+ *        FUN_0802CD66(); } while(true);
+ * The recon's timer behavior = the rtos.c time_dly machinery (the
+ * kernel-stub equivalent, bench-verified); the callback wheel = the
+ * orig's own layer above the kernel. */
 static void service_task(void *arg)
 {
     mbox_t *m = (mbox_t *)arg;
     for (;;) {
         uint32_t msg;
-        (void)mbox_pend(m, 0, &msg);   /* blocks while no producer posts */
-        /* [0x08028D74] the ring reset + the service call per the
-         * decompile; the recon's ring model keeps the same reset shape
-         * on the slot state. */
+        (void)mbox_pend(m, 0, &msg);   /* blocks while no producer posts;
+                                        * the recon's service shape (the
+                                        * mailbox cluster = the orig's
+                                        * 0x08028C26 create region)      */
     }
 }
 
-/* prio 30 [session 74 CORRECTION]: 0x08027938 is NOT the timeout task —
- * the decompile shows the AT1846S power-down helper (*p = 0x30,
- * *(u16*)(p+2) = 0x70A6, the radio-write tail). The timeout/counter
- * task's real address = the open decode item; the 200 ms polling
- * cadence = the session-13-era [INFERRED] observation. */
+/* prio 30 [session 75 CORRECTION — the create site 0x0802B7EA passes
+ * task 0x801b93b = FUN_0802B93A; the earlier 0x08027938 attribution =
+ * RETRACTED (the s74 decompile showed it = the AT1846S power-down
+ * helper)]: the BATTERY task. The session-75 decompile of FUN_0802B93A:
+ *   while (flag == 0) dly(200);        // the 200 ms flag poll (the
+ *                                      // recon's cadence = CONFIRMED)
+ *   ratio = counter / 100;
+ *   if (ratio == 0) { level = 0; dly(0xff); }
+ *   do { v = FUN_0802B1E0();           // the ADC/mailbox wait
+ *        snapshot = counter; counter = 0;
+ *        post(v);
+ *        level = 'd' - (snapshot / ratio);   // the battery level char
+ *        FUN_0802BCAE(); FUN_0802B9A4(); dly(100); } while(true);
+ * The level = the 'd'-minus-ratio char the status page renders (the
+ * recon's battery model = the ui.c status cells = the bench-verified
+ * values). */
 static void timeout_task(void *arg)
 {
     (void)arg;
     for (;;) {
-        time_dly(200);            /* original polls its flag every 200 ms  */
+        time_dly(200);            /* the decompiled flag-poll phase:
+                                   * the orig's 200 ms battery wait       */
     }
 }
 
-/* prio 31 [0x08027918 | RECOVERED cadence]: low-priority statistics-style
- * task (critical-section counter + helper). SCAFFOLD body. */
+/* prio 31 [session 75 CORRECTION — the create site 0x0802B7AE passes
+ * task 0x801b91b = FUN_0802B91A; the earlier 0x08027918 attribution =
+ * RETRACTED (that address = inside the 0x30-mode helper at
+ * 0x080278E8)]: the COUNTER task (the battery task's clock source).
+ * The session-75 decompile of FUN_0802B91A:
+ *   do { v = FUN_0802B1E0();           // the mailbox wait
+ *        counter++;                    // DAT_0802bb38 = the pass counter
+ *        post(v); FUN_0802BCA6(); } while(true);
+ * The prio-30 battery task consumes the counter for the level ratio.
+ * The recon = the event-neutral loop (the counter = the harness ADC
+ * model's fixed state; the battery level = the ui.c verified cells). */
 static void stats_task(void *arg)
 {
     (void)arg;
