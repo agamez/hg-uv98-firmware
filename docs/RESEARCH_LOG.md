@@ -5647,3 +5647,11 @@ CK3 parity.
   verdict = the wall-time-dependent harness = the park item (the
   deterministic fix = the virtual-time-pinned resc = the harness-fix
   slice).
+- **THE KEY-13-LONG RETRY = GREEN**: 204,670/204,670 = 100.00%, every
+  marker identical (PRE 189,037 / P1 204,671 / REL 204,671) — the
+  wall-time flakiness CONFIRMED as the earlier anomaly's cause (the
+  clean run = byte-identical through the hold and the release). The
+  strictest channel holds at the byte-identical class on BOTH the
+  short and the long windows on the sweep build. The deterministic
+  harness fix = still the park item (the wall-paced 3-s window will
+  flake under the load).
