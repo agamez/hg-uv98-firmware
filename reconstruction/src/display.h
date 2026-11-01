@@ -42,11 +42,7 @@ void display_draw_text_cls(uint8_t y, uint8_t x, const uint8_t *s, uint8_t ink,
                            uint8_t cls, uint8_t inv);  /* [0x0801CB60] */
 void display_blit_bitmap_1bpp(uint8_t y, uint8_t x, uint8_t w, uint8_t h,
                               const uint8_t *bits, uint16_t fg, uint16_t bg);
-/* [session 75 | the warm artifacts DELETED: display_warm_radio_window,
- * display_warm_1f_frame, display_ee359_replay — the session-53
- * broken-EE-era emissions; the fixed-EE warm boot emits none of them.
- * See ui.c's session-75 note and rf.c's at1846s_warm_slot_apply /
- * at1846s_warm_reinit for the banked decode.] */
-void display_vendor_replay(void);       /* [DATA-DERIVED, 2507 events, s55; the measured justification s74] */
+/* [session 75 | the vendor replay DELETED — replaced by the generative
+ * at1846s_vendor_boot_window() in rf.c; see main.c hw_init. */
 
 #endif /* DISPLAY_H */

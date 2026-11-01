@@ -22,6 +22,7 @@ void at1846s_boot_init_block_b(uint8_t chip);  /* bank-1 tail, re-run in reconfi
 void at1846s_boot_default_apply(void);  /* [DATA-DERIVED] power-on default channel flow */
 void at1846s_rssi_poll(uint8_t chip);   /* [RECOVERED s68] the per-slot refresh */
 void at1846s_rssi_poll_f(uint8_t chip, uint32_t freq29); /* [s73] the frequency-parameterized variant */
+void at1846s_vendor_boot_window(void);  /* [s75] the pre-LCD vendor era = the dual boot init + the port config */
 void at1846s_warm_slot_apply(uint8_t chip, uint16_t word49, uint16_t psw,
                              uint32_t freq29, uint16_t code05); /* [s75] the warm apply (FUN_0801ab36 main path) */
 void at1846s_warm_reinit(uint8_t chip, uint32_t freq29, uint16_t code05); /* [s75] the re-init path */

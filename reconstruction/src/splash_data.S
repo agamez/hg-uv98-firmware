@@ -55,16 +55,6 @@ ui_ascii12x20_font:
  * ee359 table = the session-53 broken-EE-era composite; the fixed-EE
  * warm boot emits no such fixed-position burst. */
 
-/* Vendor pre-LCD boot burst replay table — [DATA-DERIVED, session 55]:
- * the exact 2,507-event GPIOB sequence the original's vendor PIC
- * region emits before the first ODR event (5x CRH 0x44444434 +
- * 1x CRL 0x33333333 + 843 BSRR + 1,658 BRR; ends with the PB9 latch
- * LOW). The generating code lives past the distributed image's end
- * (the strings region) and is not recoverable, so the burst is
- * replayed verbatim. Codes: 0 = BRR(0x200), 1 = BSRR(0x200),
- * 2 = CRH 0x44444434, 3 = CRL 0x33333333. */
-.section .rodata.vendorstream, "a"
-.align 2
-.global ui_vendor_stream
-ui_vendor_stream:
-    .incbin "data/vendor_stream.bin"
+/* [session 75 | DELETED — the vendor table replaced by the generative
+ * at1846s_vendor_boot_window() (rf.c): the recorded burst = the vendor
+ * port config + the dual at1846s_boot_init + the CRL display-bus prep.] */

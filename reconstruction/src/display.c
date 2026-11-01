@@ -345,34 +345,10 @@ void display_blit_bitmap_1bpp(uint8_t y, uint8_t x, uint8_t w, uint8_t h,
  * original's warm boot reads the 0x0F-class regions at the scan
  * machinery's own positions. */
 
-/* [session 55 | DATA-DERIVED] the vendor pre-LCD boot burst: the
- * original's vendor PIC region emits 2,507 GPIOB events (5x CRH
- * 0x44444434, 1x CRL 0x33333333, 843 BSRR, 1,658 BRR — ends with the
- * PB9 latch LOW) before the first display event. The generating code
- * lives past the distributed image (not recoverable) — replayed
- * verbatim; supersedes the earlier inferred 2-byte probe
- * (eeprom_read(0,2) + the DATA-DERIVED SDA-low tail). */
-extern const uint8_t ui_vendor_stream[];
-
-void display_vendor_replay(void)
-{
-    for (uint32_t k = 0; k < 2507u; k++) {
-        switch (ui_vendor_stream[k]) {
-        case 0u:
-            GPIO_BRR(GPIOB_BASE) = 0x200u;
-            break;
-        case 1u:
-            GPIO_BSRR(GPIOB_BASE) = 0x200u;
-            break;
-        case 2u:
-            GPIO_CRH(GPIOB_BASE) = 0x44444434u;
-            break;
-        default:
-            GPIO_CRL(GPIOB_BASE) = 0x33333333u;
-            break;
-        }
-    }
-}
+/* [session 75 | DELETED — the vendor replay replaced by the generative
+ * at1846s_vendor_boot_window() (rf.c): the recorded burst = the vendor
+ * port config + the dual at1846s_boot_init (the 100 frames bit-exact)
+ * + the CRL display-bus prep. See main.c hw_init and rf.c. */
 
 /* [0x0802883A | RECOVERED] the 12-bit serial LED-matrix link:
  * data = PB9, clock = PD0, latch = PD1; delay unit = 100 empty iterations

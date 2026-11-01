@@ -698,6 +698,55 @@ void at1846s_rssi_poll(uint8_t chip)
     at1846s_rssi_poll_f(chip, (chip == RF_CHIP_UHF) ? 0x0061AFD0u : 0x00213BD0u);
 }
 
+/* [session 75 | REA-decoded — the vendor replay replaced] the pre-LCD
+ * vendor era: the recorded 2,507-event burst = the GPIOB vendor config
+ * (the CRH 0x44444434 = the PB9 output over the all-input port, x5
+ * total, one PB9 BSRR) + the DUAL at1846s boot-init register load (the
+ * 100 frames = the 50-entry boot-init table bit-exact, chip 1 then
+ * chip 0 — the session-49 boot order; the "vendor PIC region"
+ * attribution = RETRACTED) + the tail config (the CRH x3 + the CRL
+ * 0x33333333 = the PB0-7 display data-bus prep that the parallel
+ * display_init then uses — the mechanism behind the s74 deletion
+ * test's 0.00%). The frames emit 25 visible events each (the 24 bits
+ * + the trailing PB9 DATA-low idle — the rf_write_poll_frame shape;
+ * the dispatcher-era rf_write idle = the GPIOA write, invisible), so
+ * the vendor window uses the poll-frame emitter. The CS/CLK = GPIOA
+ * (invisible in the GPIOB stream; the reset-state port as in the
+ * original's vendor era). */
+void at1846s_vendor_boot_window(void)
+{
+    /* [session 49/75 | the boot-init table, the original's register
+     * load — the same 50 entries as at1846s_boot_init's] */
+    static const struct { uint8_t reg; uint16_t val; } table[50] = {
+        { 0x30, 0x0001 }, { 0x30, 0x0004 }, { 0x04, 0x0FD0 }, { 0x0A, 0x7EA0 },
+        { 0x13, 0xA100 }, { 0x1F, 0x9AA9 }, { 0x31, 0x0031 }, { 0x33, 0x44A5 },
+        { 0x34, 0x2B87 }, { 0x41, 0x4C20 }, { 0x42, 0x1010 }, { 0x43, 0x0069 },
+        { 0x44, 0x07FF }, { 0x47, 0x7F2F }, { 0x4F, 0x2C62 }, { 0x53, 0x0094 },
+        { 0x54, 0x2A18 }, { 0x55, 0x0081 }, { 0x56, 0x0B02 }, { 0x57, 0x1C00 },
+        { 0x58, 0x8005 }, { 0x5A, 0x0EDD }, { 0x63, 0x16AD }, { 0x30, 0x40A4 },
+        { 0x30, 0x40A6 }, { 0x30, 0x4006 }, { 0x15, 0x1F00 }, { 0x32, 0x7564 },
+        { 0x3A, 0x44C3 }, { 0x3C, 0x1930 }, { 0x3F, 0x29D2 }, { 0x48, 0x1E3C },
+        { 0x59, 0x0A50 }, { 0x60, 0x101E }, { 0x62, 0x3767 }, { 0x65, 0x248A },
+        { 0x66, 0xFF2E }, { 0x7F, 0x0001 }, { 0x06, 0x0024 }, { 0x07, 0x0214 },
+        { 0x08, 0x0224 }, { 0x09, 0x0314 }, { 0x0A, 0x0324 }, { 0x0B, 0x0344 },
+        { 0x0C, 0x0384 }, { 0x0D, 0x1384 }, { 0x0E, 0x1B84 }, { 0x0F, 0x3F84 },
+        { 0x12, 0xE0EB }, { 0x7F, 0x0000 },
+    };
+
+    GPIO_CRH(GPIOB_BASE) = 0x44444434u;
+    GPIO_BSRR(GPIOB_BASE) = 0x200u;
+    GPIO_CRH(GPIOB_BASE) = 0x44444434u;
+    for (unsigned pass = 0; pass < 2u; pass++) {
+        for (unsigned i = 0; i < sizeof(table) / sizeof(table[0]); i++)
+            rf_write_poll_frame(pass ? RF_CHIP_VHF : RF_CHIP_UHF,
+                                table[i].reg, table[i].val);
+    }
+    GPIO_CRH(GPIOB_BASE) = 0x44444434u;
+    GPIO_CRH(GPIOB_BASE) = 0x44444434u;
+    GPIO_CRH(GPIOB_BASE) = 0x44444434u;
+    GPIO_CRL(GPIOB_BASE) = 0x33333333u;
+}
+
 /* [session 75 | REA-decoded] the warm-boot slot apply — FUN_0801ab36's
  * main path as recorded in the warm window (the led_stream era-2
  * decode): the poll head (the block_b 24 + 0x48 + the slot word49 +

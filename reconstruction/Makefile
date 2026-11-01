@@ -40,7 +40,7 @@ TOBJ = build/tables.o
 build/tables.o: src/tables.S data/ram_tables_recovered.bin data/uistrings_region.bin
 	$(CC) -x assembler-with-cpp -mcpu=cortex-m3 -mthumb -Isrc -c $< -o $@
 
-build/splash_data.o: src/splash_data.S data/splash_128x160_rgb565.bin data/ascii8x16_font.bin data/ascii6x10_font.bin data/big12x20_font.bin data/vendor_stream.bin
+build/splash_data.o: src/splash_data.S data/splash_128x160_rgb565.bin data/ascii8x16_font.bin data/ascii6x10_font.bin data/big12x20_font.bin
 	$(CC) -x assembler-with-cpp -mcpu=cortex-m3 -mthumb -Isrc -c $< -o $@
 
 INC = -Isrc -Iucos2/cfg -Iucos2/ucos2 -Iucos2/port -Iucos2/cpu -Iucos2/lib \

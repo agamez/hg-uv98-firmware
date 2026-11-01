@@ -5874,3 +5874,37 @@ CK3 parity.
 - **The recorded-dump ledger after the slice**: ONLY the vendor replay
   remains (the measured justification, s74). The warm era = the
   scan-state slice + the display era = the kept warm UI.
+
+## Session 75 (cont. 3) — the VENDOR REPLAY REPLACED: the burst = the dual at1846s boot-init load + the port config; the last recorded dump eliminated
+
+- **The decode** (the 25-bit-stride scan on the 2,507-event table): the
+  "vendor PIC region" attribution = RETRACTED. The burst = [CRH
+  0x44444434][BSRR 0x200][CRH 0x44444434] + 100 frames = the 50-entry
+  boot-init table bit-exact x2 (chip 1 = UHF then chip 0 = VHF — the
+  ck3_rf_orig.txt head's cs order confirms the chip assignment) + [CRH
+  x3][CRL 0x33333333].
+- **The 0.00% deletion-test mechanism identified**: the vendor era's
+  CRL 0x33333333 = the PB0-7 display data-bus config that the parallel
+  display_init then uses — the s74 deletion removed it and the display
+  had no bus. The "serial config shape" = the CRH rewrites + the
+  PB9 frames of the radio load itself.
+- **The 25-visible-frame shape**: the vendor frames = 24 bits + the
+  trailing PB9 DATA-low idle (25 visible events) — the rf_write's idle
+  = the GPIOA write (invisible), so the first replacement attempt was
+  100 events short (the prefix = 29). The fix = the poll-frame emitter
+  (rf_write_poll_frame = the 25-visible shape).
+- **The replacement**: at1846s_vendor_boot_window() (rf.c) = the port
+  config + the dual table load via the poll-frame emitter + the tail
+  config; hw_init calls it. The vendor replay + ui_vendor_stream +
+  data/vendor_stream.bin DELETED. The build 103,283 text; the hook
+  pins held (0x08004f80/0x0800502c).
+- **The verification**: CK4 = 189,036/189,036 = 100.00% (the full md5
+  identity incl. the vendor era — the strictest bar, first green after
+  the emitter fix); p3k6 = 303,907/303,907 = 100.00%; key-13 short =
+  204,670/204,670 = 100.00%; CK3 = 292/292 (the warm channel — the
+  first run was the fresh state by mistake: the apply = warm-gated, 2
+  events; the warm EE state = 292/292 ALL IDENTICAL).
+- **The recorded-dump ledger**: ZERO recorded-behavior tables remain in
+  reconstruction/src or data/. All boot/bus eras = the decompiled
+  generators + the port configs. The flash assets (the splash, the
+  fonts) = the legitimate DATA class per the criterion.
