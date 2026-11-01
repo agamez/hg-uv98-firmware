@@ -5427,3 +5427,44 @@ CK3 parity.
   words — the .data LMA descent), the 0801ab36 record-callback chain's
   continuation pointers, the other screens (the key13 CH-002, the
   menus, the scan), the GBK CJK path (the c914 — unused by the bench).
+
+## Session 74 (cont. 3) — b2-screens: the key-13/key-14/RSSI rows converted; the dead display.c stub deleted; Tier-C decompiles land; every affected channel at its class
+
+- **The conversions**: ui.c — key13_screen (the "APRS"/"CH"/"002" font-1
+  draws + the font-6 freq row from ui_freq + the font-3 "00" + the
+  erasures, the mid-screen ee_read order preserved), key14_row_display
+  (the font-6 "ddd.ddd" + the "00"), rssi_row_placeholder (the band
+  digit + "--.---" font-6 + the "--" font-3), rssi_row_live (the
+  ui_freq font-6 row + the "00" + the label sweep with the 0x0801E6F4
+  generating-function cite + the ctx-driven H/L), rssi_aprs_block (the
+  APRS + the "  "/"   " erasures + the tail). The cell6x10/cell8x16_ch/
+  cell12x20 helpers DELETED (no users; the '<' asset blit keeps the
+  cell8x16 transport). ui_freq moved above its new users.
+- **The display.c cleanup**: the session-13 display_draw_text stub
+  DELETED (the wrong shape; its 4 SCAFFOLD annotations die);
+  display_draw_text_cls KEPT = the complete cb60 mirror — the fresh
+  c99e/cac0/bfb8 decompiles CONFIRM its thr/lin/adv tables exactly
+  (the c99e font-0 y+=7 pitch included); the bias-mutation nuance
+  documented (the ui.c variant biases into a local; the same events).
+- **The Tier-C decompiles (fresh)**: 0x0801E6F4 = the STATUS LABEL-ROW
+  BUILDER (the draws at 0x50/0x5C/0x37/0x1E/0x44/0x05 with the chars
+  from the state bytes, the H/L via FUN_0801f57c(0x32,0x16,ctx[0x0C]&1))
+  — the generating function of the recon's label sweep; 0x08024d76 = the
+  radio-apply chain AND THE +0x119 FLAG SETTER (*(_DAT_08024e28+0x119)=1
+  after the 0x30/0x7006 register writes) — the c2 gate question
+  CONFIRMED by decompile; 0x08010D5E = the dispatcher's per-pass step
+  ((state&3)>>1==0 -> the status fill + FUN_08014530(0x6a) +
+  FUN_0801219c(0xff), else delay(100)); 0x08028D74 = the mailbox ring
+  reset (+0x32/+0x33/+0x1c/+0x20 clears) + FUN_0802b1e8().
+- **The bench**: build 116,791; test-host green; the pins held.
+  **CK4 189,036/189,036 = 100.00%; the key-13 short pair 204,670/204,670
+  = 100.00% (THE STRICTEST BAR — the converted key13_screen is
+  event-identical); the key-1 pair = the prefix 219,256 = 100% of the
+  orig with the EXACT banked markers (P1 198,262 / REL 227,966); the
+  key-2-short pair = the prefix 226,682 = 100% of the orig.**
+- The remaining Tier-B/C items: the battery-icon draw origin (the ROM
+  search exhausted the 1-bpp orders — the next descent), the
+  display_vendor_replay (the 2,507-event boot I2C burst = the recorded
+  dump), the LED/ee359 warm replays, the mailbox/timer/critical-section
+  scaffold bodies (the decompiles = banked above), the p3k6 + the full
+  battery at the phase end.

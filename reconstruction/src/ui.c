@@ -405,30 +405,15 @@ void ui_boot_scene(void)
  * The small-font elements and the periodic updates = OPEN (the class-0
  * path and the state-machine cadence). */
 
-/* the glyph-cell helpers for the status page: the class tables and the
- * scheme 4 colors (fg 0x0000 on bg 0xEFBE). */
+/* the glyph-cell helper for the '<' cursor asset blit (the screen0). */
 extern const uint8_t ui_ascii6x10_font[];
 extern const uint8_t ui_ascii12x20_font[];
 
-static void cell6x10(uint8_t y, uint8_t x, uint8_t ch)
-{
-    display_blit_glyph_cell_6x10(y, x, &ui_ascii6x10_font[(uint32_t)(ch - 0x20u) * 12u],
-                                 0x0000u, 0xEFBEu);
-}
 static void cell8x16(uint8_t y, uint8_t x, const void *g)
 {
     display_blit_glyph_cell(y, x, (const uint8_t *)g, 0x0000u, 0xEFBEu);
 }
-static void cell8x16_ch(uint8_t y, uint8_t x, uint8_t ch)
-{
-    display_blit_glyph_cell(y, x, &ui_ascii8x16_font[(uint32_t)(ch - 0x20u) * 16u],
-                            0x0000u, 0xEFBEu);
-}
-static void cell12x20(uint8_t y, uint8_t x, uint8_t ch)
-{
-    display_blit_glyph_cell_12x20(y, x, &ui_ascii12x20_font[(uint32_t)(ch - 0x20u) * 36u],
-                                  0x0000u, 0xEFBEu);
-}
+
 static void ui_draw_text(uint8_t y, uint8_t x, const char *s, uint8_t scheme,
                          uint8_t font);   /* [session 74] the cb60 mirror (defined below) */
 /* [session 63 | 0x0801CB60 class-6 path RECOVERED] the VFO frequency row:
@@ -1090,6 +1075,7 @@ void ui_menu_screen_continue(void)
 static uint8_t ui_rssi_kill;   /* the menu press killed the refresh task */
 static uint16_t ui_rssi_pass;  /* the dispatch pass counter */
 static uint8_t ui_rssi_fire;   /* the refresh index, 1-based */
+static uint32_t ui_freq = 136125u;   /* the VFO frequency, kHz (the fresh EE = 136.125) */
 static uint8_t ui_band = 1u;   /* [session 69] the band digit (1|2), stepped
                                 * by the key-2/3 press edges (p3k2/p3k3) */
 
@@ -1115,54 +1101,71 @@ static void rssi_tail_ee_read(void)
 
 static void rssi_row_placeholder(void)
 {
-    /* [session 69 | DATA-DERIVED p3k2/p3k3_orig] the first digit = the BAND
-     * number ('1' at boot, '2' after the key-2/3 step), the rest = the
-     * placeholder dashes: the VFO frequency itself is untouched by the
-     * step (the live row stays 136.125 in both). */
-    uint8_t dg[7];
-    uint8_t i;
+    /* [session 74 | REA-derived] the band row = ONE font-6 text draw:
+     * the first digit = the BAND number ('1' at boot, '2' after the
+     * key-2/3 step), the rest = the placeholder dashes (the VFO
+     * frequency itself is untouched by the step; the live row stays
+     * 136.125 in both). The "--" subs = the font-3 draw. */
+    char s[8];
 
-    dg[0] = (uint8_t)('0' + ui_band);
-    dg[1] = '-';
-    dg[2] = '-';
-    dg[3] = '.';
-    dg[4] = '-';
-    dg[5] = '-';
-    dg[6] = '-';
-    for (i = 0u; i < 7u; i++)
-        cell12x20(29u, (uint8_t)(22u + 12u * i), dg[i]);
-    cell8x16_ch(35u, 108u, '-');
-    cell8x16_ch(35u, 116u, '-');
+    s[0] = (char)('0' + ui_band);
+    s[1] = '-';
+    s[2] = '-';
+    s[3] = '.';
+    s[4] = '-';
+    s[5] = '-';
+    s[6] = '-';
+    s[7] = '\0';
+    ui_draw_text(29u, 22u, s, 0u, 6u);
+    ui_draw_text(35u, 108u, "--", 0u, 3u);
 }
 
 static void rssi_row_live(void)
 {
-    static const uint8_t dg[7] = {'1', '3', '6', '.', '1', '2', '5'};
-    static const uint8_t swp_x[10] = {80u, 92u, 55u, 30u, 36u, 42u, 68u, 5u, 11u, 17u};
-    uint8_t i;
+    /* [session 74 | REA-derived] the live row = the font-6 draw of
+     * ui_freq's "ddd.ddd" + the font-3 "00" pair + the label-row sweep
+     * + the power char. The sweep's GENERATING FUNCTION = 0x0801E6F4
+     * (decompiled: the label draws at 0x50/0x5C/0x37/0x1E/0x44/0x05 with
+     * the chars from the state bytes [0xba/0xbc/0x10/0x0C...], the H/L
+     * via FUN_0801f57c(0x32, 0x16, ctx[0x0C]&1, 1)) — the fresh-boot
+     * instance = the W/spaces drawn here. The positions/order = the
+     * recorded event order (the same as the key-13 screen's). */
+    char fs[8];
+    char hl[2];
+    uint32_t mhz = ui_freq / 1000u;
+    uint32_t khz = ui_freq % 1000u;
 
-    for (i = 0u; i < 7u; i++)
-        cell12x20(29u, (uint8_t)(22u + 12u * i), dg[i]);
+    fs[0] = (char)('0' + mhz / 100u);
+    fs[1] = (char)('0' + (mhz / 10u) % 10u);
+    fs[2] = (char)('0' + mhz % 10u);
+    fs[3] = '.';
+    fs[4] = (char)('0' + khz / 100u);
+    fs[5] = (char)('0' + (khz / 10u) % 10u);
+    fs[6] = (char)('0' + khz % 10u);
+    fs[7] = '\0';
+    ui_draw_text(29u, 22u, fs, 0u, 6u);
     /* the 18x20 all-background cell = the unit-label area erase */
     display_fill_rect(29u, 106u, 18u, 20u, 0xEFBEu);
-    cell8x16_ch(35u, 108u, '0');
-    cell8x16_ch(35u, 116u, '0');
-    for (i = 0u; i < 10u; i++)
-        cell6x10(18u, swp_x[i], (uint8_t)((i == 6u) ? 'W' : ' '));
-    cell6x10(50u, 22u, 'H');
+    ui_draw_text(35u, 108u, "00", 0u, 3u);
+    ui_draw_text(18u, 80u, " ", 0u, 1u);
+    ui_draw_text(18u, 92u, " ", 0u, 1u);
+    ui_draw_text(18u, 55u, " ", 0u, 1u);
+    ui_draw_text(18u, 30u, "   ", 0u, 1u);
+    ui_draw_text(18u, 68u, "W", 0u, 1u);
+    ui_draw_text(18u, 5u, "   ", 0u, 1u);
+    hl[0] = (char)((REG8(SETTINGS_CTX + 0x0Cu) & 1u) ? 0x48u : 0x4Cu);
+    hl[1] = '\0';
+    ui_draw_text(50u, 22u, hl, 0u, 1u);
 }
 
 static void rssi_aprs_block(void)
 {
-    cell6x10(18u, 133u, 'A');
-    cell6x10(18u, 139u, 'P');
-    cell6x10(18u, 145u, 'R');
-    cell6x10(18u, 151u, 'S');
-    cell6x10(29u, 136u, ' ');
-    cell6x10(29u, 142u, ' ');
-    cell6x10(39u, 133u, ' ');
-    cell6x10(39u, 139u, ' ');
-    cell6x10(39u, 145u, ' ');
+    /* [session 74 | REA-derived] the APRS asset draw + the CH-label and
+     * channel-digit erasures (the contiguous runs = one call each) + the
+     * ee_read tail. */
+    ui_draw_text(18u, 133u, "APRS", 0u, 1u);
+    ui_draw_text(29u, 136u, "  ", 0u, 1u);
+    ui_draw_text(39u, 133u, "   ", 0u, 1u);
     rssi_tail_ee_read();
 }
 
@@ -1203,7 +1206,7 @@ static void rssi_refresh(void)
  * slope 1 per kHz, linear across the 25 known-frequency frames], the
  * MSB-first. The RSSI idle refresh is replaced by the scan while the
  * scan is on. */
-static uint32_t ui_freq = 136125u;   /* the VFO frequency, kHz (the fresh EE = 136.125) */
+
 static uint8_t ui_scan;              /* the scan mode: 1 = the key-14 (the frame per slice), 2 = the key-11/12 UP sweep [REA-C: the shared enqueue case] */
 static uint16_t ui_scan_pass;        /* the passes since the scan start (the tick pacing) */
 static uint8_t ui_scan_end;          /* the key-11/12 release phases: 0 = the held, 1..2 = the deceleration slices, 3 = the end frame */
@@ -1228,19 +1231,24 @@ static void key14_frame_send(void)
 
 __attribute__((noinline)) static void key14_row_display(void)
 {
+    /* [session 74 | REA-derived] the same font-6 text draw as the freq
+     * rows (the +12 step, the xs 22..94) + the font-3 "00" pair; the
+     * value = the ui_freq state. */
+    char fs[8];
     uint32_t mhz = ui_freq / 1000u;
     uint32_t khz = ui_freq % 1000u;
 
-    cell12x20(29u, 22u, (uint8_t)('0' + mhz / 100u));
-    cell12x20(29u, 34u, (uint8_t)('0' + (mhz / 10u) % 10u));
-    cell12x20(29u, 46u, (uint8_t)('0' + mhz % 10u));
-    cell12x20(29u, 58u, '.');
-    cell12x20(29u, 70u, (uint8_t)('0' + khz / 100u));
-    cell12x20(29u, 82u, (uint8_t)('0' + (khz / 10u) % 10u));
-    cell12x20(29u, 94u, (uint8_t)('0' + khz % 10u));
+    fs[0] = (char)('0' + mhz / 100u);
+    fs[1] = (char)('0' + (mhz / 10u) % 10u);
+    fs[2] = (char)('0' + mhz % 10u);
+    fs[3] = '.';
+    fs[4] = (char)('0' + khz / 100u);
+    fs[5] = (char)('0' + (khz / 10u) % 10u);
+    fs[6] = (char)('0' + khz % 10u);
+    fs[7] = '\0';
+    ui_draw_text(29u, 22u, fs, 0u, 6u);
     display_fill_rect(29u, 106u, 18u, 20u, 0xEFBEu);
-    cell8x16_ch(35u, 108u, '0');
-    cell8x16_ch(35u, 116u, '0');
+    ui_draw_text(35u, 108u, "00", 0u, 3u);
 }
 
 __attribute__((noinline)) static void key14_tune_slice(void)
@@ -1300,43 +1308,45 @@ __attribute__((noinline)) static void key13_pb9_replay(void)
 
 __attribute__((noinline)) static void key13_screen(void)
 {
+    /* [session 74 | REA-derived] the same cb60-mirror machinery as the
+     * screen0: the live frequency row = ONE font-6 text draw of
+     * ui_freq's "ddd.ddd" (the +12 step; the recorded xs 22..94); the
+     * "APRS" = the ROM asset @0x08045A6C; the "00" subs = the font-3
+     * pair; the labels + the space erasures = the font-1 draws (the
+     * contiguous runs = one call each, the order = the recorded event
+     * order). The event sequence incl. the mid-screen ee_read tail is
+     * preserved exactly (the key-13 bar = 100.00% exact). */
+    char fs[8];
+    uint32_t mhz = ui_freq / 1000u;
+    uint32_t khz = ui_freq % 1000u;
+
     display_fill_rect(29u, 106u, 53u, 20u, 0xEFBEu);
-    cell6x10(18u, 133u, 'A');
-    cell6x10(18u, 139u, 'P');
-    cell6x10(18u, 145u, 'R');
-    cell6x10(18u, 151u, 'S');
+    ui_draw_text(18u, 133u, "APRS", 0u, 1u);
     key13_tail104_ee_read();   /* [0x0802873c] the key-13 era ee_read(0x0010,16) */
-    cell12x20(29u, 22u, '1');
-    cell12x20(29u, 34u, '3');
-    cell12x20(29u, 46u, '6');
-    cell12x20(29u, 58u, '.');
-    cell12x20(29u, 70u, '1');
-    cell12x20(29u, 82u, '2');
-    cell12x20(29u, 94u, '5');
+    fs[0] = (char)('0' + mhz / 100u);
+    fs[1] = (char)('0' + (mhz / 10u) % 10u);
+    fs[2] = (char)('0' + mhz % 10u);
+    fs[3] = '.';
+    fs[4] = (char)('0' + khz / 100u);
+    fs[5] = (char)('0' + (khz / 10u) % 10u);
+    fs[6] = (char)('0' + khz % 10u);
+    fs[7] = '\0';
+    ui_draw_text(29u, 22u, fs, 0u, 6u);
     display_fill_rect(29u, 106u, 18u, 20u, 0xEFBEu);
-    cell8x16_ch(35u, 108u, '0');
-    cell8x16_ch(35u, 116u, '0');
-    cell6x10(29u, 136u, 'C');
-    cell6x10(29u, 142u, 'H');
-    /* the fresh-EE channel value (the mode-cycle scenarios = the future
-     * decode; the p2 executor's ctx fields are maintained below) */
-    cell6x10(39u, 133u, '0');
-    cell6x10(39u, 139u, '0');
-    cell6x10(39u, 145u, '2');
-    cell6x10(18u, 80u, ' ');
-    cell6x10(18u, 92u, ' ');
-    cell6x10(18u, 55u, ' ');
-    cell6x10(18u, 30u, ' ');
-    cell6x10(18u, 36u, ' ');
-    cell6x10(18u, 42u, ' ');
-    cell6x10(18u, 68u, 'W');
-    cell6x10(18u, 5u, ' ');
-    cell6x10(18u, 11u, ' ');
-    cell6x10(18u, 17u, ' ');
-    /* [session 69 | DATA-DERIVED] the sweep's last cell = 'L' in the key-13
-     * screen (the font match on the orig's 120-byte cell; the RSSI live
-     * row's = 'H') */
-    cell6x10(50u, 22u, 'L');
+    ui_draw_text(35u, 108u, "00", 0u, 3u);
+    ui_draw_text(29u, 136u, "CH", 0u, 1u);
+    /* the fresh-EE channel value ("002"; the mode-cycle scenarios = the
+     * future decode; the p2 executor's ctx fields are maintained below) */
+    ui_draw_text(39u, 133u, "002", 0u, 1u);
+    ui_draw_text(18u, 80u, " ", 0u, 1u);
+    ui_draw_text(18u, 92u, " ", 0u, 1u);
+    ui_draw_text(18u, 55u, " ", 0u, 1u);
+    ui_draw_text(18u, 30u, "   ", 0u, 1u);
+    ui_draw_text(18u, 68u, "W", 0u, 1u);
+    ui_draw_text(18u, 5u, "   ", 0u, 1u);
+    /* [session 69] the sweep's last cell = 'L' in the key-13 screen (the
+     * font match on the orig's 120-byte cell; the RSSI live row's = 'H') */
+    ui_draw_text(50u, 22u, "L", 0u, 1u);
 }
 
 void ui_task(void *p_arg)

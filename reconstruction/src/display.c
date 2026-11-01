@@ -132,55 +132,6 @@ void display_draw_area(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t 
         tft_write_data(color);
 }
 
-/* [0x08018B60 | RECOVERED logic; CJK glyph source now RECOVERED via
- * font.c (SPI2 flash), ASCII records still SCAFFOLD pending the blit's
- * per-class geometry]
- *
- * Recovered signature semantics (session 13):
- *   draw_text(&y, &x, s, fg, class) — r0/r1 are POINTERS to 8-bit cursor
- *   cells; the 5th arg selects the asset-table class (font/menu/DCS/APRS).
- *   ASCII: advance (&wrap x>=0x9C), in-place bias c<0x0A -> c+='0'
- *   (mutates the caller's string!), draw, advance. CJK: 16 px advance.
- *   A second renderer 0x08018F62 draws vertical strings (y += 8, max 20).
- *   The blit 0x08017FB8 expands class records to RGB565 via palette
- *   (0xF800 red / 0x001F blue literals) + per-class geometry. */
-void display_draw_text(uint16_t x, uint16_t y, const char *s, uint8_t style)
-{
-    (void)style;    /* style byte rides the 5-arg original call signature    */
-    (void)y;        /* the original's renderer keeps y in its cursor state   */
-    while (*s && *s != (char)0xFF) {          /* terminators: 0 and 0xFF    */
-        if ((uint8_t)*s < 0x81u) {
-            uint8_t ch = (uint8_t)*s;
-            if (ch < 10u)
-                ch = (uint8_t)(ch + '0');     /* binary-digit bias to ASCII  */
-            (void)ch;
-            /* ASCII cell: 8 px advance; glyph blit is a SCAFFOLD pending
-             * identification of the ASCII bitmap source (likely also in
-             * the external SPI flash; see font.c header). */
-            x = (uint16_t)(x + 8);
-            s++;
-        } else {
-            /* GB2312 lead byte: consume two bytes, 16 px cell.
-             * [RECOVERED 0x08018914 -> 0x08024E78]: fill a 32-byte buffer
-             * from the external font flash, then blit 16x16. The blit
-             * itself (orig 0x08017D3C) rides on the SCAFFOLD transport;
-             * glyph bytes now come from the recovered fetcher. */
-            if (s[1] == 0 || s[1] == (char)0xFF)
-                break;
-            /* volatile: the blit transport is SCAFFOLD, so without this
-             * the fetch is dead code and gets elided; the original's
-             * blit (0x08017D3C) consumes these bytes row by row. */
-            volatile uint8_t glyph[32];
-            if (cjk16_fetch((uint8_t *)glyph, (const uint8_t *)s) == 0) {
-                for (uint32_t i = 0; i < 32; i++)
-                    (void)glyph[i];           /* blit pending: rows to follow */
-            }
-            x = (uint16_t)(x + 16);
-            s += 2;
-        }
-    }
-}
-
 /* [0x0801CD32 | RECOVERED] full-rect fill: the window then 0x2C, then
  * rows x cols pixels of the hardcoded background color 0xEFBE (the
  * high byte first), or 0x0000 when the app-state blank flag
@@ -542,6 +493,19 @@ void display_led_write(uint16_t word, uint8_t flag)
 void display_draw_text_cls(uint8_t y, uint8_t x, const uint8_t *s, uint8_t ink,
                            uint8_t cls, uint8_t inv)
 {
+    /* [session 74 | the fresh decompiles CONFIRM every table] the wrap
+     * thresholds + the line pitches = the c99e decompile exactly (the
+     * font 0 = x>0x9B y+=7, the font 1 = 0x9A/10, the font 2 = 0x99/12,
+     * the font 3 = 0x98/16 (0x9E when the display-state byte == 'h'),
+     * the font 6 = 0x94/20, the font 8 = 0x8D/24, the font 9 = 0x90/32);
+     * the advances = the cac0 decompile exactly (6,6,7,8,10,12,12,15,
+     * 19,16); the palettes = the bfb8 decompile exactly; the record
+     * lookup = the 0x08028f8c family (the asset_table_get 0x08024F8C =
+     * the ROM-address form of the same class tables). NOTE: the BCD
+     * bias here mutates the caller's buffer (the original's behavior —
+     * the callers pass RAM-built strings); the ui.c ui_draw_text
+     * variant biases into a local register instead so the string
+     * literals stay const-safe, with identical emitted events. */
     static const uint8_t thr[10] = {0x9Bu, 0x9Au, 0x99u, 0x98u, 0x96u,
                                     0x94u, 0x94u, 0x91u, 0x8Du, 0x90u};
     static const uint8_t lin[10] = {7u, 10u, 12u, 16u, 16u, 16u, 20u, 15u, 24u, 32u};
