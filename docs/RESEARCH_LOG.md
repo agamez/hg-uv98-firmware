@@ -4880,3 +4880,34 @@ CK3 parity.
   failed verify (2) + the partial verify (3); the 3 targeted state-dump
   diagnostics (the REA-equivalent evidence per the 2-run rule); the
   archive fix = from the session-58 decompile note + the F4 evidence.
+
+## Session 71 (cont. 3) — CK4 re-baselined fresh: the polluted-EE artifact + the FULL-prefix identity
+
+- **The first CK4 pair = the EE-STATE ARTIFACT**: the raw ck4-*.resc have
+  no EE reset (p3diff.sh does `rm -f ee_image.bin` per run; the raw runs
+  do not), so the recon ran against the EEPROM the orig run had just
+  mutated — the divergence at event ~95,255 = the I2C SDA bit-value
+  difference = the stale-EE data, not behavior. Re-ran both with the
+  fresh EE.
+- **The fresh-EE CK4 pair (boot 10 ms + 3 s, both images)**:
+  - **ODR = 154,172/154,172 = 100.00%** (the full 16-bit values).
+  - **THE RECON'S ENTIRE STREAM = 187,040 events, EVENT-IDENTICAL to the
+    original's first 187,040** — a full-prefix match at 100% of the recon.
+  - The orig = 189,036 total: the delta = a 1,996-event tail (the BRR
+    1,295 / the BSRR 697 / the CRH 4) = the boot-end both-slot refresh
+    (the FUN_08022a98 signature, the session-66 census: the 187,041..
+    189,034 = 2x (39 frames + gap + read)).
+- **The open boundary question**: the original fires that refresh INSIDE
+  the 3-s window (the event 187,041), while the recon's polls now sit at
+  the 6.000-s boot-end hold (the p3-matched anchor, session 69) — the
+  same event position as the p3k6 runs where the streams matched 100%.
+  The apparent inconsistency (the ~2.9-s vs the ~5.9-s for the same
+  event position across the two orig runs) = the unresolved time/event
+  mapping question — the next session's slice. Note the followup.md's
+  "CK4 CLOSED" = stale: the session-60/61 I2C-slave model changes
+  (the dedupe) re-baselined the log volume (the orig now 168,978 with
+  the stale EE / 189,036 fresh vs the session-55's 187,757).
+- The matrix re-verify also landed: **10/400 diffs** = the archive fix
+  works (rxBuf2 = the full $A00 frame on both from F4); the residual =
+  the parked +9 flag-byte semantics (x8) + the F2 checkpoint race (x2,
+  the buffers all matched).
