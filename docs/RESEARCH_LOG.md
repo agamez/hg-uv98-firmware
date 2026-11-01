@@ -4827,3 +4827,56 @@ CK3 parity.
 - The REMAINING CK2 = the §5.5 command matrix ($A00 variants, $A01
   length-gate, $A02, $A08, $A09, the in-image head commands) — the
   per-family RAM/observable differential = the next slice.
+
+## Session 71 (cont. 2) — the CK2 command matrix: the request-gated RX architecture decoded and implemented
+
+- **The matrix harness** (sim/ck2matrix_gen.py -> ck2matrix-orig.resc +
+  ck2matrix-rec.resc): 10 frame families ($A00 ok/marker/reject, $A01
+  ok/reject, $B, $C, $A02, $A08, $A09) x the per-checkpoint RAM dumps
+  (rxBuf/rxBuf2/rxBuf3 heads + the flag byte), identical stimulus both
+  images. The orig addresses = 0x20003A84/0x20002F74/0x20004B94/
+  0x2000509D; the recon's = the bss symbols (re-derived per build).
+- **The discovery (matrix run 1): the original = a REQUEST-GATED
+  one-shot consumer.** The pre-request $A00 frame is held and consumed
+  only after the request fires (its content first visible 2 checkpoints
+  post-injection, in BOTH rxBuf and rxBuf2 = the session-58 consumer-side
+  archive); every later unsolicited frame is DROPPED (the buffers freeze;
+  the marker frame never lands anywhere); the frame-ready bit0 is never
+  observable between passes. The recon was a stateless router (every
+  frame copied, last-write-wins).
+- **The re-architecture (the C):** the USART2 ISR now HOLDS the '$'-frame
+  in the ring (the non-$ reset per the session-50 decompile); the
+  dispatcher polls u2_rx_poll()/drains u2_rx_drain() post-request (the
+  window = opened by protocol_send_cmd($A00), closed at the drain,
+  pre-apply). **The run-2 bug: the poll checked the ring TAIL for CRLF**
+  — the ring fills to 536 (the 534-B frame + the next frame's first 2
+  overflow bytes) so the tail check saw '$','A' and never fired — the
+  state-dump diagnostics (the u2_idx=0x218, the open=1, the rxBuf=0)
+  pinned it; the poll now walks the FIRST CRLF like the drain.
+- **The matrix run 3 (the verify): 383/400 observables identical.** The
+  hold, the post-request consumption, the unsolicited-frame freeze, the
+  reject handling, the $A08 5-byte-prefix route, the $A02/$A09 routes =
+  all matched.
+- **The residual 17 = 3 items:**
+  1. The consumer-side rxBuf2 ARCHIVE = missing (the orig archives the
+     whole 534-B frame at ~1.7 s). FIXED in the C this session
+     (protocol_settings_archive() called from the dispatcher pre-apply)
+     but NOT yet re-verified in the emulator (the run budget) — the
+     next session re-runs the matrix first.
+  2. The FLAG_BANK+9 byte = the dynamic boot flags (the orig: C0 ->
+     0 -> 0 -> 0x1@1.7s -> C0) vs the recon's raw FLAG_FRAME_READY.
+     PARKED: the +9 byte semantics = a decompile-driven slice (the
+     boot's bits 6/7 + the consumer's bit0) — separate from the
+     routing behavior.
+  3. The F2-checkpoint race: the recon consumes at ~1.06 s (the request
+     at 0.99 + the poll cadence) vs the orig at ~1.12 s (the request at
+     0.79 + the 41.7-ms pass grid) — the 300-ms dump grid straddles it.
+     PARKED: needs the dispatcher cadence (the pass-grid = 30 ticks?)
+     and the request-time (0.99 vs 0.79 = the task-start sequencing)
+     reconciled — the decompile-driven slice.
+- The build 122,487 text; make test-host green (the host test = the
+  u2_rx_open stub added); the hook pins held.
+- The run ledger for this question: the matrix = the discovery (1) + the
+  failed verify (2) + the partial verify (3); the 3 targeted state-dump
+  diagnostics (the REA-equivalent evidence per the 2-run rule); the
+  archive fix = from the session-58 decompile note + the F4 evidence.

@@ -31,6 +31,10 @@ void usart2_send(const uint8_t *buf, uint32_t len)
 }
 
 /* pull the implementation in (gives access to its internals) */
+/* [session 71] the uart-side RX window is stubbed for the host build: the
+ * protocol conformance tests exercise protocol_frame_received directly. */
+uint8_t u2_rx_open;
+
 #include "../src/protocol.c"
 
 static int failures;

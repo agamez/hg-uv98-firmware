@@ -163,12 +163,27 @@ void protocol_frame_received(const uint8_t *frame, uint32_t len)
      * (open question, research log O1/session 3). Documented as unknown. */
 }
 
+void protocol_settings_archive(void)
+{
+    /* [session 58 note + the ck2matrix F4 evidence | session 71] the
+     * $A00 settings frame is ARCHIVED to rxBuf2 (0x20002F74) by the
+     * later consumer-side step, not the ISR: the original's rxBuf2
+     * holds the whole 534-B frame by ~1.7 s after the boot handshake,
+     * while at the ISR moment rxBuf2 stays zero. The recon's dispatcher
+     * calls this right before the radio apply. */
+    mem_copy(rxBuf2, rxBuf, 534u);   /* 0x216 = the whole frame */
+}
+
 void protocol_send_cmd(uint8_t cmd_id)
 {
     /* [0x08010128 dispatcher | RECOVERED]: switch on command id, send the
      * 6-byte string via usart2_send(str, 6). */
-    if (cmd_id < CMD_COUNT && cmd_table[cmd_id])
+    if (cmd_id < CMD_COUNT && cmd_table[cmd_id]) {
+        if (cmd_id == CMD_A00_READ)
+            u2_rx_open = 1u; /* [session 71] the response window opens with
+                                the request (the ck2matrix differential) */
         usart2_send((const uint8_t *)cmd_table[cmd_id], 6);
+    }
 }
 
 void protocol_send_settings(const uint8_t body512[512])

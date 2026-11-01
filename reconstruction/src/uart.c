@@ -67,6 +67,50 @@ void usart2_send(const uint8_t *buf, uint32_t len)
     }
 }
 
+uint8_t u2_rx_open;   /* [session 71 | the ck2matrix differential] the
+                       * request-gated RX window: opened by the $A00 request,
+                       * closed at the settings consumption. */
+
+/* [session 71] a complete held '$'-frame? The dispatcher polls this
+ * per pass; the original consumed its pre-request $A00 response only
+ * after the request fired and froze the buffers after the consumption
+ * (the ck2matrix run: the F1 content first visible two checkpoints
+ * post-injection; the unsolicited frames never land). */
+uint8_t u2_rx_poll(void)
+{
+    /* [session 71 fix] the scan = the drain's first-CRLF walk, NOT a
+     * tail check: the ring may hold the burst's overflow tail behind
+     * the complete frame (the ck2matrix run: the ring = 536 = the 534-B
+     * frame + the next frame's first 2 bytes, so the tail check saw
+     * '$','A' instead of the terminator and the poll never fired).
+     * The original's consumer walks the ring the same way (it consumed
+     * its pre-request response with the next frame already in flight). */
+    uint32_t i;
+    if (!u2_rx_open || u2_idx < 3 || u2_ring[0] != '$')
+        return 0;
+    for (i = 2; i < u2_idx; i++) {
+        if (u2_ring[i - 1] == '\r' && u2_ring[i] == '\n')
+            return 1;
+    }
+    return 0;
+}
+
+void u2_rx_drain(void)
+{
+    /* Route the FIRST complete frame (the ring may hold the burst's
+     * overflow tail behind it when a second frame arrived while this
+     * one was held - the ring is 536 B = one 534-B frame + 2); the
+     * tail is discarded with the reset. [session 71] */
+    uint32_t i;
+    for (i = 2; i < u2_idx; i++) {
+        if (u2_ring[i - 1] == '\r' && u2_ring[i] == '\n') {
+            protocol_frame_received(u2_ring, i + 1);
+            break;
+        }
+    }
+    u2_idx = 0;
+}
+
 /* [0x0801F920 | RECOVERED]: RXNE ISR; accumulate into ring; on '\r\n'
  * require buf[0]=='$' and post the frame to the protocol layer.
  * [session 50] single-byte form restored to mirror the original's ISR
@@ -74,7 +118,13 @@ void usart2_send(const uint8_t *buf, uint32_t len)
  * Update(), giving one take per byte — the original's observed pattern).
  * The earlier per-take drain experiment (session 49) is retained in git
  * history; both forms starve identically, which localizes the fault to
- * the model/queue delivery, not the ISR shape. */
+ * the model/queue delivery, not the ISR shape.
+ * [session 71 | REVISED per the ck2matrix differential] the '$'-frame
+ * is now HELD in the ring (no ISR-level post): the original's
+ * frame-ready flag never showed bit0 set at any checkpoint while the
+ * pre-request frame was only routed after the request fired — the
+ * post happens at the consumer's poll, not in the ISR. Non-'$' frames
+ * still reset the ring (the session 50 decompile). */
 void USART2_IRQHandler(void)
 {
     uint8_t b;
@@ -90,13 +140,11 @@ void USART2_IRQHandler(void)
 
     if (u2_idx >= 3 &&
         u2_ring[u2_idx - 2] == '\r' && u2_ring[u2_idx - 1] == '\n') {
-        if (u2_ring[0] == '$') {
-            protocol_frame_received(u2_ring, u2_idx);
-        }
-        /* non-'$' frames: original clears the ready flag and resets
-         * (app-text commands are documented as unreachable in the June
-         * build behind the '$' gate — research log session 3). */
-        u2_idx = 0;
+        if (u2_ring[0] != '$')
+            u2_idx = 0;   /* non-'$' frames: the original resets the ring
+                             (app-text commands are documented as
+                             unreachable in the June build behind the '$'
+                             gate — research log session 3). */
     }
 }
 

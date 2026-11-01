@@ -26,6 +26,12 @@
 #include <stdint.h>
 
 void usart2_init(void);
+
+extern uint8_t u2_rx_open;   /* [session 71] the request-gated RX window */
+uint8_t u2_rx_poll(void);    /* a complete '$'-frame is held in the ring  */
+void u2_rx_drain(void);      /* route the first held frame to the router  */
+
+void usart2_send(const uint8_t *buf, uint32_t len);
 void usart1_init(void);
 
 void usart2_send(const uint8_t *buf, uint32_t len);

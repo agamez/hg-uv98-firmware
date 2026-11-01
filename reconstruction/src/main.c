@@ -63,19 +63,26 @@ static void dispatcher_task(void *arg)
      * 187041 poll). The full default apply (the CK3 peer-harness
      * content) runs only when the 0x216-byte $A00 settings frame
      * actually arrives; ~1 s bounded wait then idle. */
-    /* [session 71] the wait is UNBOUNDED, mirroring the original's
-     * ISR+flag architecture: the settings frame is consumed whenever it
-     * arrives (the peer harness injects at 2.0 s; the original's request
-     * fires at ~0.8 s). The earlier bounded 200x5-tick scaffold window
-     * (1.39 s) silently dropped late frames and broke the symmetric CK2
-     * stimulus. No-peer boots (p3/CK4 fresh-EE) idle in this loop exactly
-     * as before the change. */
+    /* [session 71] the wait is the request-gated RX poll: the settings
+     * frame is HELD in the USART2 ring by the ISR and drained here at
+     * the first post-request pass that finds it complete — mirroring
+     * the original's consumption (the ck2matrix differential: the
+     * pre-request frame consumed post-request; the buffers frozen
+     * after; the frame-ready bit0 never observable between passes).
+     * The window closes at the drain (pre-apply), so any later
+     * unsolicited frames are never routed. No-peer boots (p3/CK4
+     * fresh-EE) idle in this loop with the window never opened. */
     for (;;) {
-        if ((protocol_flags_read() & 0x01u) &&
-            protocol_rx_len() == 0x216u) {     /* the REAL $A00 reply    */
-            protocol_flags_clear(0x01u);
-            at1846s_boot_default_apply();
-            break;
+        if (u2_rx_poll()) {
+            u2_rx_drain();                   /* route the first held frame  */
+            u2_rx_open = 0u;                 /* the one-shot close          */
+            if (protocol_rx_len() == 0x216u) {     /* the REAL $A00 reply   */
+                protocol_settings_archive(); /* [session 71] the consumer-side
+                                                * rxBuf2 archive (the ck2matrix
+                                                * F4 evidence) */
+                at1846s_boot_default_apply();
+                break;
+            }
         }
         time_dly(5);
     }
