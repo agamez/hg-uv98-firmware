@@ -1015,6 +1015,14 @@ void ui_menu_screen_build(void)
  * The session-61 scaffold fills #2-13 and the "cursor-column cell at
  * x 3..10" are RETRACTED: the first cell of each row = the '0' glyph
  * at x 3..10; the orig emits no other fills in this era. */
+/* [session 74 upgrade | the decompile chain] the CJK glyphs = the
+ * cb60 GBK branch FUN_0801c914 (the 32-byte fetch 0x08024E78 from the
+ * SPI2 font flash -> the 16x16 blit FUN_0801bd3c). The Renode SPI2
+ * font-flash model returns all-0xFF, so the fetched record = all-set
+ * and every pixel renders fg — the solid block below = the
+ * MODEL-FAITHFUL rendering of the same decompiled chain, not a
+ * recorded-behavior transcription. The p3k6 menu window (scr=35) is
+ * event-identical with this shape. */
 static const uint8_t menu_cjk_solid[32] = {
     0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu,
     0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu, 0xFFu,

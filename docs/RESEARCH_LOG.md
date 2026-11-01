@@ -5513,3 +5513,24 @@ CK3 parity.
   the menu backgrounds 0x22 x 0x9E = 10,744 bytes; the selection-state
   string swaps) — the menu screen's generative builder = DECOMPILED.
   0x08027918 = not returned (the folded output — the retry item).
+
+## Session 74 (cont. 6) — the menu screen audit: already generative (the annotation upgraded); the LED stream's generator identified
+
+- **The menu screen (scr=35) audit**: the recon's ui_menu_screen_continue
+  = ALREADY the generative machinery (the ROM string-chain walk
+  @0x08043B20 [RECOVERED], the cb60-class row walker, the selection
+  re-walk + the blue bar) and bench-proven in the p3k6 100.00% window.
+  The menu_cjk_solid annotation UPGRADED: the CJK = the decompiled
+  chain c914 (the 32-byte font-flash fetch) -> bd3c (the 16x16 blit);
+  the solid = the MODEL-FAITHFUL rendering (the Renode SPI2 flash =
+  all-0xFF), not a recorded transcription. The full menu machinery =
+  0x0801219c (cont. 5) = the reference for the deeper menu pages (the
+  key-10-era flows = the future slices).
+- **The LED stream's generator = IDENTIFIED**: the exhaustive BL scan
+  finds exactly ONE caller of the RECOVERED display_led_write
+  (0x0802883A) = 0x0801ab2e INSIDE FUN_0801ab36 (the VFO slot apply)
+  — the LED words = the +0x11E per-slot table in the ab36 decompile,
+  written during the radio apply. The warm-boot LED replay's
+  replacement = the ab36-faithful state-driven led_write sequence
+  (the next slice: the word-for-word mapping from the +0x11E table and
+  the apply order, verified against the CK2 warm matrix).
