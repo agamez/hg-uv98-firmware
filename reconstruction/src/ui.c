@@ -429,6 +429,8 @@ static void cell12x20(uint8_t y, uint8_t x, uint8_t ch)
     display_blit_glyph_cell_12x20(y, x, &ui_ascii12x20_font[(uint32_t)(ch - 0x20u) * 36u],
                                   0x0000u, 0xEFBEu);
 }
+static void ui_draw_text(uint8_t y, uint8_t x, const char *s, uint8_t scheme,
+                         uint8_t font);   /* [session 74] the cb60 mirror (defined below) */
 /* [session 63 | 0x0801CB60 class-6 path RECOVERED] the VFO frequency row:
  * the read16 buffer's bytes 3,2,1 carry the frequency as big-endian BCD
  * nibbles; the six digits render "d0 d1 d2 . d3 d4 d5" as class-6 (12x20)
@@ -448,22 +450,21 @@ static uint8_t ui_vfo_blk_b[16];
 
 static void vfo_freq_row(uint8_t y, const uint8_t *blk)
 {
-    static const uint8_t xs[7] = {0x16u, 0x22u, 0x2Eu, 0x3Au, 0x46u, 0x52u, 0x5Eu};
-    uint8_t d[6];
+    /* [session 74 | REA-derived] one cb60 text draw (the font 6 = the
+     * 12x20 class: the 0x08028f8c font-6 stride 36 B, the cac0 +12 x
+     * step = the observed 0x16/0x22/../0x5E pitch), the digits from the
+     * read16 block's big-endian BCD nibbles ("d0 d1 d2 . d3 d4 d5"). */
+    char s[8];
 
-    d[0] = (uint8_t)((blk[3] >> 4) & 0xFu);
-    d[1] = (uint8_t)(blk[3] & 0xFu);
-    d[2] = (uint8_t)((blk[2] >> 4) & 0xFu);
-    d[3] = (uint8_t)(blk[2] & 0xFu);
-    d[4] = (uint8_t)((blk[1] >> 4) & 0xFu);
-    d[5] = (uint8_t)(blk[1] & 0xFu);
-    cell12x20(y, xs[0], (uint8_t)('0' + d[0]));
-    cell12x20(y, xs[1], (uint8_t)('0' + d[1]));
-    cell12x20(y, xs[2], (uint8_t)('0' + d[2]));
-    cell12x20(y, xs[3], 0x2Eu);                        /* '.'            */
-    cell12x20(y, xs[4], (uint8_t)('0' + d[3]));
-    cell12x20(y, xs[5], (uint8_t)('0' + d[4]));
-    cell12x20(y, xs[6], (uint8_t)('0' + d[5]));
+    s[0] = (char)('0' + ((blk[3] >> 4) & 0xFu));
+    s[1] = (char)('0' + (blk[3] & 0xFu));
+    s[2] = (char)('0' + ((blk[2] >> 4) & 0xFu));
+    s[3] = '.';
+    s[4] = (char)('0' + (blk[2] & 0xFu));
+    s[5] = (char)('0' + ((blk[1] >> 4) & 0xFu));
+    s[6] = (char)('0' + (blk[1] & 0xFu));
+    s[7] = '\0';
+    ui_draw_text(y, 0x16u, s, 0u, 6u);
 }
 /* [session 62] the boot EE scan (the settings save + the VFO init +
  * the 128-channel validity scan + the 8 VFO/config reads). Runs once,
@@ -553,20 +554,29 @@ static uint32_t ui_fmt_u(char *out, uint32_t v)
 }
 
 /* [session 74 | REA-derived 0x0801cb60] the master text draw (the cb60
- * mirror): per char — the BCD digit bias (<10 -> +0x30; the original
+ * mirror): per char — the wrap check FIRST (c99e: x > threshold -> x=6,
+ * y += the line pitch), the BCD digit bias (<10 -> +0x30; the original
  * mutates the caller's bytes), the single-char blit (the c95e shape =
- * the glyph lookup 0x08028f8c font 3 + the bfb8 font-3 blit), then the
- * advance (cac0 font 3 = x += 8; the wrap c99e font 3 = x > 0x98 ->
- * x = 6, y += 16 — inert for the header rows). Terminators: 0x00 and
- * 0xFF. The scheme indexes the bfb8 palette (the param_5==0 branch, the
- * boot invert-state 0); the state-conditional scheme-3/4 variants are
- * in the bfb8 decompile. The GBK double-byte branch (>=0x81 pairs, the
- * c914 shape, +16 x) exists in the original but is unused by the bench
- * screens. The inhibit gate + the d840(1/0) bracket = vestigial in the
- * original (d840 = movs r1,r0; movs r0,#0xff; bx lr — a no-op) and
- * omitted. The font param of cb60 = pinned to the font 3 (8x16), the
- * shape the bench header rows use exclusively. */
-static void ui_draw_text(uint8_t y, uint8_t x, const char *s, uint8_t scheme)
+ * the glyph lookup 0x08028f8c + the bfb8 blit), then the advance
+ * (cac0). Terminators: 0x00 and 0xFF. The scheme indexes the bfb8
+ * palette (the param_5==0 branch, the boot invert-state 0); the
+ * state-conditional scheme-3/4 variants are in the bfb8 decompile. The
+ * GBK double-byte branch (>=0x81 pairs, the c914 shape, +16 x) exists
+ * in the original but is unused by the bench screens. The inhibit gate
+ * + the d840(1/0) bracket = vestigial in the original (d840 = movs
+ * r1,r0; movs r0,#0xff; bx lr — a no-op) and omitted.
+ *
+ * The per-font table (the c99e wrap threshold / the y pitch, the cac0 x
+ * step, the 0x08028f8c glyph stride):
+ *   font 1 (6x10):  wrap x>0x9A, y+=10; step +6;  12 B/glyph
+ *   font 3 (8x16):  wrap x>0x98 (0x9E when the display-state byte at
+ *                   _DAT_0801d4f4 == 'h'), y+=16; step +8; 16 B/glyph
+ *   font 6 (12x20): wrap x>0x94, y+=20; step +12; 36 B/glyph
+ * The wrap thresholds sit above every bench string (the max drawn x =
+ * 0x97 on the font-1 rows, 0x8A pre-draw on the font-3 rows), so the
+ * wrap = inert on the verified paths. */
+static void ui_draw_text(uint8_t y, uint8_t x, const char *s, uint8_t scheme,
+                         uint8_t font)
 {
     static const uint16_t pal[7][2] = {   /* bfb8 scheme table, boot state */
         { 0x0000u, 0xEFBEu }, { 0x001Fu, 0xEFBEu }, { 0x0000u, 0x8D5Eu },
@@ -575,21 +585,36 @@ static void ui_draw_text(uint8_t y, uint8_t x, const char *s, uint8_t scheme)
     };
     uint16_t fg = pal[scheme & 7u][0u];
     uint16_t bg = pal[scheme & 7u][1u];
+    uint8_t wrap_x, wrap_pitch, step;
+
+    if (font == 1u) {
+        wrap_x = 0x9Au; wrap_pitch = 10u; step = 6u;
+    } else if (font == 6u) {
+        wrap_x = 0x94u; wrap_pitch = 20u; step = 12u;
+    } else {
+        wrap_x = 0x98u; wrap_pitch = 16u; step = 8u;   /* the font 3 */
+    }
 
     while ((uint8_t)*s != 0u && (uint8_t)*s != 0xFFu) {
         uint8_t c = (uint8_t)*s;
 
+        if (x > wrap_x) {                  /* the c99e wrap (pre-draw) */
+            x = 6u;
+            y = (uint8_t)(y + wrap_pitch);
+        }
         if (c < 10u)
             c = (uint8_t)(c + 0x30u);      /* the BCD bias (cb60)   */
-        display_blit_glyph_cell(y, x,
-                                &ui_ascii8x16_font[(uint32_t)c * 16u - 0x200u],
-                                fg, bg);
+        if (font == 1u)
+            display_blit_glyph_cell_6x10(y, x,
+                &ui_ascii6x10_font[(uint32_t)(c - 0x20u) * 12u], fg, bg);
+        else if (font == 6u)
+            display_blit_glyph_cell_12x20(y, x,
+                &ui_ascii12x20_font[(uint32_t)(c - 0x20u) * 36u], fg, bg);
+        else
+            display_blit_glyph_cell(y, x,
+                &ui_ascii8x16_font[(uint32_t)c * 16u - 0x200u], fg, bg);
         s++;
-        x = (uint8_t)(x + 8u);             /* the cac0 font-3 step  */
-        if (x > 0x98u) {                   /* the c99e font-3 wrap  */
-            x = 6u;
-            y = (uint8_t)(y + 16u);
-        }
+        x = (uint8_t)(x + step);           /* the cac0 advance      */
     }
 }
 
@@ -625,9 +650,9 @@ static void ui_screen0_build(void)
     p += ui_fmt_u(p, ui_bat_tenth);
     *p++ = ' '; *p++ = 'V'; *p = '\0';
 
-    ui_draw_text(0x48u, 0x2Au, "CALL:", 0u);
-    ui_draw_text(0x48u, 0x52u, cs, 0u);
-    ui_draw_text(0x58u, 0x2Au, bat, 0u);
+    ui_draw_text(0x48u, 0x2Au, "CALL:", 0u, 3u);
+    ui_draw_text(0x48u, 0x52u, cs, 0u, 3u);
+    ui_draw_text(0x58u, 0x2Au, bat, 0u, 3u);
 
     {
         static uint8_t scanned;
@@ -702,15 +727,14 @@ static void ui_screen0_body(void)
     display_fill_rect(111u, 22u, 16u, 16u, 0x0000);;
     display_fill_rect(111u, 125u, 16u, 16u, 0x0000);;
     display_fill_rect(111u, 141u, 16u, 16u, 0x0000);;
-    cell6x10(0x12u, 0x85u, 0x41u);
-    cell6x10(0x12u, 0x8Bu, 0x50u);
-    cell6x10(0x12u, 0x91u, 0x52u);
-    cell6x10(0x12u, 0x97u, 0x53u);
-    cell6x10(0x1Du, 0x88u, 0x20u);
-    cell6x10(0x1Du, 0x8Eu, 0x20u);
-    cell6x10(0x27u, 0x85u, 0x20u);
-    cell6x10(0x27u, 0x8Bu, 0x20u);
-    cell6x10(0x27u, 0x91u, 0x20u);
+    /* [session 74 | REA-derived cb60 font-1 draws] the status labels:
+     * "APRS" = the ROM asset @0x08045A6C; the space runs = the cb60
+     * blank-string erasures at the cycling label positions (the single
+     * spaces @0x080109AC family). The contiguous runs = one call each
+     * (the cac0 +6 step); the order = the recorded event order. */
+    ui_draw_text(0x12u, 0x85u, "APRS", 0u, 1u);
+    ui_draw_text(0x1Du, 0x88u, "  ", 0u, 1u);
+    ui_draw_text(0x27u, 0x85u, "   ", 0u, 1u);
     {   /* [session 55/63] read16(0x0800) @ODR#137,739 — the VFO A block,
          * right before the first frequency row (0x1D) renders; the orig
          * renders the row's digits FROM this block (session 63). */
@@ -718,18 +742,20 @@ static void ui_screen0_body(void)
         vfo_freq_row(0x1Du, ui_vfo_blk_a);
     }
     display_fill_rect(29u, 106u, 18u, 20u, 0xEFBE);;
-    cell8x16_ch(0x23u, 0x6Cu, 0x30u);
-    cell8x16_ch(0x23u, 0x74u, 0x30u);
-    cell6x10(0x12u, 0x50u, 0x20u);
-    cell6x10(0x12u, 0x5Cu, 0x20u);
-    cell6x10(0x12u, 0x37u, 0x20u);
-    cell6x10(0x12u, 0x1Eu, 0x20u);
-    cell6x10(0x12u, 0x24u, 0x20u);
-    cell6x10(0x12u, 0x2Au, 0x20u);
-    cell6x10(0x12u, 0x44u, 0x57u);
-    cell6x10(0x12u, 0x05u, 0x20u);
-    cell6x10(0x12u, 0x0Bu, 0x20u);
-    cell6x10(0x12u, 0x11u, 0x20u);
+    /* [session 74 | REA-derived] the "00" sub-display = one cb60 font-3
+     * draw (the cac0 +8 step: 0x6C -> 0x74); the counter value = the
+     * fresh-boot state instance. The label-row remainder: the separate
+     * space erasures at 0x50/0x5C/0x37 (the non-contiguous positions =
+     * separate cb60 calls), the contiguous 3-space run @0x1E, the "W"
+     * wide-band indicator (the inline-string class, like the H/L pair
+     * @0x0801f89c/0x0801f734), the contiguous 3-space run @0x05. */
+    ui_draw_text(0x23u, 0x6Cu, "00", 0u, 3u);
+    ui_draw_text(0x12u, 0x50u, " ", 0u, 1u);
+    ui_draw_text(0x12u, 0x5Cu, " ", 0u, 1u);
+    ui_draw_text(0x12u, 0x37u, " ", 0u, 1u);
+    ui_draw_text(0x12u, 0x1Eu, "   ", 0u, 1u);
+    ui_draw_text(0x12u, 0x44u, "W", 0u, 1u);
+    ui_draw_text(0x12u, 0x05u, "   ", 0u, 1u);
     /* [session 63 pt3 | 0x0801E5E0/0x0801F57C RECOVERED] the power-level
      * indicator beside the VFO rows: drawn via CB60 class 1 at (y=0x32,
      * x=0x16) only while the screen byte [0x200050E8]==0, char =
@@ -737,15 +763,19 @@ static void ui_screen0_body(void)
      * strings live inline at 0x0801f89c/0x0801f734. The fresh factory
      * default ctx[0x0C]=1 renders 'H' (p3k6_orig CB60 trace b=48,0,0,0);
      * the session-52 sim-state image had 0 -> 'L'. */
-    cell6x10(0x32u, 0x16u,
-             (uint8_t)((REG8(SETTINGS_CTX + 0x0Cu) & 1u) ? 0x48u : 0x4Cu));
+    {   /* [session 74 | REA-derived] the H/L power indicator = one cb60
+         * font-1 draw of the inline "H"/"L" string (0x0801f89c/0x0801f734)
+         * selected by the ctx[0x0C] bit0 (the 0x0801E5E0 decompile). */
+        char hl[2];
+
+        hl[0] = (char)((REG8(SETTINGS_CTX + 0x0Cu) & 1u) ? 0x48u : 0x4Cu);
+        hl[1] = '\0';
+        ui_draw_text(0x32u, 0x16u, hl, 0u, 1u);
+    }
     display_fill_rect(63u, 0u, 160u, 1u, 0x0000);;
     display_fill_rect(64u, 133u, 24u, 10u, 0xEFBE);;
-    cell6x10(0x4Cu, 0x88u, 0x20u);
-    cell6x10(0x4Cu, 0x8Eu, 0x20u);
-    cell6x10(0x56u, 0x85u, 0x20u);
-    cell6x10(0x56u, 0x8Bu, 0x20u);
-    cell6x10(0x56u, 0x91u, 0x20u);
+    ui_draw_text(0x4Cu, 0x88u, "  ", 0u, 1u);
+    ui_draw_text(0x56u, 0x85u, "   ", 0u, 1u);
     {   /* [session 55/63] read16(0x0810) @ODR#145,359 — the VFO B block,
          * right before the second frequency row (0x4C) renders; the digits
          * render FROM this block (session 63). */
@@ -753,30 +783,34 @@ static void ui_screen0_body(void)
         vfo_freq_row(0x4Cu, ui_vfo_blk_b);
     }
     display_fill_rect(76u, 106u, 18u, 20u, 0xEFBE);;
-    cell8x16_ch(0x52u, 0x6Cu, 0x30u);
-    cell8x16_ch(0x52u, 0x74u, 0x30u);
-    cell6x10(0x40u, 0x50u, 0x20u);
-    cell6x10(0x40u, 0x5Cu, 0x20u);
-    cell6x10(0x40u, 0x37u, 0x20u);
-    cell6x10(0x40u, 0x1Eu, 0x20u);
-    cell6x10(0x40u, 0x24u, 0x20u);
-    cell6x10(0x40u, 0x2Au, 0x20u);
-    cell6x10(0x40u, 0x44u, 0x57u);
-    cell6x10(0x40u, 0x05u, 0x20u);
-    cell6x10(0x40u, 0x0Bu, 0x20u);
-    cell6x10(0x40u, 0x11u, 0x20u);
-    /* [session 63 pt3 | 0x0801E7E4] the VFO-2 power-level indicator:
-     * char = slot-1+0xC bit0 (the read16(0x0810) mirror byte 0x0C). */
-    cell6x10(0x61u, 0x16u,
-             (uint8_t)((ui_vfo_blk_b[0x0Cu] & 1u) ? 0x48u : 0x4Cu));
+    ui_draw_text(0x52u, 0x6Cu, "00", 0u, 3u);
+    ui_draw_text(0x40u, 0x50u, " ", 0u, 1u);
+    ui_draw_text(0x40u, 0x5Cu, " ", 0u, 1u);
+    ui_draw_text(0x40u, 0x37u, " ", 0u, 1u);
+    ui_draw_text(0x40u, 0x1Eu, "   ", 0u, 1u);
+    ui_draw_text(0x40u, 0x44u, "W", 0u, 1u);
+    ui_draw_text(0x40u, 0x05u, "   ", 0u, 1u);
+    {   /* [session 74 | REA-derived] the slot-2 H/L (the mirror of the
+         * y=0x32 draw; the selector = the read16(0x0810) mirror byte
+         * 0x0C, the 0x0801E7E4 decompile). */
+        char hl[2];
+
+        hl[0] = (char)((ui_vfo_blk_b[0x0Cu] & 1u) ? 0x48u : 0x4Cu);
+        hl[1] = '\0';
+        ui_draw_text(0x61u, 0x16u, hl, 0u, 1u);
+    }
     {
-        static const uint8_t left_arrow[16] = {   /* the '<' cursor glyph [DATA-DERIVED] */
+        /* [session 74 | flash-asset VERIFIED] the '<' cursor glyph: the
+         * 16 bytes below are byte-identical to the original's ROM at
+         * 0x08042C23 (the asset search hit) — the same class as the
+         * font tables. */
+        static const uint8_t left_arrow[16] = {
             0x00, 0xFC, 0xF8, 0xF0, 0xE0, 0xC0, 0x80, 0x00,
             0x00, 0x1F, 0x0F, 0x07, 0x03, 0x01, 0x00, 0x00
         };
         cell8x16(0x1Fu, 0x0Du, left_arrow);
     }
-    cell8x16_ch(0x4Eu, 0x0Du, 0x20u);
+    ui_draw_text(0x4Eu, 0x0Du, " ", 0u, 3u);
     /* [session 66 correction] the LED stream/tail replays AND the
      * (97,30,90,10) fill came from the session-53 WARM-boot capture
      * (@ODR#152,036 era). The fresh-EE original emits NONE of them (the
@@ -801,11 +835,8 @@ static void ui_screen0_body(void)
      * through 187040, the orig then polls). Gated on ui_ee_warm. */
     if (ui_ee_warm) {
         display_fill_rect(29u, 106u, 18u, 20u, 0xEFBE);;
-        cell8x16_ch(0x23u, 0x6Cu, 0x30u);
-        cell8x16_ch(0x23u, 0x74u, 0x30u);
-        cell6x10(0x12u, 0x1Eu, 0x20u);
-        cell6x10(0x12u, 0x24u, 0x20u);
-        cell6x10(0x12u, 0x2Au, 0x20u);
+        ui_draw_text(0x23u, 0x6Cu, "00", 0u, 3u);
+        ui_draw_text(0x12u, 0x1Eu, "   ", 0u, 1u);
         {   /* [session 55 + 62] the 359-event burst @ODR#158,942: the
              * original's ee_read(0x0FA0, 101) setup interleaved by the
              * RTOS with LED-serial words — replayed [DATA-DERIVED] (see

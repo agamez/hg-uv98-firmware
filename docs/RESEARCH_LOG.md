@@ -5392,3 +5392,38 @@ CK3 parity.
   (rf_write 0x08004f08 / rf_read 0x08004fb4); **CK4 189,036/189,036 =
   100.00% — the header conversion is EVENT-IDENTICAL** (the same cells
   in the same order through the same primitive).
+
+## Session 74 (cont. 2) — b2-screens opens: the whole screen0 text construction converted to the generative cb60 draws; CK4 = 100.00% event-identical again
+
+- **The conversion**: ui.c — the font-parameterized ui_draw_text (the
+  cb60 mirror: the c99e pre-draw wrap / the BCD bias / the c95e blit /
+  the cac0 advance, the per-font table: the font 1 = 6x10 (+6, wrap
+  0x9A), the font 3 = 8x16 (+8, wrap 0x98), the font 6 = 12x20 (+12,
+  wrap 0x94)). The screen0 body groups converted:
+  - the status labels: "APRS" = the ROM asset @0x08045A6C as ONE
+    font-1 draw; the contiguous space runs = single blank-string
+    erasures; the "W" wide-band = the inline-string class (the H/L
+    @0x0801f89c/0x0801f734 family);
+  - the "00" sub-displays = the font-3 "00" draws (the counter state
+    instance); the H/L power indicators = the inline-string draws
+    selected by the ctx[0x0C]/blk[0x0C] bit0;
+  - vfo_freq_row = ONE font-6 text draw over the BCD-nibble string
+    "d0d1d2.d3d4d5" (the observed 0x16../0x5E pitch = the cac0 +12
+    step) — the digit-cell loop replaced;
+  - the warm-gated block's "00" + the 3-space run converted likewise;
+    the y=0x4E 8x16 space = the font-3 blank draw.
+- **The asset verifications**: the '<' cursor glyph = byte-identical to
+  the ROM @0x08042C23 (the search hit) — the array re-annotated as the
+  flash asset. The battery icon bitmap = NOT FOUND in the ROM in the
+  column-major or the row-major (the LE/BE) bit orders — the icon's
+  draw function = the OPEN descent target (the next slice); the
+  stream-extracted bitmap = the honestly-flagged gray zone until then.
+- **The bench**: build 117,127 (-344); test-host green; the pins held;
+  **CK4 189,036/189,036 = 100.00% — the full screen0 text construction
+  (the header + the labels + the frequency rows + the sub-displays) is
+  now the generative cb60-mirror draws and EVENT-IDENTICAL.**
+- The remaining Tier-B items: the battery-icon draw function, the
+  record-driven slot renderer's data (the 0x20005080 record's initial
+  words — the .data LMA descent), the 0801ab36 record-callback chain's
+  continuation pointers, the other screens (the key13 CH-002, the
+  menus, the scan), the GBK CJK path (the c914 — unused by the bench).
