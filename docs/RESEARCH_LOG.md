@@ -5672,3 +5672,35 @@ CK3 parity.
   manual disassembly of the main-chain region (0x0802d200-0x0802d5xx)
   hunting the 0x200-mask BRR/BSRR patterns. The framing park stands
   with the narrowed search space.
+
+## Session 74 (cont. 14) — THE VENDOR/SAVE FRAMING DECODED: the I2C EE-write with ack-polls (the sda_output signature)
+
+- **THE BREAKTHROUGH**: the original stream's first CRH = `44444434` =
+  EXACTLY the sda_output (0x0802846A) read-modify-write result (the PB9
+  output nibble 0x3 over the 0x4444 input base) — the ONLY writer of
+  that CRH shape in the firmware. THE VENDOR TRAFFIC = AN I2C
+  EE-WRITE TRANSACTION WITH ACK-POLLS: the 2,501 PB9 toggles = the SDA
+  transitions of the ee_write's byte+ack phases (the decompiled
+  FUN_080286c0 = the do-while ack-poll), the ~5 CRH = the
+  sda_output/sda_input direction pairs, the head/tail configs = the
+  first/last direction switches. The generator = the '$A00'-class
+  EE-write command (the head-link handler 0x0802da22, decoded this
+  session: the addr/[len] structure) calling the decompiled ee_write.
+  The save-frame sibling (the key-13's 6,077 = 5,227 bits + 853 CRH) =
+  the same class.
+- **The boot-chain enumeration = COMPLETE (the negative proof)**: the
+  crt0 → main (0x0802d120 = the RTOS + the main task 0x0802d17c) →
+  FUN_0802d0d0 (the RCC/queues/SPI-flash/state-setters + the tail-call
+  hw_init 0x0802d080) → the hw_init's 18 calls (ALL decompiled this
+  session: the GPIO configs, the ADC, the keyscan, the RTC, the
+  USART-DMA, the RF, the PB9/PB11 config, the display_init) — NO
+  PB9-traffic function exists; the init_array (0x08042900) = the pure
+  C runtime (the bss-zero 0x0801D966 + the data-copy). The vendor =
+  NOT a boot-chain construct = the RUNTIME I2C transaction = confirmed.
+- **The implementation path (the next slice)**: the recon's
+  protocol.c $A00-apply already mirrors the command side; the missing
+  piece = the ack-poll behavior of the harness's EE model (the
+  write-cycle busy window → the do-while polls in FUN_080286c0 emit
+  the transitions). The generative replacement = the recon's ee_write
+  invoked on the $A00-apply path + the harness EE model's ack timing —
+  the workarounds = the sim/ only per the working rules.
