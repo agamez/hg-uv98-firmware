@@ -5225,3 +5225,34 @@ CK3 parity.
   a1/a2-tail generative swaps stand; the run-1 budget for the a2-pb9
   question is spent per the 2-run rule — the next attempt must come
   from the framing decompile, not another guess).
+
+## Session 73 (cont. 3) — the a3 design locked: the tune frame = the frequency-parameterized poll bursts (the existing machinery)
+
+- **The template decode (the key14_tune_frame.h's burst 1)**: the naive
+  25-event frame grouping yields w00-w23 = the poll's block_b table
+  EXACTLY (0x15/1F00, 0x32/7564, ... 0x7F/0000) and w24/w25 = the poll's
+  tone pair (0x48/1E3C, 0x49/4283 = the VHF slot's live values) — the
+  tune burst = THE POLL BURST (the w26+ misparse = the 13-event
+  second-bus word shifting the alignment, the known session-68
+  structure).
+- **The Rosetta counter = the AT1846S frequency encoding, numerically
+  verified**: the 0x29/0x2A pair = the 32-bit PLL word split into the
+  two 16-bit halves = (f_kHz*16)>>16 and (f_kHz*16)&0xFFFF — the poll's
+  VHF slot: 136.077*16 = 2,177,232 = 0x213BD0 -> 0x29=0x0021, 0x2A=0x3BD0
+  ✓; the Rosetta V = f_kHz-135,168 = 909 = (0x3BD0)>>4 = the 0x2A val's
+  high 11 bits = the field at the frame positions 922..932 ✓ (the
+  "12th bit = 0" note = the V<2048 band bound) ✓. The recon's
+  at1846s_set_frequency ("MHz*16000 -> 0x29/0x2A") = the SAME encoder.
+- **The a3 implementation plan (the next slice)**: (1) rf.c — the
+  at1846s_rssi_poll's freq29 live values become the computed
+  (f_kHz*16) split (the boot's defaults = the same constants = the
+  safe swap; the per-slot DATA-DERIVED constants retire); (2) ui.c —
+  the key-14/key-11 tune slice = at1846s_rssi_poll(chip) x2 with the
+  ui_freq state; (3) key14_tune_frame.h + key11_end_frame.h deleted;
+  (4) the bench = the key-14/key-11 pairs (the prefix-covers-orig
+  classes) + the p3k6 regression (the poll's constants = the
+  defaults-identical). The ≤2-run budget = the implementation + the
+  verify.
+- The a2-pb9 remains parked per cont. 2 (the head-serial framing = the
+  open decode; the run budget spent; the next attempt = from the
+  framing decompile).
