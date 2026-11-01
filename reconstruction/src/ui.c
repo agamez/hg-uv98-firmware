@@ -1272,14 +1272,6 @@ void ui_task(void *p_arg)
     ui_boot_scene();      /* [0x0802D178 order: the periph init, the task
                            * creators, then the boot scene] */
     ui_screen0_build();   /* the status page: the first runtime pass */
-    /* [session 66 | FUN_08022a98 the both-slot refresh] the original's
-     * boot end refreshes both slots back-to-back (the RD-hook census:
-     * the polls 1+2 = the FUN_08022a98 sites 0x8022ae7/0x8022b07, the
-     * stream 187041..189034 = 2x (39 frames + gap + read)). The PB9
-     * bit pattern is chip-independent in the observed data; the CS
-     * selects stay on the VHF slot for both. */
-    at1846s_rssi_poll(RF_CHIP_UHF);   /* FUN_08022a98: !active (UHF) first */
-    at1846s_rssi_poll(RF_CHIP_VHF);   /* then the active (VHF) slot        */
 
     /* [session 69 | the boot = 144 dispatch passes = 6.000 s] the original's
      * boot ends exactly on the 144th 41.667 ms pass (the p3k1_orig RSSI
@@ -1292,6 +1284,22 @@ void ui_task(void *p_arg)
      * as in the original. */
     while (rtos_ticks() < 4320u)      /* 144 passes x 30 ticks = 4320 ticks */
         time_dly(30u);
+
+    /* [session 66 | FUN_08022a98 the both-slot refresh] the original's
+     * boot end refreshes both slots back-to-back (the RD-hook census:
+     * the polls 1+2 = the FUN_08022a98 sites 0x8022ae7/0x8022b07, the
+     * p3k6 stream 187041..189034 = 2x (39 frames + gap + read) = the
+     * 6.000 s boot-end mark). The PB9 bit pattern is chip-independent
+     * in the observed data; the CS selects stay on the VHF slot for both.
+     * [session 70 cont.14 | moved AFTER the boot hold] the original's
+     * polls fire at the 6 s boot end, so in the ck3 peer window (the
+     * 292-event trace = 5 s) they fall OUTSIDE the capture — the earlier
+     * boot-scene placement flushed their rf_reads into the ck3 console
+     * head (the 2 stray reg-0x0D events). The hold emits no bus events,
+     * so every p3 stream position is unchanged (the p3k6fix2 pair:
+     * identical at 187041, the CRH counts equal). */
+    at1846s_rssi_poll(RF_CHIP_UHF);   /* FUN_08022a98: !active (UHF) first */
+    at1846s_rssi_poll(RF_CHIP_VHF);   /* then the active (VHF) slot        */
 
     /* [session 61 | 0x802490e enter equivalent] the periodic session
      * manager's enter branch sets FLAG_BANK+2 bit2 (the RX/scan session,

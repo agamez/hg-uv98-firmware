@@ -463,6 +463,16 @@ void at1846s_tone_pair_boot(uint8_t chip, uint8_t type, uint8_t code)
  * yet reconstructed. Runs on the reconstruction's dispatcher boot path. */
 void at1846s_boot_default_apply(void)
 {
+    /* [session 70 cont.13 | the ck3_rf_orig.txt head @0..@99] the original
+     * opens the peer-present boot with the FULL 50-entry init table on
+     * cs=1 (UHF) then cs=0 (VHF) before the Phase-X mode poke; the
+     * mid-block (orig @100..@143) and the tail (@144..@291) already match
+     * the recon event-for-event (192/192, zero diffs). No-peer boots
+     * (p3/CK4 fresh-EE) show NO radio work, so the head is gated here
+     * with the rest of the apply. */
+    at1846s_boot_init(RF_CHIP_UHF);
+    at1846s_boot_init(RF_CHIP_VHF);
+
     /* Phase X: chip1 mode poke, GPIO maps, chip0 bank window + tone pair. */
     rf_write(RF_CHIP_UHF, 0x30, 0x7002);             /* site 0x08025EC9   */
     at1846s_gpio_reconfig(RF_CHIP_UHF, 0);           /* 0x9AA9            */

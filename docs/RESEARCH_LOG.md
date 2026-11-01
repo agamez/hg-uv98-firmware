@@ -4778,3 +4778,31 @@ CK3 parity.
   → the giant init ×2); the "no radio traffic" observation = the
   display-stream-era reading. The pb_stream BRR/BSRR census = the mixed
   I2C+radio (the shared PB9) as logged in the cont. 11.
+
+## Session 71 — CK3 CLOSED: 292/292 EXACT MATCH (byte-identical)
+
+- The remaining 2 stray reg-0x0D reads = the ui.c boot-end both-slot
+  refresh (FUN_08022a98 sites) firing at the boot SCENE (the compressed
+  boot wall time) — inside the ck3 5-s window; the ORIGINAL's polls fire
+  at the 6.000 s boot end (the p3k6 census: the stream 187041 = the
+  144-pass mark) = OUTSIDE its 5-s trace.
+- **The fix: the two at1846s_rssi_poll calls moved AFTER the 144-pass
+  boot hold** (the hold emits no bus events -> every p3 stream position
+  unchanged). The speculative settings_seen gate from cont. 13 was
+  REVERTED (dead code at the boot-scene call time; unproven for the peer
+  path — the polls' peer-path behavior past 5 s is unobserved, and the
+  simplest honest assumption = the same boot-end refresh as the census).
+- **CK3 verification (run 3): 292/292 EXACT MATCH** — every RFW
+  (cs, reg, val) and RFRD (cs, reg) event identical to
+  analysis/traces/ck3_rf_orig.txt. The full fix chain: (1) the harness
+  $A00 frame at 0.49 s (inside the dispatcher's 1.39-s reply window),
+  (2) the boot-init head (at1846s_boot_init UHF+VHF) prepended to
+  at1846s_boot_default_apply (the orig's trace head @0..@99), (3) the
+  polls after the hold.
+- **The p3k6 regression gate: 303,907/303,907 = 100.00%** through
+  p3diff.sh fresh-EE (the markers: the rec PRE at 187041 = the known
+  boot-flush delta; P1/P3/REL identical). The move is stream-neutral
+  as predicted; it also aligns the recon's poll timing with the
+  original's for the CK4 full-stream gate.
+- Build 122,335 text; make test-host green; the hook addresses unchanged
+  (rf_write 0x08004f08 / rf_read 0x08004fb4, the noinline pins held).
