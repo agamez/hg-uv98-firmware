@@ -170,3 +170,59 @@ annotated provenance):**
 
 The remaining path = the CLASS C/D slices at their own pace; the bench
 = green on every channel with the current state.
+
+## Session 75: the sweep completes the recorded-dump elimination; the task table re-derived; the SCAFFOLD = zero
+
+**The recorded-behavior dumps = ZERO.** The session-74 ledger's Class C
+items resolved:
+- display.c vendor replay → REPLACED: at1846s_vendor_boot_window (rf.c)
+  = the dual at1846s boot-init load (the 100 frames = the 50-entry
+  table bit-exact, cs=1 then cs=0 per the ck3_rf_orig.txt head) + the
+  CRH/CRL port config (the CRL 0x33333333 = the display data-bus prep
+  — the s74 deletion-test mechanism identified). CK4 = 189,036/189,036
+  = 100.00% md5-identical.
+- the LED/ee359 warm replays → RETRACTED: the two-boot warm harness
+  (the first warm BUS comparison since s53) proves the fixed-EE warm
+  boot emits none of them — the s53 captures = the broken-EE era (the
+  incomplete saves → the +0x11E slot words = 0 → the FUN_0801AB36
+  re-init path). The decoded re-init generators = banked in rf.c
+  (at1846s_warm_slot_apply / at1846s_warm_reinit) for the corrupted-EE
+  state; the s53 tables deleted (led_stream.bin, ee359_stream.bin).
+- key13_pb9_stream.h → REPLACED: the both-slot refresh + the 77-byte
+  I2C settings save (FUN_0801A6EA = FUN_080286c0(0xa00, ctx, 0x4d),
+  the fresh decompile); key-13 short AND long = 204,670/204,670 =
+  100.00% each. Tier A complete (all 5 headers gone).
+
+**The task table = the create-site re-derivation** (the seven
+FUN_080289A4 sites): prio 3 = 0x0802D178, prio 10 = 0x0801B664,
+prio 11 = 0x08014DEA (DAT_0801b998 confirmed), prio 13 = 0x0801B704,
+prio 29 = 0x0802CD74, prio 30 = 0x0802B93A, prio 31 = 0x0802B91A.
+The old attributions = the transpositions (0x08017664/0x08017704/
+0x08029178) or retracted (0x08027918 = inside a mode helper;
+0x08028D74 = the radio-cluster address). The new decompiles:
+the software-timer wheel (the 8-slot + the expiry + the callback),
+the battery task (the 'd'-minus-ratio level), the counter task
+(DAT_0802bb38), the maintenance cycles (the 8/500-pass), the RSSI
+task (the dly(500)+gate = the recon's s66 model confirmed verbatim).
+
+**The SCAFFOLD markers = ZERO live.** startup.c = upgraded (the
+in-image C-runtime init decompiled at 0x0801D966 — the literal reset
+entry past the truncation, honestly noted). ui.c/display.h/main.c =
+the decompile-cite annotations.
+
+**The DATA-DERIVED markers = 27, each with the inline evidence** — the
+classes: the bitmap/asset records (the batt icon, the rxbars = the
+pixel DATA with the transport cites — the asset class per the
+criterion), the cadence/orchestration notes (the default-apply order =
+the ck3 head evidence, the poll values = the five-observation
+calibration), the screen transcription positions (the Tier-B's
+bench-verified builder mirrors). The re-derived session-75 addresses
+correct the ledger's task rows: the mailbox-service attribution
+(0x08028D74) = superseded by the timer-wheel body (FUN_0802CD74).
+
+**The open items** (the honest Class D): the warm scan-state gap (the
+fixed-EE warm boot diverges at the event 95,256: the orig's
+ee_read(0x0012) ch-2 scan slot vs the recon's 0x0000 — the scan-state
+model = the next slice), the dispatcher's UART-side remainder (the
+state-gated path = the Round B/C executor's decode), the RF/modem
+config field layout beyond the verified fields.
