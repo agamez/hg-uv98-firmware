@@ -6048,3 +6048,25 @@ CK3 parity.
 - **main.c**: the file-level [REA-C-VALIDATED s75] (the task table +
   the per-task bodies decompiled).
 - The build 103,283 (the comments only); the pins held.
+
+## Session 75 (cont. 9) — the d1 sweep completes at the file level; ui.c validated
+
+- **ui.c**: the file-level [REA-C-VALIDATED s29-75] — the re-audit
+  chain (the s29 REA validation at the linked base, the s61 key gates,
+  the s66-68 poll/re architecture, the s69 boot/release split, the
+  s70-71 drain cadence, the s72-73 the draw-pipeline conversion, the
+  s75 the task-table corrections + the key-13 era decode); the bench =
+  the CK4 md5 identity, p3k6, the 13 key pairs (the key-13 exact).
+  The main-task label corrected to 0x0802D178 (the s75 transposition
+  fix), the task creators = the trio FUN_0801B5A8 (the s75 sweep).
+- **The small files** (mem.c, rtos.c, font.c, startup.c, eeprom.h):
+  each = the provenance-carrying header with the cite or the explicit
+  reason (the mem = the counterpart list; the rtos = the adapter note;
+  the font = the DATA asset class; the startup = the upgraded s75
+  note) — the 5.0 gate's letter met at the file level with the
+  per-function inline annotations carried from the recovery sessions.
+- **The d1 tally**: [REA-C-VALIDATED] file-level marks = eeprom.c,
+  rf.c, display.c, main.c, ui.c (the 5 core modules); the
+  [BENCH-VALIDATED + the reason] = protocol.c; the honest-open notes =
+  startup.c (the past-truncation reset), rf.c (the RF field layout).
+  The build 103,283; the pins held.

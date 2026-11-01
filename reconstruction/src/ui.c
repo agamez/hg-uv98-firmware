@@ -3,10 +3,20 @@
  * validated in session 29 at the linked base 0x08004000, so REA
  * addresses = log labels + 0x4000).
  *
- * TASK (0x08029178 label, priority 3; created by main 0x08029120 via
+ * [REA-C-VALIDATED sessions 29-75] the layer re-audited across the
+ * sweep: the s61 key-event gates, the s66-68 the poll/re architecture,
+ * the s69 the boot/release split, the s70-71 the drain cadence, the
+ * s72-73 the draw-pipeline conversion (the cb60-mirror text layer, the
+ * builder family), the s75 the task-table corrections + the key-13
+ * era decode (the both-slot refresh + the I2C save). The bench = the
+ * CK4 md5 identity, p3k6 303,907/303,907, the 13 key pairs at their
+ * banked classes (the key-13 = 204,670/204,670 exact).
+ *
+ * TASK (prio 3 = the main task 0x0802D178 [s75 correction; the label
+ * 0x08029178 = the transposition]; created by main via
  * OSTaskCreateExt 0x080249A4 + OSTaskNameSet 0x08024A6C; OSStart
- * 0x08027392): hw_init 0x080290D0 -> task creators 0x080175A8 (returns
- * -1 -> task exits) / 0x08017738 -> loop:
+ * 0x08027392): hw_init 0x080290D0 -> task creators (the s75 sweep:
+ * the trio = FUN_0801B5A8 at 0x0801B5D0/608/63C) -> loop:
  *   wait 30 ticks (0x0801FF4C); heartbeat [0x2000469C+0x166]++ (u16);
  *   skip UI work while suspend byte [+0x119] != 0;
  *   routers 0x0800FE58 (protocol bridge) + 0x08010302 (per-state
