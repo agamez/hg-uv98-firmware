@@ -138,7 +138,10 @@ void display_draw_area(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t 
         tft_write_data(color);
 }
 
-/* [0x0801CD32 | RECOVERED] full-rect fill: the window then 0x2C, then
+/* [0x0801CD32 | REA-C-VALIDATED session 74: the fresh cd32 pseudocode —
+ * the b9c8 window, the 0x2C, the param_3 x param_4 pixel loops, the
+ * 0xEFBE/0x0000 scheme by the +0x18 blank flag, the PC2 wrap, the
+ * inhibit-bit clear on the tail] full-rect fill: the window then 0x2C, then
  * rows x cols pixels of the hardcoded background color 0xEFBE (the
  * high byte first), or 0x0000 when the app-state blank flag
  * [0x20004E68+0x18] is set. Wraps the transfer with PC2 (CS-ish

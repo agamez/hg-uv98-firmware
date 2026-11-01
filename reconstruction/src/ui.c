@@ -538,8 +538,11 @@ static uint32_t ui_fmt_u(char *out, uint32_t v)
     return k;
 }
 
-/* [session 74 | REA-derived 0x0801cb60] the master text draw (the cb60
- * mirror): per char — the wrap check FIRST (c99e: x > threshold -> x=6,
+/* [session 74 | REA-C-VALIDATED: the fresh pseudocode of
+ * 0x0801cb60/0x0801c95e/0x0801c99e/0x0801cac0/0x0801bfb8/0x08028f8c
+ * compared line-by-line; the CK4 event-identity = the differential
+ * proof] the master text draw (the cb60 mirror): per char — the wrap
+ * check FIRST (c99e: x > threshold -> x=6,
  * y += the line pitch), the BCD digit bias (<10 -> +0x30; the original
  * mutates the caller's bytes), the single-char blit (the c95e shape =
  * the glyph lookup 0x08028f8c + the bfb8 blit), then the advance
