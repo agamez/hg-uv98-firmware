@@ -6032,3 +6032,19 @@ CK3 parity.
   303,907/303,907, the key-14 prefix 100%, the CK4 md5 identity.
 - The build 103,283 (the comments only); the pins held. The next =
   the display.c/protocol.c/main.c pass, then ui.c (35 functions).
+
+## Session 75 (cont. 8) — the d1 sweep: display.c/protocol.c/main.c validated
+
+- **display.c**: the file-level [REA-C-VALIDATED s51-75] (the transport
+  = the s74 decompile-exact re-confirmation; the draw pipeline = the
+  Tier-B mirrors; the vendor-era port config = the s75 decode; the
+  bench = the CK4 md5 identity x6, the key-13, p3k6).
+- **protocol.c**: the [BENCH-VALIDATED s71/s72 + the honest
+  reordering note] — the command table = the computed dispatcher (the
+  original's string table = the stripped tail, the byte copy =
+  impossible, the session-5 non-constant shift); the ck2matrix =
+  490/490 (the warm) + 488/489 (the fresh) = the behavior-identical
+  checkpoints. The explicit reason per the 5.0 gate.
+- **main.c**: the file-level [REA-C-VALIDATED s75] (the task table +
+  the per-task bodies decompiled).
+- The build 103,283 (the comments only); the pins held.

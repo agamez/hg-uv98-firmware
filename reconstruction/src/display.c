@@ -1,4 +1,12 @@
-/* Display subsystem — see display.h for provenance. */
+/* Display subsystem — see display.h for provenance.
+ * [REA-C-VALIDATED sessions 51-75] the transport layer re-confirmed by
+ * the s74 fresh decompiles (ba30/ba6a/ba8c/b9c8 = the ODR+WR/RS/window
+ * shapes decompile-exact, the CK4 = the md5 identity); the draw
+ * pipeline = the Tier-B mirrors (FUN_0801CB60/0801BFB8/0801CD32/
+ * 0801D334, the s72/73 batch); the vendor-era port config = the s75
+ * decode (the CRL display-bus prep). The bench = the CK4 md5 identity
+ * x6 across the sessions, the key-13 204,670/204,670, p3k6
+ * 303,907/303,907. */
 #include "display.h"
 #include "font.h"
 #include "hwregs.h"

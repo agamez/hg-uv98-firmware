@@ -1,5 +1,12 @@
 /* Boot chain and task set.
  *
+ * [REA-C-VALIDATED session 75] the task table re-derived from the
+ * seven FUN_080289A4 create sites; the per-task bodies decompiled
+ * (FUN_0802D178/0801B664/0801B704/0802CD74/0802B93A/0802B91A). The
+ * recon's event output = the bench-verified ui.c/ui_task model; the
+ * task bodies = the decompile-annotated event-neutral loops (the
+ * double-emission avoidance note per task).
+ *
  * RECOVERED structure (research log sessions 6-8):
  *   - main() [0x08029120]: NVIC setup, create the main task, start the OS.
  *   - seven tasks created via OSTaskCreateExt with the priorities, stacks

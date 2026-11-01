@@ -1,4 +1,12 @@
-/* Inter-MCU protocol layer — see protocol.h for provenance. */
+/* Inter-MCU protocol layer — see protocol.h for provenance.
+ * [BENCH-VALIDATED s71/s72; the honest reordering note] the command
+ * dispatch = the computed dispatcher over the confirmed command set —
+ * the original's string table lives in the stripped 190416 tail
+ * (0x0804481C+, non-constant shift, session 5) so a byte copy is
+ * impossible; the ck2matrix pair = 490/490 observables (the warm) and
+ * 488/489 (the fresh) = the behavior-identical checkpoints. The
+ * per-slot ordering = the documented reordering, not a decompile
+ * mirror — the explicit reason per the 5.0 gate. */
 #include "protocol.h"
 #include "uart.h"
 #include "mem.h"
