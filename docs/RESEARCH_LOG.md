@@ -5704,3 +5704,23 @@ CK3 parity.
   the transitions). The generative replacement = the recon's ee_write
   invoked on the $A00-apply path + the harness EE model's ack timing —
   the workarounds = the sim/ only per the working rules.
+
+## Session 74 (cont. 15) — the framing refined: the I2C class confirmed, the invoking command contradicted — the flowtrace path set
+
+- **The two timing contradictions** (against the cont. 14 hypothesis):
+  1. The $A00-class command arrives via USART2, but the hw_init's call
+     order (the fully enumerated 18 calls) puts the USART2 init
+     (0x080293bc) AFTER the display_init (0x0801bb22) — no UART
+     command can precede the vendor era.
+  2. The fresh-EE boot's settings save is bench-proven poll-free (the
+     CK4 md5-identity with the no-poll model; the prior session's 538
+     single-start transactions), so the vendor ≠ the reset save.
+- **What stands**: the CRH 0x44444434 signature = the sda_output class
+  (the I2C SDA direction RMW) — the vendor = an I2C transaction, just
+  not the two candidates above. The poll-free save + the too-late UART
+  = the third candidate required.
+- **The decisive tool = already banked**: the flowtrace resc family
+  (ck4-key-orig-flowtrace*.resc = the PC logging). The next slice = the
+  flowtrace run over the vendor window (the first ~2,600 events) with
+  the PB9-write watchpoint — the writer's PC = DIRECT evidence, no
+  more elimination. The budget = 2 runs per the working method.
