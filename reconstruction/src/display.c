@@ -3,7 +3,13 @@
 #include "font.h"
 #include "hwregs.h"
 
-/* ---- transport [RECOVERED session 51: 0x0801BA30/0x0801BA6A/0x0801BA8C] ----
+/* ---- transport [RECOVERED session 51: 0x0801BA30/0x0801BA6A/0x0801BA8C;
+ * session 74: the fresh decompiles CONFIRM the whole layer — ba30 =
+ * ODR&(0xff00)|b then the WR strobe (the FUN_08023790 ODR write +
+ * the FUN_08023788/23780 control pair), ba6a = the RS wrap around the
+ * byte write, ba8c = the RS-high data write, b9c8 = the 0x2A/0x2B
+ * window; the RS polarity/order below = the recorded-stream-verified
+ * (CK4 md5-identical)) ----
  * 8-bit parallel TFT bus, ST7735-class controller (the init table at
  * 0x0801BB22: 0x11 SLPOUT, 0xB1-B4 frame rates, 0xC0-C5 power, 0x36 MADCTL,
  * 0xE0/E1 gamma, 0x3A=0x05 RGB565, 0x29 DISPON):

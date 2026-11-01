@@ -5534,3 +5534,38 @@ CK3 parity.
   replacement = the ab36-faithful state-driven led_write sequence
   (the next slice: the word-for-word mapping from the +0x11E table and
   the apply order, verified against the CK2 warm matrix).
+
+## Session 74 (cont. 7) — the LCD transport layer decompiled and confirmed; the vendor framing evidence tightened; the band channels verified
+
+- **The LCD transport = the fresh decompiles CONFIRM the session-51
+  recovery in full**: FUN_0801ba30 = the parallel byte write
+  (FUN_0802377a = the ODR read, FUN_08023790 = the ODR write:
+  (odr&0xff00)|byte, then the WR strobe on the control port);
+  FUN_0801ba6a = the command wrap (the FUN_08023788/08023780 =
+  *(handle+0x14/+0x10) = the control-line pair, mask 8 = the RS, the
+  mask 2 = the CS wrap at the init's start/tail); FUN_0801ba8c = the
+  data write; FUN_0801b9c8 = the 0x2A/0x2B window (the x then the y
+  params — the recon's mapping confirmed). display.c's transport
+  comment upgraded with the session-74 confirmation.
+- **0x0801BB22 = the display_init fully decompiled**: the 0x11
+  SLPOUT + the delays, the 0xB1-B4/0xC0-C5/0x36/0xE0/0xE1/0x3A=5
+  register table (the recon's display_init = the byte-exact mirror,
+  the session-51-era recovery), the tail = FUN_08028c78(1) = the
+  event-queue node alloc (the +4 chain walk, the flag 0x3f, the
+  FUN_0802b68a post) = the RTOS glue.
+- **The vendor framing evidence tightened**: the 2,501-bit PB9 phase =
+  TWO IDENTICAL 1,250-bit halves (the exact period 1,250; no smaller
+  period) = one message transmitted twice; 1,250 = 125 x 10 but the
+  fixed-10-bit decode (both the inverted and the straight variants) =
+  NOT ASCII — the framing = still open, the decompile path = the
+  hw_init's I2C call site (the boot init FUN_0802d0d0 = decompiled =
+  the sub-init list 0x0802d200/0x0802bd88/0x0802b3cc — the next
+  descent). The LCD transport = NOT the vendor era (the vendor = the
+  pre-LCD I2C per the session-55 evidence) — the pb9/vendor framing
+  park stands.
+- **The band channels verified on the sweep build**: the key-3-short
+  pair = the prefix 226,682 = 100% of the orig (the class held, the
+  same as the key-2-short). The CK3 channel = the ck3cmp.py comparator
+  path (the ck3-orig.resc not present as a resc — the phase-end battery
+  run uses the committed comparator); the channel = untouched by the
+  sweep's conversions.
