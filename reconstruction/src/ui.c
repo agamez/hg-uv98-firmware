@@ -982,9 +982,9 @@ void ui_menu_screen_continue(void)
  * block). The menu-key press kills the task permanently (p3k6x_orig:
  * 4 s of post-release silence). The cell content below is [DATA-DERIVED]
  * replay from p3k1_orig.stream rendered through the recon's validated
- * primitives; the trailing bus transaction after the APRS block is
- * replayed raw (identical bytes in the orig's cycles 2, 3, 4). */
-#include "rssi_bus_tail.h"
+ * primitives. The bus tail after the APRS block = the original's
+ * ee_read(0x0800,16) [0x0802873c | REA-C-VALIDATED session 72 — see
+ * rssi_tail_ee_read below]; the replay table for it is DELETED. */
 
 static uint8_t ui_rssi_kill;   /* the menu press killed the refresh task */
 static uint16_t ui_rssi_pass;  /* the dispatch pass counter */
@@ -992,13 +992,24 @@ static uint8_t ui_rssi_fire;   /* the refresh index, 1-based */
 static uint8_t ui_band = 1u;   /* [session 69] the band digit (1|2), stepped
                                 * by the key-2/3 press edges (p3k2/p3k3) */
 
-static void rssi_tail_replay(void)
+/* [0x0802873c | REA-C-VALIDATED session 72] the RSSI refresh cycle's bus
+ * tail = the original's ee_read(0x0800, 16, buf), decompiled verbatim:
+ * the do-while ack loop on 0xA0, the hi/lo word address, the restart on
+ * 0xA1, (count-1) reads each ACKed via FUN_08028566(0), the last read
+ * NAKed via FUN_08028566(1), then i2c_stop FUN_08028532 (the CRH-out
+ * switch + SDA low + SDA high). The event table this replaces decoded to
+ * exactly this transaction (the window p3k1_orig 198158..198261:
+ * START,A0,08,00,RESTART,A1,15 ACK reads,1 NAK read,STOP = 104 events).
+ * The read data drives nothing observable: the read direction's data
+ * bits are slave-driven and invisible in the GPIOB stream; the VFO
+ * block at 0x0800 = the value context (the ui_ee_vfo_defaults the reset
+ * wrote). The read fires on the refresh cycles 2+ per the orig's
+ * captures (the cycle 1 has no tail). */
+static void rssi_tail_ee_read(void)
 {
-    uint32_t i;
+    uint8_t blk[16];
 
-    for (i = 0u; i < 104u; i++)
-        *(volatile uint32_t *)(0x40010C00u + rssi_bus_tail[i].off) =
-            rssi_bus_tail[i].val;
+    eeprom_read(0x0800u, 0x10u, blk);
 }
 
 static void rssi_row_placeholder(void)
@@ -1051,7 +1062,7 @@ static void rssi_aprs_block(void)
     cell6x10(39u, 133u, ' ');
     cell6x10(39u, 139u, ' ');
     cell6x10(39u, 145u, ' ');
-    rssi_tail_replay();
+    rssi_tail_ee_read();
 }
 
 static void rssi_refresh(void)

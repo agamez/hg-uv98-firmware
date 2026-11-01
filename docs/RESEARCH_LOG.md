@@ -5134,3 +5134,32 @@ CK3 parity.
   WARM-gated) -> the dispatcher replay (the 30-tick grid, the pass-27
   settle, the 0xC0 phase) -> the battery GREEN. Commits 4b8af93, 9218a02,
   dabb676 + this one, all pushed to main.
+
+## Session 73 — the REA-replacement sweep opens (goal 0ce0f23b): a1 the RSSI tail = DONE
+
+- **a1-rssi-tail COMPLETE**: rssi_bus_tail.h (the 104-event recorded
+  playback) DELETED. The tail decoded (the committed decode_i2c grammar)
+  to exactly the original's ee_read(0x0800, 16, buf): START, A0, 0x08,
+  0x00, RESTART, A1, 15 ACK reads, 1 NAK read, i2c_stop — the window
+  p3k1_orig 198158..198261. REA: FUN_0802873c decompiled verbatim (the
+  do-while ack loop on 0xA0 via DAT_080287dc, the hi/lo address, the
+  restart/0xA1, FUN_08028666 reads + FUN_08028566(0) ACKs, the last
+  NAKed, FUN_08028532 stop) — the recon's existing boot-verified
+  eeprom_read implements this function family; the replay loop is
+  replaced by ONE eeprom_read(0x0800, 0x10, blk) call
+  (rssi_tail_ee_read, ui.c). The raw-triple check confirmed the tail's
+  "START" = the stop's CRH-out+L+H (the parser's loose START rule
+  misread it). The read data = slave-driven = invisible in the GPIOB
+  stream (the value context = the ui_ee_vfo_defaults block).
+- **The bench: the p3k1 pair fresh = orig 219,256, rec 227,965, prefix
+  219,256 = 100% of the orig** — identical markers to the banked run
+  (P1 198,262 / REL 227,966). The generative call emits the same 104
+  events. Build 121,843 (-852: the table deleted); test-host green; the
+  pins held (rf_write 0x08004f08 / rf_read 0x08004fb4).
+- The decompile trail for the next slices: 0x08017704 (the refresh
+  task's entry) -> func_0x0801f05c + FUN_0801cdfc + func_0x08014cd4;
+  func_0x08014cd4 = the shared screen builder (two 0x14-byte record
+  copies via func_0x0801d8e0 -> the per-slot renders 0/1) = the Tier-B
+  keystone; FUN_08024d76's +0x119 and the FUN_0802873c ee_read family
+  = the same EE/RF driver layer (0x080284f2/0x080285b6/0x08028566/
+  0x08028532/0x08028666).
