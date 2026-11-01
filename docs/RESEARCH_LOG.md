@@ -5278,3 +5278,32 @@ CK3 parity.
   Rosetta = the constraint). Then the encoder = the poll sequence with
   the derived register patch. No more formula guesses — the diff is
   the data.
+
+## Session 73 (cont. 5) — the a3 encoding PINNED: the field = the AT1846S (f*16) 0x2A register's high 12 bits; the tune = the existing rf.c functions' composition
+
+- **The poll-burst vs the template per-event diff (the offset +1
+  alignment) = 12 differing positions in the whole 996-event burst**:
+  the mode bits 634/641/653/905 (the poll = L,L,H,H; the scan template =
+  H,H,L,L — the scan/refresh state flag) + the PLL-field region
+  921..932.
+- **The field = the 0x2A register's val's high 12 bits = ((f_kHz*16) &
+  0xFFFF) >> 4**, verified on all three data points: the poll's UHF
+  burst = 400.125*16 = 0x61AFD0 -> the 0x2A = 0xAFD0 -> the field =
+  0xAFD = 2,813 = the poll's field1 readback ✓; the poll's VHF burst =
+  136.077*16 = 0x213BD0 -> the 0x2A = 0x3BD0 -> the field = 0x3BD = 957
+  = the poll's field2 readback ✓ (the f = the DISPLAY 136.125, the
+  tuned = 136.125, NOT 136.077 — the earlier 909 assumption = wrong);
+  the template = 136.130*16 -> the 0x2A = 0x3C20 -> the field = 0x3C2 =
+  962 ✓ = the Rosetta's 962. The Rosetta's "f-135,168" = the algebraic
+  equivalent (135,168*16 = 33*65536 = the mod-65536 boundary), the
+  cont. 3/4 mod-4096 confusion resolved.
+- **The composition**: the tune burst = the at1846s_rssi_poll frame
+  sequence (the block_b + the tone pair + the reconfig + the apply +
+  the frequency registers — ALL the existing REA'd rf.c functions) with
+  (1) the frequency = the ui_freq state (the same (f*16) encoding as
+  the set_frequency) and (2) the mode flag = the scan variant (the 4
+  bits via the 0x1F band register + the 0x49 tone args = the
+  parameterized functions). The tune slice = the poll x2 bursts; the
+  key14_tune_frame.h + key11_end_frame.h = the eras replaced.
+- The next turn = the implementation + the bench (the key-14/key-11
+  pairs + the p3k6 regression = the run budget).
