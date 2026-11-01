@@ -1,6 +1,18 @@
 /* AT1846S dual-band RF control — [RECOVERED] from the original image
  * (sessions 10-13, 19).
  *
+ * [REA-C-VALIDATED sessions 49-75] the family re-audited repeatedly
+ * against the fresh REA pseudocode: the session-49 Ghidra pin-exact
+ * re-derivation (the boot init = the 50-write table, the RF_DATA =
+ * GPIOB bit 9 — the session-60 correction of the session-49 "PA9
+ * DATA" misread, the session-62 read-turnaround re-decompile, the
+ * session-66 poll re-architecture (FUN_0801AB36), the session-73
+ * frequency-parameterized poll, the session-75 vendor-window decode
+ * (the dual boot-init load = the poll-frame emitter's 25-visible
+ * shape) and the task-table corrections. The bench = the CK3 292/292
+ * (the radio chain), the p3k6 303,907/303,907, the key-14 prefix =
+ * 100% of the orig, the CK4 = the md5 identity incl. the vendor era.
+ *
  * ARCHITECTURE: two AT1846S single-chip transceivers (one per band) hang
  * off a shared 3-wire bit-banged serial bus — NOT hardware SPI. Frames
  * are 24 bits: 1 R/W bit + 7 register address + 16 data, MSB first.

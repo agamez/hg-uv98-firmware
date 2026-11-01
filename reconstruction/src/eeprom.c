@@ -2,6 +2,16 @@
  *   0x0802846A sda_output, 0x08028448 sda_input, 0x080284F2 start,
  *   0x080285B6 byte+ack, 0x08028532 stop, 0x08028566 master ack,
  *   0x08028666 read byte, 0x080286C0 write page, 0x0802873C read.
+ * [REA-C-VALIDATED session 60] the whole family re-audited against the
+ * fresh REA MCP decompiles: the per-bit SCL order corrected (SDA write
+ * while the SCL is LOW -> the SCL BSRR rise -> dly(10) -> the SCL BRR
+ * fall = the standard timing; the s51/54 "inverted polarity" note
+ * RETRACTED — the bl targets were misread: 0x08023780 = the BSRR
+ * helper, 0x08028488 = the SDA input); the ack tail = the 9th-clock
+ * rise -> the IDR sample -> the flag. The bench = the tail104 100.00%
+ * byte-exact (the 16-byte read = 104 events, the per-byte shape
+ * decompile-exact), the key-13 tail = 204,670/204,670, the boot saves
+ * = the CK2 matrix green.
  * SDA = PB9, SCL = PA11; the device address byte = 0xA0 (write) /
  * 0xA1 (read) — a 24Cxx-class slave. Data polarity on SDA is
  * NON-INVERTED (bit=1 -> SDA high) [session 55 correction; see

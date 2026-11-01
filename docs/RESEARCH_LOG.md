@@ -6012,3 +6012,23 @@ CK3 parity.
   the both-explanations note).
 - The build 103,283 (the comments only); the pins held; the event
   streams = unchanged (no re-verification needed).
+
+## Session 75 (cont. 7) — the Tier-D d1 sweep opens: the per-function validation marks on the protocol cores
+
+- **The census**: the recon = 95 functions; the [REA-C-VALIDATED] marks
+  = 5 (pre-sweep). The d1 = the per-function pass: each = either the
+  fresh-pseudocode comparison mark or the explicit reason.
+- **eeprom.c**: the file-level [REA-C-VALIDATED session 60] — the
+  family (sda_output/input, i2c_start/send_byte/master_ack/read_byte/
+  stop, eeprom_write/read) was re-audited against the fresh REA MCP
+  decompiles in s60 with the divergence FIXED (the per-bit SCL order);
+  the bench = the tail104 100.00% byte-exact + the key-13 tail
+  204,670/204,670 + the CK2 matrix green.
+- **rf.c**: the file-level [REA-C-VALIDATED sessions 49-75] — the
+  re-audit chain (the s49 pin-exact re-derivation, the s60 RF_DATA
+  correction, the s62 read-turnaround, the s66 poll re-architecture,
+  the s73 frequency parameterization, the s75 vendor-window decode +
+  the task-table corrections); the bench = the CK3 292/292, the p3k6
+  303,907/303,907, the key-14 prefix 100%, the CK4 md5 identity.
+- The build 103,283 (the comments only); the pins held. The next =
+  the display.c/protocol.c/main.c pass, then ui.c (35 functions).
