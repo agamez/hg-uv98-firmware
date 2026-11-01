@@ -5749,3 +5749,27 @@ CK3 parity.
   which port the LCD RS/CS events actually write — the CK4 =
   md5-identical so the recon's emitted events are right, but the
   pin-naming in the comments needs the re-check at the slice.
+
+## Session 74 (cont. 17) — the vendor-replay deletion TESTED and REVERTED: the shape mismatch measured
+
+- **The hypothesis tested**: the vendor window = the display_init's own
+  transport (the GPIOB handle discovery) → delete the recorded replay,
+  let the generative display_init carry the era.
+- **The verdict = 0.00%**: the recon's display_init emits the ODR-data +
+  WR-strobe events (the parallel-transport model), while the original's
+  vendor window emits the CRH-config + PB9-toggle shape (the serial
+  config class). The event streams are shape-incompatible — the
+  session-55 replay = JUSTIFIED BY MEASUREMENT (the recorded dump with
+  the bench-proven shape mismatch). The build was reverted (116,791
+  restored) and the CK4 re-verification launched.
+- **The implication**: the original's pre-LCD era = a DIFFERENT LCD
+  transport (the serial config class over PB9) than the post-init
+  parallel path. The full elimination of this last vendor dump = the
+  serial-transport model slice (the model + the decompile of the
+  config-era's writer — the 0x0801bfb0 handle = PORT B = the
+  session-51 pin-model revision still applies). Parked with the
+  measured evidence.
+- **The CK4 re-verification = GREEN**: 189,036/189,036 = 100.00% on the
+  restored build. The vendor replay = the justified recorded dump (the
+  shape mismatch = bench-measured); the serial-transport model slice =
+  the parked full-elimination path.

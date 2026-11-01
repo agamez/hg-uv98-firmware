@@ -227,7 +227,16 @@ void hw_init(void)
 
     usart1_init();        /* GPS input  [0x0802932C RECOVERED]             */
     usart2_init();        /* APRS/BT link [0x0801F810 RECOVERED]           */
-    /* [session 55] the vendor pre-LCD I2C/boot traffic: replayed
+    /* [session 55 | the deletion TESTED and REVERTED session 74 cont.17:
+     * removing this replay breaks the CK4 to 0.00% — the original's
+     * vendor window emits the CRH-config + PB9-toggle shape (the serial
+     * config class, the sda_output RMW signature) which the recon's
+     * parallel-transport display_init (the ODR-data + WR-strobe events)
+     * cannot reproduce. The vendor replay = the recorded-behavior dump
+     * with the measured justification: the shape mismatch = proven by
+     * the bench. The next slice = the serial-transport model if the
+     * full elimination of this dump is required.]
+     * [session 55] the vendor pre-LCD I2C/boot traffic: replayed
      * [DATA-DERIVED] (2,507 events, ends with the PB9 latch LOW as the
      * original's stream requires). Supersedes the inferred 2-byte probe
      * (which emitted 63 events the original's vendor region emits
