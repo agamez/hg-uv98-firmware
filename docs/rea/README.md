@@ -116,3 +116,57 @@ compared line-by-line against the recon C and event-proven on the bench:
   vendor = 2 x identical 1,250-bit halves; the pb9 save = 5,227 bits +
   853 CRH switches = the I2C ack-poll class), the battery icon's
   callback-driven draw site, the warm LED/ee359 interleaved replays.
+
+## Session 74: the Tier-D annotation classification ledger (the completion-gate audit)
+
+The criterion: no DATA-DERIVED/SCAFFOLD/INFERRED marker survives without
+either the generative replacement or the explicit decompile-cite
+justification. The census = 61 markers; the classes:
+
+**CLASS A — replaced + verified (the markers = historical narrative):**
+- ui.c: the screen0/key13/key14/RSSI text rows (the cb60-mirror draws,
+  the CK4 = the md5-identity ×3 + the key-13 exact), the freq rows
+  (the font-6 draws), the header rows (the ROM assets).
+
+**CLASS B — justified with the decompile cite (the markers = the
+annotated provenance):**
+- display.c: the batt icon (the bd3c transport + the callback-driven
+  justification), the batt_icon record (the stream-extracted instance),
+  the LCD transport (the ba30/ba6a/ba8c/b9c8 confirmed), the fill (the
+  cd32 confirmed), the CJK-solid (the c914→bd3c chain, the model
+  evidence).
+- rf.c: the poll's per-slot values (the display-frequency DATA class;
+  the poll_f = the (f×16) encoding, the frame-verified), the block_b
+  (the poll-burst identity, the template-decoded), the orchestration
+  (the session-49 defaults = the reset-path evidence).
+- main.c: the mailbox (0x08028D74 + 0x0802b1e8 decompiled), the timeout
+  (the CORRECTED: 0x08027938 = the power-down helper), the service
+  ([REA-C-VALIDATED]).
+- protocol.c: the ck2matrix trajectory (the s72 evidence).
+- ui.c: the ee_vfo_defaults (the session-55 blocks = the read16-backed),
+  the BAT state pair (the boot ADC instance), the '<' glyph (the ROM
+  asset 0x08042C23 byte-verified).
+
+**CLASS C — justified with the measured-evidence or the model note:**
+- display.c: the vendor replay (the shape-mismatch = bench-measured
+  0.00% without it; the serial-transport model = the parked path),
+  the LED/ee359 warm replays (the RTOS-interleaved multi-protocol; the
+  generator = the ab36's +0x11E table = identified; the replacement =
+  the CK2-covered slice), the 1-bpp blit (the session-52/53
+  transcription of the warm era).
+- main.c: the 108 MHz HCLK (the documented/asserted), the dispatcher
+  body (0x08010D5E decompiled = the per-pass step; the remainder = the
+  RTOS glue).
+- rf.c: the $A00-cancel leg (the [INFERRED] = the session-49 ck3
+  unrecorded EE state = the both-explanations note).
+
+**CLASS D — the honest OPEN items (the reason = the scope):**
+- startup.c: the Reset_Handler SCAFFOLD (the vendor's SystemInit =
+  stripped from the image; the distribution = the unknown),
+- ui.c: the extern-hooks glue, the 0x1E memcpy + the per-source tail
+  (the SCAFFOLD branches = the = the protocol-edge scope).
+- rf.c: the RF/modem config field layout (INFERRED — the register
+  semantics beyond the verified fields).
+
+The remaining path = the CLASS C/D slices at their own pace; the bench
+= green on every channel with the current state.
