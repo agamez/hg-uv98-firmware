@@ -5194,3 +5194,34 @@ CK3 parity.
   key-13 era and not the boot era — the device write-cycle behavior);
   the implementation = the faithful decompiled loop + the calibrated
   device-ack model, then key13_pb9_stream.h dies.
+
+## Session 73 (cont. 2) — the a2-pb9 attempt parked: the save era = the head-serial frame (the session-69 comment VINDICATED); the framing = the open REA slice
+
+- **The a2-pb9 attempt 1 (the ee_write route) = REVERTED.** The
+  implementation: eeprom_write(0x0A00, 0x4D, ctx) + the both-slot
+  refresh (the build 115,515, -6,128 = the table deleted). The bench
+  (the key-13 short pair): the prefix = 198,593 (97.03%) — the entire
+  pre-save era matched, the divergence = the save's FIRST event: the
+  orig = BRR (the SDA low), the route = the CRH direction switch.
+- **The raw-event decode refutes my refutation**: the orig's save era
+  (the events 198594..204670 = exactly the 6,077 recorded) = a PURE
+  BRR/BSRR SDA stream with NO CRH direction switches — not the I2C
+  ee_write shape (the per-byte CRH would be present). The 4,081+1,996
+  arithmetic = a coincidence; the earlier "77 I2C transactions" = the
+  parser force-fitting the I2C grammar onto a non-I2C stream. The
+  session-69 comment ("the PB9 serial frame... the head-serial link")
+  was RIGHT.
+- **The open decode (the next slice)**: the serial framing. The head =
+  LLLHLHLHLLLHHHHH... — not 8N1 (the stop-bit test fails), not any
+  fixed period in {10,11,12,13,22,26,44,52}; the bit-pairs suggest a
+  different encoding. The REA path: find the original's serial-TX
+  writer for this era (the head-serial link = the 8051 head's settings
+  frame — the '$'-frame family's PB9 sibling) and decompile the
+  framing; then implement the frame encoder over the settings data.
+  The ee_write chain (FUN_080286c0 + the wrappers) = the committed
+  decompile evidence — the function exists and is real; its era in the
+  key-13 scenario = TBD (possibly a later/other save site).
+- The tree reverted to the bench-clean d397e2d state (121,655; the
+  a1/a2-tail generative swaps stand; the run-1 budget for the a2-pb9
+  question is spent per the 2-run rule — the next attempt must come
+  from the framing decompile, not another guess).
