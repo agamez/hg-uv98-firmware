@@ -5256,3 +5256,25 @@ CK3 parity.
 - The a2-pb9 remains parked per cont. 2 (the head-serial framing = the
   open decode; the run budget spent; the next attempt = from the
   framing decompile).
+
+## Session 73 (cont. 4) — CORRECTION to cont. 3: the Rosetta field's register identity NOT pinned; the a3 next step = the poll-burst vs the template diff
+
+- The cont. 3 numeric "verification" contained an arithmetic error:
+  0x3BD0 >> 4 = 957, not 909 (the Rosetta V for 136.077). The V-field is
+  NOT the 0x2A value's high bits under a plain shift. What STANDS: the
+  tune burst's w00-w25 = the poll's block_b + tone pair exactly (the
+  frame decode ✓); the Rosetta field = the 25-frame-linear empirical
+  mapping (f_kHz-135,168, MSB-first, the positions 922..932 and
+  1920..1930) ✓ banked. What is NOT yet pinned: WHICH register bits the
+  field lives in (the frames w26-w38 = the misparsed region — the
+  13-event second-bus word shifts the naive alignment — and the poll's
+  0x29/0x2A = the (f*16) split = a DIFFERENT formula than the Rosetta).
+- **The a3 next step (the corrected plan)**: diff the generative poll
+  burst (the rf.c's at1846s_rssi_poll event stream) against the
+  recorded template burst per-event — the changed frames/fields = the
+  frequency-carrying registers — extract their values from both (the
+  poll's slot constants vs the template's ui_freq-136130) and derive
+  the encoding from the PAIR (the 2-point + the 25-frame-linear
+  Rosetta = the constraint). Then the encoder = the poll sequence with
+  the derived register patch. No more formula guesses — the diff is
+  the data.
