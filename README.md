@@ -8,10 +8,10 @@ The HG-UV98 uses **two independent microcontrollers** communicating over UART:
 
 | Processor | MCU | Architecture | Role | Firmware |
 |-----------|-----|--------------|------|----------|
-| **Main MCU** | GD32F103RET6 | ARM Cortex-M3 (32-bit, 108 MHz) | FM radio, display, menus, RF, channels | ❌ No source → 🛠️ RE in [`reconstruction/`](reconstruction/README.md) |
+| **Main MCU** | GD32F103RET6 | ARM Cortex-M3 (32-bit, 108 MHz) | FM radio, display, menus, RF, channels | ❌ No source → ✅ **Reconstructed** in [`reconstruction/`](reconstruction/README.md) |
 | **APRS Coprocessor** | STC8A8K64D4 | 8051 (8-bit, 22.1184 MHz) | APRS, GPS, Bluetooth, sensors | ✅ **Source available** |
 
-The **original** source code in this repository is for the **APRS coprocessor (8051)**; only a binary exists for the main processor (ARM), whose documented reconstruction is underway in [`reconstruction/`](reconstruction/README.md).
+The **original** source code in this repository is for the **APRS coprocessor (8051)**; only a binary exists for the main processor (ARM), reconstructed from that binary in [`reconstruction/`](reconstruction/README.md).
 
 ## Repository Structure
 
@@ -33,10 +33,17 @@ HG-UV98/
 │   ├── SOURCE_INDEX.md                # Index of all 73 source files
 │   ├── HARDWARE.md                    # Hardware and sensor reference
 │   ├── COMMUNITY.md                   # Community resources
-│   └── RESEARCH_LOG.md                # Main-MCU reverse-engineering log (sessions 1-19)
+│   ├── BUILD_AND_FLASH.md             # Building, flashing, and what to expect
+│   ├── COVERAGE.md                    # Main-MCU address-by-address completeness ledger
+│   ├── MENU_TREE.md                   # Decoded menu structure
+│   ├── SCREENS.md                     # Decoded screen inventory
+│   ├── rea/                           # Ghidra decompile artifacts + the validation ledger
+│   └── RESEARCH_LOG.md                # Main-MCU reverse-engineering log (sessions 1-76)
 ├── reconstruction/                    # Documented C reconstruction of the Main-MCU firmware
 │   ├── src/                           #   recovered modules (protocol, display, font, rf, uart, ...)
 │   ├── ucos2/, vendor/                #   vendored uC/OS-II kernel + GD32F10x SPL
+│   ├── data/                          #   the original's own flash assets (splash, fonts, tables)
+│   ├── sim/                           #   Renode scenarios + p3diff.sh (the differential bench)
 │   ├── tests/                         #   host protocol-conformance tests
 │   └── README.md                      #   status, provenance, and licenses
 ├── tools/                             # Analysis tooling (recon_map.py)
@@ -92,14 +99,16 @@ HG-UV98/
 
 ## 🛠️ Main MCU (ARM) Reverse Engineering
 
-The Main-MCU firmware is distributed as a binary only. This repository carries a documented, buildable C reconstruction of it, verified against static evidence (level 3 of 4):
+The Main-MCU firmware is distributed as a binary only. This repository carries a documented, buildable C reconstruction of it — verified against the original **event-for-event in an emulator** (Renode), with zero replayed/recorded bus traffic:
 
 - **Recovered architecture**: uC/OS-II kernel, 7 tasks, 60-IRQ dispatch, the UART protocol spoken with the APRS coprocessor (verified by executed host conformance tests), ST7735 display stack, two AT1846S transceivers (frequency formula and register map cross-checked against the AT1846S Programming Guide 1.4 and OpenRTX), CJK/ASCII font chain in external SPI flash.
+- **Verification bench**: the original and the reconstruction run side by side in Renode and their complete bus-event streams are diffed. Every tested scenario matches the original byte-for-byte — e.g. the 3-second boot: 189,036/189,036 events, md5-identical; the full battery in [`docs/RESEARCH_LOG.md`](docs/RESEARCH_LOG.md) session 75.
+- **Completeness ledger**: all 685 recovered addresses classified, zero unclassified — [`docs/COVERAGE.md`](docs/COVERAGE.md), with the Ghidra decompiles under [`docs/rea/`](docs/rea/README.md).
 - **Vendored code**: uC/OS-II V2.93.01 (Apache-2.0) and the GigaDevice GD32F10x SPL V2.2.1.
 - **Status and provenance**: [`reconstruction/README.md`](reconstruction/README.md)
-- **Full research log with addresses and evidence**: [`docs/RESEARCH_LOG.md`](docs/RESEARCH_LOG.md)
+- **Building, flashing, and what to expect**: [`docs/BUILD_AND_FLASH.md`](docs/BUILD_AND_FLASH.md)
 
-Without an emulator or bench hardware, claims are limited to "builds and is consistent with the static evidence"; the protocol layer passes the executed conformance tests.
+Caveat, stated plainly: that equivalence is proven **inside the emulator**. The firmware has never run on real hardware; delay timing is calibrated, not cycle-exact, and several physical peripherals (the real EEPROM acknowledgment, the 8051 partner chip, the battery/keypad ADC, the external font flash) are modeled only coarsely. See [`docs/BUILD_AND_FLASH.md`](docs/BUILD_AND_FLASH.md) §6 for the honest expectations list.
 
 ## Hardware
 
@@ -127,7 +136,11 @@ Without an emulator or bench hardware, claims are limited to "builds and is cons
 | Firmware versions | [`docs/FIRMWARE_VERSIONS.md`](docs/FIRMWARE_VERSIONS.md) | Full history for both CPUs, flashing instructions |
 | Hardware and sensors | [`docs/HARDWARE.md`](docs/HARDWARE.md) | Technical specifications, pinout, telemetry format |
 | Community and resources | [`docs/COMMUNITY.md`](docs/COMMUNITY.md) | Groups.io, GitHub, blog, contributors, tools |
-| Reverse-engineering log | [`docs/RESEARCH_LOG.md`](docs/RESEARCH_LOG.md) | Sessions 1-19: addresses, evidence, corrections for the Main MCU |
+| Reverse-engineering log | [`docs/RESEARCH_LOG.md`](docs/RESEARCH_LOG.md) | Sessions 1-76: addresses, evidence, corrections for the Main MCU |
+| Build & flash guide | [`docs/BUILD_AND_FLASH.md`](docs/BUILD_AND_FLASH.md) | Building, flashing, and what to expect from the reconstruction |
+| Coverage ledger | [`docs/COVERAGE.md`](docs/COVERAGE.md) | Address-by-address completeness of the reconstruction (685 rows, zero unclassified) |
+| Decompile ledger | [`docs/rea/README.md`](docs/rea/README.md) | Ghidra decompiles of the original firmware and their validation classes |
+| Menu tree / screens | [`docs/MENU_TREE.md`](docs/MENU_TREE.md), [`docs/SCREENS.md`](docs/SCREENS.md) | Decoded menu structure and screen inventory |
 
 ## Community Resources
 
@@ -149,4 +162,4 @@ This repository is a community effort to preserve and document HG-UV98 informati
 - Source code analysis (especially of the Main MCU if it ever surfaces)
 - Troubleshooting and workarounds
 - Translations
-- Reverse engineering of the ARM firmware (GD32F103) — continue the work in [`reconstruction/`](reconstruction/README.md), see [`docs/RESEARCH_LOG.md`](docs/RESEARCH_LOG.md)
+- Reverse engineering of the ARM firmware (GD32F103) — the emulator-level reconstruction sweep is complete; current frontiers are hardware validation and the parked divergences (see [`docs/RESEARCH_LOG.md`](docs/RESEARCH_LOG.md) and [`docs/BUILD_AND_FLASH.md`](docs/BUILD_AND_FLASH.md))

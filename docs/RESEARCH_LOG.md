@@ -6148,3 +6148,11 @@ ab3c66d + e55a931 (the d1), 52bccd3 + this (the battery).
   tool restoration path), and the honest expectations (the emulator-proven
   list, the five hardware risks led by the calibrated timing, the two parked
   divergences, the absence of any recorded traffic).
+- **README.md updated to the post-sweep state**: the structure block (the new
+  docs + reconstruction/data + reconstruction/sim), the RE section rewritten
+  from "static evidence level 3 of 4" to the emulator-verified reality (the
+  differential bench, CK4 189,036/189,036, the 685-row ledger, the plain
+  hardware caveat), the docs table (BUILD_AND_FLASH/COVERAGE/rea/MENU_TREE/
+  SCREENS rows, the log = sessions 1-76), and the contributing bullet
+  ("continue the work" -> the sweep is complete; the frontiers = hardware
+  validation + the parked divergences).
