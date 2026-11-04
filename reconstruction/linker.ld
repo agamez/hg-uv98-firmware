@@ -72,8 +72,13 @@ SECTIONS
     _sitables = LOADADDR(.tables);
 
     /* The original's globals span starts right after the tables
-     * (0x20001734 — the .bss zero-init target, session 41). */
-    .data : AT(_etables) {
+     * (0x20001734 — the .bss zero-init target, session 41). The load
+     * image (LMA) follows the tables' flash copy — the s74 runtime-init
+     * mirror (the .data copy 0x0801D966) reads it from flash at boot.
+     * [fix: AT(_etables) captured the tables' RAM VMA, sending .data's
+     * load image to RAM and bloating the .bin to a 402 MB flash→RAM
+     * span — unflashable; LOADADDR-based LMA = the .tables pattern.] */
+    .data : AT(ALIGN(LOADADDR(.tables) + SIZEOF(.tables), 4)) {
         _sdata = .;
         *(.data*)
         . = ALIGN(4);

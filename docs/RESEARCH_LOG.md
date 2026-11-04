@@ -6125,3 +6125,26 @@ final build. The commits this session: dd4b09e (the key-13), 8e02989
 (the warm), 5197830 (the vendor), 7f9cc80 (the task table), 1bb28d4 +
 13ff124 (the SCAFFOLD clear + the c2), a5b4740 (the ledger), 9b027ee +
 ab3c66d + e55a931 (the d1), 52bccd3 + this (the battery).
+
+## Session 76 — the flashable-image fix + docs/BUILD_AND_FLASH.md
+
+- **The linker bug found and fixed** (linker.ld): `.data : AT(_etables)`
+  captured the tables' RAM VMA (the symbol lives inside the section's VMA
+  space), so .data's load image landed at 0x20001734 in RAM and objcopy
+  emitted a 402,642,748-byte .bin spanning flash→RAM — unflashable. The fix
+  = the .tables pattern: `AT(ALIGN(LOADADDR(.tables) + SIZEOF(.tables), 4))`.
+  Result: .data LMA = 0x080167DC (flash, after the tables' copy), _sidata =
+  0x080167DC, hguv98.bin = 273,303 bytes (~267 KB, fits the 496 KB app
+  region). The boot is now MORE faithful to the original's runtime init (the
+  s74 decompiled .data copy reads from flash; previously the copy was a RAM
+  no-op and Renode pre-loaded RAM directly).
+- **The behavior verification**: CK4 = 189,036/189,036 = 100.00% on the
+  fixed build — byte-identical, the pins unchanged (0x08004f80/0x0800502c),
+  the text unchanged (103,283).
+- **docs/BUILD_AND_FLASH.md written**: the build (the make targets, the
+  outputs, the image layout, the pin re-derivation), the emulator gate
+  (p3diff CK4), the flashing procedure (SWD/OpenOCD at 0x08004000, the
+  bootloader never touched, the stock-file reset-vector nuance + the vendor-
+  tool restoration path), and the honest expectations (the emulator-proven
+  list, the five hardware risks led by the calibrated timing, the two parked
+  divergences, the absence of any recorded traffic).
