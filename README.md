@@ -52,6 +52,14 @@ HG-UV98/
     └── pwnj0hn-HG-UV98/
 ```
 
+## Building Firmware
+
+The repository has two separate firmware targets. See
+[`docs/BUILDING.md`](docs/BUILDING.md) for the root `make` workflow, Docker
+build for the ARM reconstruction, and Keil C51 build for the APRS coprocessor.
+The APRS project requires a separately installed Keil compiler; it is not
+redistributed in the container.
+
 ## APRS Coprocessor Source Code
 
 | Specification | Value |
