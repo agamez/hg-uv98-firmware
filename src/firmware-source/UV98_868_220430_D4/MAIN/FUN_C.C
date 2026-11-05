@@ -19,8 +19,180 @@
 
 
 uchar WX_BUF[50] ;		  // Buffer size
-uchar WX_LINE1[30];
-uchar WX_LINE2[30];
+uchar WX_LINE1[64];
+uchar WX_LINE2[80];
+
+static uchar wx_is_digit(uchar value)
+{
+    return value >= '0' && value <= '9';
+}
+
+static uchar wx_read_uint(uchar start, uchar count, uint *value)
+{
+    uchar i;
+    uint result;
+
+    result = 0;
+    for (i = 0; i < count; i++)
+    {
+        if (!wx_is_digit(WX_BUF[start + i]))
+        {
+            return 0;
+        }
+
+        result = result * 10 + WX_BUF[start + i] - '0';
+    }
+
+    *value = result;
+    return 1;
+}
+
+static uchar wx_digits_valid(uchar start, uchar count)
+{
+    uchar i;
+
+    for (i = 0; i < count; i++)
+    {
+        if (!wx_is_digit(WX_BUF[start + i]))
+        {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+static uchar wx_frame_valid(void)
+{
+    uint value;
+
+    if (WX_BUF[0] != 'c' || WX_BUF[4] != 's' || WX_BUF[8] != 'g' ||
+        WX_BUF[12] != 't' || WX_BUF[16] != 'r' || WX_BUF[20] != 'p' ||
+        WX_BUF[24] != 'h' || WX_BUF[27] != 'b')
+    {
+        return 0;
+    }
+
+    if (!wx_digits_valid(1, 3) || !wx_digits_valid(5, 3) ||
+        !wx_digits_valid(9, 3) || !wx_digits_valid(17, 3) ||
+        !wx_digits_valid(21, 3) || !wx_digits_valid(25, 2) ||
+        !wx_digits_valid(28, 5))
+    {
+        return 0;
+    }
+
+    if (WX_BUF[13] == '-')
+    {
+        if (!wx_digits_valid(14, 2))
+        {
+            return 0;
+        }
+    }
+    else if (!wx_digits_valid(13, 3))
+    {
+        return 0;
+    }
+
+    if (!wx_read_uint(1, 3, &value) || value > 360 ||
+        !wx_read_uint(25, 2, &value) || value > 99)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
+static void wx_format_tenths(long value, uchar *text)
+{
+    uchar digits[6];
+    uchar count;
+    unsigned long whole;
+    uchar fraction;
+
+    if (value < 0)
+    {
+        *text++ = '-';
+        value = -value;
+    }
+
+    whole = (unsigned long)value / 10;
+    fraction = (uchar)(value % 10);
+    count = 0;
+
+    if (whole == 0)
+    {
+        *text++ = '0';
+    }
+    else
+    {
+        while (whole > 0)
+        {
+            digits[count++] = (uchar)(whole % 10) + '0';
+            whole /= 10;
+        }
+
+        while (count > 0)
+        {
+            *text++ = digits[--count];
+        }
+    }
+
+    *text++ = '.';
+    *text++ = fraction + '0';
+    *text = 0;
+}
+
+static uchar wx_format_temperature(uchar *text)
+{
+    uint raw;
+    long fahrenheit;
+    long celsius_tenths;
+
+    if (WX_BUF[13] == '-')
+    {
+        if (!wx_read_uint(14, 2, &raw))
+        {
+            return 0;
+        }
+        fahrenheit = -(long)raw;
+    }
+    else if (!wx_read_uint(13, 3, &raw))
+    {
+        return 0;
+    }
+    else
+    {
+        fahrenheit = raw;
+    }
+
+    celsius_tenths = ((long)fahrenheit - 32) * 50;
+    if (celsius_tenths < 0)
+    {
+        celsius_tenths = (celsius_tenths - 4) / 9;
+    }
+    else
+    {
+        celsius_tenths = (celsius_tenths + 4) / 9;
+    }
+
+    wx_format_tenths(celsius_tenths, text);
+    return 1;
+}
+
+static uchar wx_format_converted(uchar start, uchar *text, uint multiplier)
+{
+    uint value;
+    unsigned long converted;
+
+    if (!wx_read_uint(start, 3, &value))
+    {
+        return 0;
+    }
+
+    converted = ((unsigned long)value * multiplier + 50) / 100;
+    wx_format_tenths((long)converted, text);
+    return 1;
+}
 
 
 uchar read_hx(uchar *p)	   // Display 8 directions
@@ -164,108 +336,47 @@ void FUN_C_KISS_TO_ASC(uint add)  // Read the stored KISS data, convert it into 
 
 void FUN_C_DISP_WX()  // Display weather board data
 {
-    uchar  i  ;
+    uchar  i;
     uchar temp[10];
-    float dat;	// With decimal point, positive and negative
 
     // --------------------------------------------
-    // UART1_SendString(WX_BUF); //debugging
-    // wxdata= "000/000g000t078r000p000h99b09966";
-    // Extracted external interface board data, format: //000/000g000t078r000p000h99b09966
-    // Extracted meteorological data, 32-byte length format: //c000s000g000t093r000p000h48b10016
+    // APRS weather data: c000s000g000t093r000p000h48b10016
 
     // --------------------------------------------
     WX_LINE1[0] = 0;	 	// 
-    strcat(WX_LINE1, " ");	// 2 spaces
 
     // -------------------------------------------- //Wind direction
     for (i = 0; i < 3; i++)
     {
-        temp[i] = WX_BUF[0 + i];
+        temp[i] = WX_BUF[1 + i];
         temp[i + 1] = 0;
     }
 
-    if (temp[0] == '0')		// The first 1-2 bits are blanked
-    {
-        temp[0] = ' '	;
-
-        if (temp[1] == '0')  temp[1] = ' '	;
-    }
-
+    strcat(WX_LINE1, "Dir ");
     strcat(WX_LINE1, temp);
-    strcat(WX_LINE1, "  "); // 2 spaces
+    strcat(WX_LINE1, "deg Avg ");
 
     // -------------------------------------------- //The average wind speed address in the previous minute is 4
-    for (i = 0; i < 3; i++)
-    {
-        temp[i] = WX_BUF[4 + i];
-        temp[i + 1] = 0;
-    }
-
-    // Wind speed, Imperial to Metric, mile/hour*1.61*1000/3600=M/S
-    dat = (temp[0] - 0x30) * 100 + (temp[1] - 0x30) * 10 + (temp[2] - 0x30);
-    // WD=30;
-// WD=WD*1.61/3.6;
-// temp[0]=(uint)WD/10%10+0X30 ;  temp[1]=(uint)WD%10+0X30 ;    temp[2] =0x00;
-    dat = dat * 1.61 / 3.6 * 10;
-    temp[0] = (uint)dat / 100 % 10 + 0X30 ;
-    temp[1] = (uint)dat / 10 % 10 + 0X30 ;
-    temp[2] = '.' ;
-    temp[3] = (uint)dat % 10 + 0X30 ;
-    temp[4] = 0x00;
-
-    if (temp[0] == '0')
-    {
-        temp[0] = ' '	;    // The first 1 bit is blanked
-    }
-
+    wx_format_converted(5, temp, 447);	// mph to m/s, rounded to 0.1
     strcat(WX_LINE1, temp);
-    strcat(WX_LINE1, "m/s  "); // 
+    strcat(WX_LINE1, "m/s RH");
 
     // -------------------------------------------- //Humidity
-    for (i = 0; i < 2; i++)
+    if (WX_BUF[25] == '0' && WX_BUF[26] == '0')
     {
-        temp[i] = WX_BUF[24 + i];
-        temp[i + 1] = 0;
+        strcat(WX_LINE1, "100");
     }
-
-    strcat(WX_LINE1, temp);
-    strcat(WX_LINE1, "% "); // 1 space
+    else
+    {
+        temp[0] = WX_BUF[25];
+        temp[1] = WX_BUF[26];
+        temp[2] = 0;
+        strcat(WX_LINE1, temp);
+    }
+    strcat(WX_LINE1, "% T");
 
     // -------------------------------------------- //temperature
-    for (i = 0; i < 3; i++)
-    {
-        temp[i] = WX_BUF[12 + i];
-        temp[i + 1] = 0;
-    }
-
-    if (temp[0] == '-')
-    {
-        dat = -((float)(temp[1] - 0x30) * 10 + (float)(temp[2] - 0x30)) ;
-    }
-    else
-    {
-        dat = (float)(temp[0] - 0x30) * 100 + (float)(temp[1] - 0x30) * 10 + (float)(temp[2] - 0x30);
-    }
-
-    dat = (dat - 32) / 1.8 * 10;	// Fahrenheit to Celsius // Keep one decimal place
-
-    if (dat < 0)	 // Below zero // Convert to positive number
-    {
-        dat = -dat;
-        temp[0] = '-';
-    }
-    else
-    {
-        temp[0] = ' ';
-    }
-
-    temp[1] = (uint)dat / 100 % 10 + 0X30 ;
-    temp[2] = (uint)dat / 10 % 10 + 0X30 ;
-    temp[3] = '.' ;
-    temp[4] = (uint)dat % 10 + 0X30 ;
-    temp[5] = 0x00;
-
+    wx_format_temperature(temp);
     strcat(WX_LINE1, temp);
     strcat(WX_LINE1, "C"); // 
 
@@ -279,103 +390,49 @@ void FUN_C_DISP_WX()  // Display weather board data
     // --------------------------------------------
     WX_LINE2[0] = 0;	 	// 
 
-// strcat(WX_LINE2,&quot; &quot;); //1 space
     // -------------------------------------------- //Previous hour rainfall
-    for (i = 0; i < 3; i++)
-    {
-        temp[i] = WX_BUF[16 + i];
-        temp[i + 1] = 0;
-    }
-
-    // Rainfall, Imperial to Metric, 0.01 inches*0.254 mm
-    dat	= (float)(temp[0] - 0x30) * 100 + (float)(temp[1] - 0x30) * 10 + (float)(temp[2] - 0x30);
-    dat = dat * 0.254 * 10;
-    temp[0] = (uint)dat / 100 % 10 + 0X30 ;
-    temp[1] = (uint)dat / 10 % 10 + 0X30 ;
-    temp[2] = '.' ;
-    temp[3] = (uint)dat % 10 + 0X30 ;
-    temp[4] = 0x00;
-
-    if (temp[0] == '0')
-    {
-        temp[0] = ' '	;    // The first 1 bit is blanked
-    }
-
+    strcat(WX_LINE2, "Rain1h ");
+    wx_format_converted(17, temp, 254);	// 0.01 in to mm, rounded to 0.1
     strcat(WX_LINE2, temp);
-    strcat(WX_LINE2, "mm "); // 
-
+    strcat(WX_LINE2, "mm R24h ");
 
     // --------------------------------------------
     // -------------------------------------------- //Previous 24 hours rainfall
-    for (i = 0; i < 3; i++)
-    {
-        temp[i] = WX_BUF[20 + i];
-        temp[i + 1] = 0;
-    }
-
-    // Rainfall, Imperial to Metric, 0.01 inches*0.254 mm
-    dat	= (float)(temp[0] - 0x30) * 100 + (float)(temp[1] - 0x30) * 10 + (float)(temp[2] - 0x30);
-    dat = dat * 0.254 * 10;
-    temp[0] = (uint)dat / 100 % 10 + 0X30 ;
-    temp[1] = (uint)dat / 10 % 10 + 0X30 ;
-    temp[2] = '.' ;
-    temp[3] = (uint)dat % 10 + 0X30 ;
-    temp[4] = 0x00;
-
-    if (temp[0] == '0')
-    {
-        temp[0] = ' '	;    // The first 1 bit is blanked
-    }
-
+    wx_format_converted(21, temp, 254);
     strcat(WX_LINE2, temp);
-    strcat(WX_LINE2, "mm "); // 
+    strcat(WX_LINE2, "mm G");
 
     // --------------------------------------------
 
     // -------------------------------------------- //The highest instantaneous wind speed gust in the first 5 minutes
-    for (i = 0; i < 3; i++)
-    {
-        temp[i] = WX_BUF[8 + i];
-        temp[i + 1] = 0;
-    }
-
-    // Wind speed, Imperial to Metric, mile/hour*1.61*1000/3600=M/S
-    dat = (temp[0] - 0x30) * 100 + (temp[1] - 0x30) * 10 + (temp[2] - 0x30);
-    // WD=30;
-// WD=WD*1.61/3.6;
-// temp[0]=(uint)WD/10%10+0X30 ;  temp[1]=(uint)WD%10+0X30 ;    temp[2] =0x00;
-    dat = dat * 1.61 / 3.6 * 10;
-    temp[0] = (uint)dat / 100 % 10 + 0X30 ;
-    temp[1] = (uint)dat / 10 % 10 + 0X30 ;
-    temp[2] = '.' ;
-    temp[3] = (uint)dat % 10 + 0X30 ;
-    temp[4] = 0x00;
-
-    if (temp[0] == '0')
-    {
-        temp[0] = ' '	;    // The first 1 bit is blanked
-    }
-
+    wx_format_converted(9, temp, 447);
     strcat(WX_LINE2, temp);
-    strcat(WX_LINE2, " "); // //strcat(WX_LINE2,"m/s ");//
+    strcat(WX_LINE2, "m/s P");
 
     // -------------------------------------------- //Air pressure has 5 digits
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < 4; i++)
     {
-        temp[i] = WX_BUF[27 + i];
-        temp[i + 1] = 0;
+        temp[i] = WX_BUF[28 + i];
     }
+    temp[4] = 0;
 
-    temp[5] = temp[4];
-    temp[4] = '.';
-    temp[6] = 0;	 // Add decimal point
-
-    if (temp[0] == '0')
+    i = 0;
+    while (i < 3 && temp[i] == '0')
     {
-        temp[0] = ' '	;    // The first 1 bit is blanked
+        i++;
     }
-
+    if (i == 3 && temp[3] == '0')
+    {
+        temp[0] = '0';
+        temp[1] = 0;
+        i = 0;
+    }
+    strcat(WX_LINE2, temp + i);
+    strcat(WX_LINE2, ".");
+    temp[0] = WX_BUF[32];
+    temp[1] = 0;
     strcat(WX_LINE2, temp);
+    strcat(WX_LINE2, "hPa");
     // --------------------------------------------	 //
     strcat(WX_LINE2, ","); // 
 
@@ -393,6 +450,7 @@ void FUN_C_WX(uint add)
     uint i ;
     uchar dat;
     uchar idx;
+    uchar found;
 
     if (	AT24CXX_READ(add + 0X3F) != '_'	)
     {
@@ -405,28 +463,39 @@ void FUN_C_WX(uint add)
 
     // Display custom information
     idx = 0;
+    found = 0;
 
     for (i = 0; i < 200; i++) 	// Retrieve weather icons
     {
-        dat = ASC_TEMP[idx];
-        idx++;
+        dat = ASC_TEMP[i];
 
-        if (dat == '_')
-        {
-            break;   // Contains weather icons
-        }
-
-        if (i > 198)
+        if (dat == 0)
         {
             return;
         }
+        if (dat == '_')
+        {
+            idx = i + 1;
+            found = 1;
+            break;   // Contains weather icons
+        }
     }
 
-    // Extracted meteorological data, 32-byte length format: //c000s000g000t093r000p000h48b10016
-    for (i = 0; i < 32; i++)
+    if (!found || idx > 267)
+    {
+        return;
+    }
+
+    // APRS weather payload is 33 bytes: c000s000g000t093r000p000h48b10016.
+    for (i = 0; i < 33; i++)
     {
         WX_BUF[i] = ASC_TEMP[idx + i];
-        WX_BUF[i + 1] = 0;
+    }
+    WX_BUF[33] = 0;
+
+    if (!wx_frame_valid())
+    {
+        return;
     }
 
     FUN_C_DISP_WX(); // Display weather board data
@@ -458,7 +527,7 @@ void FUN_C_WX(uint add)
 
 // P = rainfall (in hundredths of an inch) since midnight. Not required
 // h = humidity (00% = 100%). //Send DTH11 humidity data
-// b = air pressure 0.1pa
+// b = air pressure in tenths of hPa
 
 // Reverse the direction of the vehicle from the north to the front of the vehicle.
 // my_dir My heading (arrow direction), UI_Angle_N Due north (dot position) UI_Angle_CAR Relative direction to the front of the vehicle
@@ -997,4 +1066,3 @@ uchar FUN_C(uint idx)	   // Detailed beacon
 // 0-5 bytes call sign BH4TDV
 // 6-byte SSID-XX 99
 // 7-byte beacon KISS storage address index 0-99
-
