@@ -9,7 +9,7 @@ DOCKER ?= docker
 DOCKER_IMAGE ?= hg-uv98-firmware-builder
 KEIL_UV4 ?= UV4
 
-.DEFAULT_GOAL := all
+.DEFAULT_GOAL := main-container
 
 .PHONY: all help main main-container aprs test-host clean
 
@@ -18,7 +18,8 @@ all: main-container aprs
 help:
 	@printf '%s\n' \
 	  'HG-UV98 firmware build targets:' \
-	  '  make all           Build the ARM image in Docker and APRS HEX with Keil C51' \
+	  '  make              Build the ARM reconstruction in Docker (default)' \
+	  '  make all          Build ARM in Docker and APRS HEX with Keil C51' \
 	  '  make main          Build the ARM reconstruction using the local GNU toolchain' \
 	  '  make main-container Build the ARM reconstruction in Docker' \
 	  '  make aprs          Build APRS HEX using Keil UV4 (set KEIL_UV4 if needed)' \
