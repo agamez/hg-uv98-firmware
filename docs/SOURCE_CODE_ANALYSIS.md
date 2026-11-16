@@ -92,6 +92,17 @@ This firmware handles:
 | `HEX_TO_ASC.C` | 50 | Hex to ASCII conversion |
 | `PTT_FUN.C` | 36 | PTT button functions |
 
+### APRS weather-detail display
+
+`FUN_C_WX()` recognizes the fixed 33-byte APRS weather payload
+(`c...s...g...t...r...p...h..b.....`) in a weather-symbol beacon before
+appending its detail to the `$C` response. The display reports direction,
+average/gust wind, humidity, temperature, one-hour and 24-hour rainfall, and
+pressure with explicit labels and metric units. Wind and rainfall conversions
+are rounded to one decimal place; APRS humidity `00` is shown as 100%.
+Malformed or incomplete weather payloads are omitted rather than formatted
+from stale or nonnumeric bytes.
+
 ### SENSOR Directory (`UV98_868_220430_D4/SENSOR/`)
 
 | File | Description |
